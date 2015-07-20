@@ -1,0 +1,471 @@
+#if !defined(_mpes_h_)
+#define _mpes_h_
+//#####################################################################
+//########################### MPES ####################################
+//#####################################################################
+
+
+void MPES(int number_of_procs, int myrank);
+__global__ void globalMPES(struct Rect * query, int *b_hit, long * d_leafNode_offset, int* d_numberOfLeafnodes,  int mpiSEARCH, int boundary_index, int PARTITIONED);
+__global__ void globalMPES_ILP(struct Rect * query, int *b_hit, long * d_leafNode_offset, int* d_numberOfLeafnodes,  int mpiSEARCH, int boundary_index, int PARTITIONED);
+__global__ void globalMPES_BVH(struct Rect * query, int *b_hit, int mpiSEARCH,  int PARTITIONED);
+__global__ void globalMPES_ILP_BVH(struct Rect * query, int *b_hit, int mpiSEARCH,  int PARTITIONED );
+
+//#####################################################################
+//####################### IMPLEMENTATIONS #############################
+//#####################################################################
+
+
+void MPES(int number_of_procs, int myrank)
+{
+	cudaEvent_t start_event, stop_event;
+	cudaEventCreate(&start_event);
+	cudaEventCreate(&stop_event);
+	float elapsed_time;
+
+	//Open query file
+	char queryFileName[100];
+	if ( !strcmp(DATATYPE, "high"))
+		sprintf(queryFileName, "/home/jwkim/inputFile/%s_dim_query.%d.bin.%ss", DATATYPE,NUMDIMS,SELECTIVITY);
+	else
+		sprintf(queryFileName, "/home/jwkim/inputFile/%s_dim_query.%d.bin.%ss.%s", DATATYPE,NUMDIMS,SELECTIVITY,querySize);
+
+	FILE *fp = fopen(queryFileName, "r");
+	if(fp==0x0){
+		printf("Line %d : query file open error\n",__LINE__);
+		printf("%s\n",queryFileName);
+		exit(1);
+	}
+
+	long leafNode_offset[2];
+	int numberOfLeafnodes[2];
+	long* d_leafNode_offset;
+	int* d_numberOfLeafnodes;
+
+	if( BUILD_TYPE == 0)
+	{
+		leafNode_offset[0] = (indexSize[0]/PGSIZE) - number_of_node_in_level[0][0];
+		leafNode_offset[1] = (indexSize[1]/PGSIZE) - number_of_node_in_level[1][0];
+
+		numberOfLeafnodes[0] = number_of_node_in_level[0][0]; 
+		numberOfLeafnodes[1] = number_of_node_in_level[1][0];
+
+		cudaMalloc((void**)&d_leafNode_offset, sizeof(long)*2);
+		cudaMemcpy( d_leafNode_offset, leafNode_offset, sizeof(long)*2, cudaMemcpyHostToDevice);
+
+		cudaMalloc((void**)&d_numberOfLeafnodes, sizeof(int)*2);
+		cudaMemcpy( d_numberOfLeafnodes, numberOfLeafnodes, sizeof(int)*2, cudaMemcpyHostToDevice);
+	}
+
+	int h_hit[NUMBLOCK];
+	long t_hit = 0;
+	int* d_hit;
+	cudaMalloc( (void**) &d_hit,   NUMBLOCK*sizeof(int) );
+
+
+	if( PARTITIONED == 1 )
+	{
+		struct Rect* d_query;
+		cudaMalloc( (void**) &d_query, NUMBLOCK*sizeof(struct Rect) );
+		struct Rect query[NUMBLOCK];
+
+
+		cudaEventRecord(start_event, 0);
+		for( int i = 0 ; i < NUMSEARCH; ){
+			int nBatch=0;
+			for(nBatch=0; nBatch < NUMBLOCK && i < NUMSEARCH; nBatch++, i++) {
+				//DEBUG
+				for(int j=0;j<2*NUMDIMS;j++){
+					fread(&query[nBatch].boundary[j], sizeof(float), 1, fp);
+				}	
+			}
+			cudaMemcpy(d_query, query, nBatch*sizeof(struct Rect), cudaMemcpyHostToDevice);
+
+#ifndef ILP
+			if( BUILD_TYPE == 0 )
+				globalMPES<<<nBatch, NODECARD>>>(d_query, d_hit, d_leafNode_offset, d_numberOfLeafnodes,  nBatch, boundary_of_trees, PARTITIONED);
+			else
+				globalMPES_BVH<<<nBatch, NODECARD>>>(d_query, d_hit, nBatch, PARTITIONED);
+
+#else
+			if( BUILD_TYPE == 0 )
+				globalMPES_ILP<<<nBatch, NUMTHREADS>>>(d_query, d_hit, d_leafNode_offset, d_numberOfLeafnodes,  nBatch, boundary_of_trees, PARTITIONED);
+			else
+				globalMPES_ILP_BVH<<<nBatch, NUMTHREADS>>>(d_query, d_hit, nBatch, PARTITIONED);
+#endif
+			cudaMemcpy(h_hit, d_hit, nBatch*sizeof(int), cudaMemcpyDeviceToHost);
+
+			for(int j=0;j<nBatch;j++){
+				t_hit += h_hit[j];
+			}
+
+		}
+
+		cudaThreadSynchronize();
+		cudaEventRecord(stop_event, 0) ;
+		cudaEventSynchronize(stop_event) ;
+
+		cudaFree( d_query);
+	}else{
+
+		struct Rect* d_query;
+		cudaMalloc( (void**) &d_query, sizeof(struct Rect) );
+		struct Rect query;
+
+
+		cudaEventRecord(start_event, 0);
+		for( int i = 0 ; i < NUMSEARCH; i++ ){
+			//DEBUG
+			for(int j=0;j<2*NUMDIMS;j++){
+				fread(&query.boundary[j], sizeof(float), 1, fp);
+			}	
+			cudaMemcpy(d_query, &query, sizeof(struct Rect), cudaMemcpyHostToDevice);
+
+
+#ifndef ILP
+			if( BUILD_TYPE == 0 )
+				globalMPES<<<NUMBLOCK, NODECARD>>>(d_query, d_hit, d_leafNode_offset, d_numberOfLeafnodes, 1, boundary_of_trees, PARTITIONED);
+			else
+				globalMPES_BVH<<<NUMBLOCK, NODECARD>>>(d_query, d_hit, 1, PARTITIONED);
+#else
+			if( BUILD_TYPE == 0 )
+				globalMPES_ILP<<<NUMBLOCK, NUMTHREADS>>>(d_query, d_hit, d_leafNode_offset, d_numberOfLeafnodes,  1, boundary_of_trees, PARTITIONED);
+			else
+				globalMPES_ILP_BVH<<<NUMBLOCK, NUMTHREADS>>>(d_query, d_hit,  1, PARTITIONED);
+#endif
+			cudaMemcpy(h_hit, d_hit, NUMBLOCK*sizeof(int), cudaMemcpyDeviceToHost);
+
+			for(int j=0;j<NUMBLOCK;j++){
+				t_hit += h_hit[j];
+			}
+		}
+		cudaThreadSynchronize();
+		cudaEventRecord(stop_event, 0) ;
+		cudaEventSynchronize(stop_event) ;
+
+		cudaFree( d_query);
+
+	}
+
+
+	cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
+
+	printf("MPES time          : %.3f ms\n", elapsed_time);
+	printf("MPES HIT           : %lu\n",t_hit);
+	printf("MPES HIT ratio(%)  : %5.5f\n",((t_hit/NUMSEARCH)/(float)(NUMDATA/100)));
+
+	t_time[0] = elapsed_time;
+
+	fclose(fp);
+
+	cudaFree( d_leafNode_offset); 
+	cudaFree( d_numberOfLeafnodes); 
+	cudaFree( d_hit); 
+}
+
+
+
+__global__ void globalMPES(struct Rect * _query, int *b_hit, long * d_leafNode_offset, int* d_numberOfLeafnodes,  int mpiSEARCH, int boundary_index, int PARTITIONED)
+{
+	int bid = blockIdx.x;
+	int tid = threadIdx.x;
+
+
+	int tree_index;
+	int partition_index=0;
+
+	int block_init_position = bid;
+	int block_incremental_value = devNUMBLOCK;
+
+	if( PARTITIONED > 1 ){
+		partition_index = bid;
+		//task parallelism for partitioned index
+		block_init_position = 0;
+		block_incremental_value = 1;
+	}
+	if( boundary_index > bid )
+		tree_index = 0;
+	else
+		tree_index = 1;
+
+
+	long leafNode_offset = d_leafNode_offset[tree_index];
+	int numberOfLeafnodes = d_numberOfLeafnodes[tree_index];
+
+	__shared__ int t_hit[NODECARD];
+	__shared__ struct Rect query;
+	b_hit[bid] = 0;
+	t_hit[tid] = 0;
+
+	__syncthreads();
+
+	struct Node* root = deviceRoot[partition_index]+leafNode_offset;
+
+	for( int n = block_init_position; n < mpiSEARCH ; n += block_incremental_value ) 
+	{
+		query = _query[n];
+		struct Node* node = root;
+
+		for(int i=0; i<numberOfLeafnodes; i++ )
+		{
+			if( tid < node->count)
+			{
+				if( devRectOverlap(&query, &node->branch[tid].rect ))
+				{
+					t_hit[tid]++;
+				}
+			}
+			node++;
+		}
+	}
+
+	__syncthreads();
+
+	int N = NODECARD/2 + NODECARD%2;
+
+	while(N > 1){
+		if(tid<N){
+			t_hit[tid] = t_hit[tid] + t_hit[tid+N];
+			t_hit[tid+N] = 0;
+		}
+		N = N/2+N%2;
+		__syncthreads();
+	}
+
+	if(tid == 0) {
+		if(N==1){
+			t_hit[0] = t_hit[0] + t_hit[1];
+		}
+		b_hit[bid] = t_hit[0];
+	}
+}
+
+__global__ void globalMPES_ILP(struct Rect * _query, int *b_hit, long * d_leafNode_offset, int* d_numberOfLeafnodes,  int mpiSEARCH, int boundary_index, int PARTITIONED)
+{
+	int bid = blockIdx.x;
+	int tid = threadIdx.x;
+
+
+	int tree_index;
+	int partition_index=0;
+
+	int block_init_position = bid;
+	int block_incremental_value = devNUMBLOCK;
+
+	if( PARTITIONED > 1 ){
+		partition_index = bid;
+		//task parallelism for partitioned index
+		block_init_position = 0;
+		block_incremental_value = 1;
+	}
+	if( boundary_index > bid )
+		tree_index = 0;
+	else
+		tree_index = 1;
+
+
+	long leafNode_offset = d_leafNode_offset[tree_index];
+	int numberOfLeafnodes = d_numberOfLeafnodes[tree_index];
+
+	__shared__ int t_hit[NODECARD];
+	__shared__ struct Rect query;
+	b_hit[bid] = 0;
+
+
+	for(int thread = tid; thread < NODECARD; thread+= NUMTHREADS)
+		t_hit[thread] = 0;
+	__syncthreads();
+
+	struct Node* root = deviceRoot[partition_index]+leafNode_offset;
+
+	for( int n = block_init_position; n < mpiSEARCH ; n += block_incremental_value ) 
+	{
+		query = _query[n];
+		struct Node* node = root;
+
+		for(int i=0; i<numberOfLeafnodes; i++  )
+		{
+			for(int thread = tid; thread < NODECARD ; thread+= NUMTHREADS)
+			{
+				if( (thread < node->count) && (devRectOverlap(&query, &node->branch[thread].rect )))
+				{
+					t_hit[thread]++;
+				}
+			}
+			node++;
+		}
+	}
+	__syncthreads();
+
+	int N = NODECARD/2 + NODECARD%2;
+
+	while(N > 1){
+		for ( int thread = tid ; thread < N ; thread+= NUMTHREADS){
+			t_hit[thread] = t_hit[thread] + t_hit[thread+N];
+		}
+		N = N/2+N%2;
+		__syncthreads();
+	}
+
+	if(tid == 0) {
+		if(N==1){
+			t_hit[0] = t_hit[0] + t_hit[1];
+		}
+		b_hit[bid] = t_hit[0];
+	}
+}
+__global__ void globalMPES_BVH(struct Rect * _query, int *b_hit, int mpiSEARCH, int PARTITIONED)
+{
+	int bid = blockIdx.x;
+	int tid = threadIdx.x;
+
+
+	int partition_index=0;
+	int block_init_position = bid;
+	int block_incremental_value = devNUMBLOCK;
+
+	if( PARTITIONED > 1 ){
+		partition_index = bid;
+		//task parallelism for partitioned index
+		block_init_position = 0;
+		block_incremental_value = 1;
+	}
+
+	__shared__ int t_hit[NODECARD];
+	__shared__ struct Rect query;
+	b_hit[bid] = 0;
+	t_hit[tid] = 0;
+
+	__syncthreads();
+
+	BVH_Node* leftmost_leafnode = deviceBVHRoot[partition_index];
+
+	while( leftmost_leafnode->level > 0 )
+	{
+		leftmost_leafnode = leftmost_leafnode->branch[0].child;
+	}
+
+
+	for( int n = block_init_position; n < mpiSEARCH ; n += block_incremental_value ) 
+	{
+		query = _query[n];
+		BVH_Node* node = leftmost_leafnode;
+
+		while( node != 0x0 )
+		{
+
+			if( tid < node->count)
+			{
+				if( devRectOverlap(&query, &node->branch[tid].rect ))
+				{
+					t_hit[tid]++;
+				}
+			}
+			node = node->sibling;
+		}
+	}
+
+	__syncthreads();
+
+	int N = NODECARD/2 + NODECARD%2;
+
+	while(N > 1){
+		if(tid<N){
+			t_hit[tid] = t_hit[tid] + t_hit[tid+N];
+			t_hit[tid+N] = 0;
+		}
+		N = N/2+N%2;
+		__syncthreads();
+	}
+
+	if(tid == 0) {
+		if(N==1){
+			t_hit[0] = t_hit[0] + t_hit[1];
+		}
+		b_hit[bid] = t_hit[0];
+	}
+}
+
+__global__ void globalMPES_ILP_BVH(struct Rect * _query, int *b_hit, int mpiSEARCH, int PARTITIONED )
+{
+	int bid = blockIdx.x;
+	int tid = threadIdx.x;
+
+
+	int partition_index=0;
+
+	int block_init_position = bid;
+	int block_incremental_value = devNUMBLOCK;
+
+	if( PARTITIONED > 1 ){
+		partition_index = bid;
+		//task parallelism for partitioned index
+		block_init_position = 0;
+		block_incremental_value = 1;
+	}
+
+	__shared__ int t_hit[NODECARD];
+	__shared__ struct Rect query;
+	b_hit[bid] = 0;
+
+
+	for(int thread = tid; thread < NODECARD; thread+= NUMTHREADS)
+		t_hit[thread] = 0;
+	__syncthreads();
+
+	BVH_Node* leftmost_leafnode = deviceBVHRoot[partition_index];
+
+//printf("MAX hIndex %lu \n",MAX_hIndex);
+
+	//should go down to leftmost leafnode
+	while( leftmost_leafnode->level > 0 )
+	{
+//		device_print_BVHnode(leftmost_leafnode);
+		leftmost_leafnode = leftmost_leafnode->branch[0].child;
+	}
+
+
+	for( int n = block_init_position; n < mpiSEARCH ; n += block_incremental_value ) 
+	{
+		query = _query[n];
+//printf("first for\n");
+		BVH_Node* node = leftmost_leafnode;
+		//device_print_node(node);
+
+		while( node != 0x0 )
+		{
+			//device_print_BVHnode(node);
+//printf("second for\n");
+			for(int thread = tid; thread < node->count ; thread+= NUMTHREADS)
+			{
+//printf("third for\n");
+				if( devRectOverlap(&query, &node->branch[thread].rect ))
+				{
+					t_hit[thread]++;
+//printf("hit!\n");
+				}
+			}
+			node = node->sibling;
+			//device_print_node(node);
+		}
+	}
+	__syncthreads();
+
+	int N = NODECARD/2 + NODECARD%2;
+
+	while(N > 1){
+		for ( int thread = tid ; thread < N ; thread+= NUMTHREADS){
+			t_hit[thread] = t_hit[thread] + t_hit[thread+N];
+		}
+		N = N/2+N%2;
+		__syncthreads();
+	}
+
+	if(tid == 0) {
+		if(N==1){
+			t_hit[0] = t_hit[0] + t_hit[1];
+		}
+		b_hit[bid] = t_hit[0];
+	}
+}
+#endif
