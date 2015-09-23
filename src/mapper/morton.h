@@ -1,7 +1,11 @@
-#if !defined( _morton_h_ )
-#define _morton_h_
+#pragma once
 
 #include <index.h>
+
+namespace ursus {
+
+class Mapper{
+};
 
 //Morton Code
 unsigned int expandBits(unsigned int v);
@@ -11,4 +15,4 @@ inline unsigned long long splitByDim(unsigned long long a, const unsigned dim);
 inline unsigned long long mortonEncode_magicbits(unsigned long long x, unsigned long long y, unsigned long long z);
 inline unsigned long long mortonEncode_magicbits2(unsigned long long *input, const unsigned int dim);
 
-#endif
+}  // End ursus namespace
