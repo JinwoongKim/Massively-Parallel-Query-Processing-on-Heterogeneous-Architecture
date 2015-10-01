@@ -9,9 +9,9 @@ namespace mapper {
 * @param points : n number_of_bits-bit coordinates.
 * @return index value : number_of_dimensions*number_of_bits bits.
 */
-
 unsigned long long 
 Hilbert_Curve::MappingIntoSingle(Point points){
+
   unsigned int number_of_dimensions = points.GetDims();
   unsigned int number_of_bits = points.GetBits();
   unsigned long long *coord = points.GetPoints();

@@ -19,14 +19,21 @@ class Point{
     // ACCESSORS
     //===--------------------------------------------------------------------===//
 
-    unsigned int GetDims(void) const{ return number_of_dimensions; }
+    unsigned int GetDims(void) const;
 
-    unsigned int GetBits(void) const{ return number_of_bits; }
+    unsigned int GetBits(void) const;
 
-    unsigned long long* GetPoints(void) const{ return points; }
+    unsigned long long* GetPoints(void) const;
+
+    void SetDims(unsigned int number_of_dimensions);
+
+    void SetBits(unsigned int number_of_bits);
+
+    void SetPoints(unsigned long long* points);
 
   private:
     unsigned number_of_dimensions;
+
     unsigned number_of_bits;
 
     unsigned long long* points;
