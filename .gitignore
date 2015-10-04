@@ -2,6 +2,8 @@
 ## Build artifacts
 ## -------------------------------
 bin/
+*.o
+Makefile
 
 ## -------------------------------
 ## Backup artifacts
