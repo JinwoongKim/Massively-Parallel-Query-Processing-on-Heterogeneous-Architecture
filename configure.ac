@@ -5,9 +5,10 @@
  AC_PREREQ([2.69])
 
 # Initialize AC: ACINIT( package_name, version, bug_report_address)
-AC_INIT([ursus], [0.0.1], [jwkim.unist@gmail.com])
+AC_INIT([Ursus], [0.0.1], [jwkim.unist@gmail.com])
 AC_CONFIG_HEADERS([config.h:config-h.in])
 AC_CONFIG_AUX_DIR([config])
+AC_CONFIG_MACRO_DIR([m4])
 AM_INIT_AUTOMAKE([1.0 foreign subdir-objects])
 
 # Enable static library

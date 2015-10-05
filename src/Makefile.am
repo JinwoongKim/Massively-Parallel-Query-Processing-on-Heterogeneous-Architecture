@@ -13,8 +13,7 @@ include $(top_srcdir)/common.am
 
 include $(srcdir)/mapper/Makefile.am
 
-bin_ursus_PROGRAMS = ursus
-bin_ursusdir = $(top_srcdir)/bin/
+bin_PROGRAMS = ursus
 
 lib_LTLIBRARIES = libursus.la 
 
@@ -23,8 +22,8 @@ lib_LTLIBRARIES = libursus.la
 ######################################################################
 
 libursus_la_SOURCES = \
-		         $(common_FILES) \
-			 $(mapper_FILES) 
+		      $(common_FILES) \
+		      $(mapper_FILES) 
 										
 ######################################################################
 # URSUS

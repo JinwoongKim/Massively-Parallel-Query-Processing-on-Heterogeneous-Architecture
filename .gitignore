@@ -10,8 +10,8 @@ Makefile
 aclocal.m4
 autom4te.cache/
 compile
-config.guess
-config.sub
+config-h.*
+config.*
 configure
 depcomp
 install-sh
