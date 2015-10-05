@@ -2,8 +2,21 @@
 ## Build artifacts
 ## -------------------------------
 bin/
+build/
 *.o
+*.in
+*.swp
 Makefile
+aclocal.m4
+autom4te.cache/
+compile
+config.guess
+config.sub
+configure
+depcomp
+install-sh
+ltmain.sh
+missing
 
 ## -------------------------------
 ## Backup artifacts
@@ -19,4 +32,3 @@ GRTAGS
 GPATH
 tags
 cscope.*
-
