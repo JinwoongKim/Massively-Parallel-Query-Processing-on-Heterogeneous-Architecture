@@ -1,1 +1,10 @@
-README
+You can find more information in our papers,
+
+[1]Jinwoong Kim, Won-Ki Jeong, and Beomseok Nam
+"Exploiting Massive Parallelism for Indexing Scientific Datasets on the GPU", 
+IEEE Transactions on Parallel and Distributed Systems(TPDS), Vol. 26, No. 8, pp 2258-2271, Aug. 2015.
+(Selected as the featured paper of Aug. 2015 issue) 
+
+[2]Jinwoong Kim and Beomseok Nam 
+"Parallel Multi-dimensional Range Query Processing with R-Trees on GPU", 
+Journal of Parallel and Distributed Computing (JPDC), Volume 73, Issue 8, pp 1195-1207, Elsevier, 2013.
