@@ -3,8 +3,11 @@
 ## -------------------------------
 build/
 *.o
+.*
 *.in
 *.swp
+*.lo
+*.la
 Makefile
 aclocal.m4
 autom4te.cache/
@@ -15,7 +18,10 @@ configure
 depcomp
 install-sh
 ltmain.sh
+libtool
 missing
+src/ursus
+stamp-h1
 
 ## -------------------------------
 ## Backup artifacts
@@ -25,7 +31,6 @@ tmp/
 ## -------------------------------
 ## Tag files
 ## -------------------------------
-
 GTAGS
 GRTAGS
 GPATH
