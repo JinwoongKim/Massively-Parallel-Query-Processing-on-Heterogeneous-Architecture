@@ -1,13 +1,20 @@
 #pragma once
 
+#include "point.h"
+
 namespace ursus {
 
-//FIXME load below variables from somewhere ...
-extern number_of_dimensions;
-
 class Rect {
-  private:
-    float boundary[2*number_of_dimensions];
+ public:
+  unsigned int GetDims(void) const;
+  unsigned int GetBits(void) const;
+  __host__ __device__ bool Overlap(struct Rect *r);
+
+ private:
+  Point boundary[2];
+  // TODO :: Point MinBoundary, MaxBoundary;
 };
 
 } // End of ursus namespace
+
+
