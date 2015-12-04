@@ -19,7 +19,7 @@ class Point{
   }
 
  //===--------------------------------------------------------------------===//
- // ACCESSORS
+ // Accessors
  //===--------------------------------------------------------------------===//
   unsigned int GetDims(void) const;
   unsigned int GetBits(void) const;
@@ -30,6 +30,9 @@ class Point{
   void SetBits(unsigned int number_of_bits);
   void SetPoints(unsigned long long* points);
 
+ //===--------------------------------------------------------------------===//
+ // Operators
+ //===--------------------------------------------------------------------===//
   friend bool operator> (Point &p1, Point &p2);
   friend bool operator< (Point &p1, Point &p2);
 
