@@ -1,7 +1,8 @@
-#include "common/common.h"
 #include "common/point.h"
-
 #include <cassert>
+
+// TODO :: Move out to common.h
+#define range(i,a,b) i = (a); i < (b); ++i
 
 namespace ursus {
 
@@ -16,8 +17,9 @@ unsigned int Point::GetBits(void) const{
 unsigned long long* Point::GetPoints(void) const{
   return points; 
 }
-unsigned long long GetPoint(unsigned int position) const;
-  assert(position >= 0 || position < GetDims());
+
+unsigned long long Point::GetPoint(unsigned int position) const{
+  assert(position >= 0  || position < GetDims());
   return points[position]; 
 }
 

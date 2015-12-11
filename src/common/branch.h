@@ -6,10 +6,10 @@
 namespace ursus {
 
 class Branch {
-  private:
-    Rect rect;
-    unsigned long long index;
-    Node *child; 
+ private:
+   Rect rect;
+   unsigned long long index;
+   Node *child; 
 };
 
 } // End of ursus namespace

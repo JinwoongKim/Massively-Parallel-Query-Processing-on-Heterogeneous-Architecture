@@ -1,4 +1,5 @@
 #include "common/rect.h"
+#include <cassert>
 
 namespace ursus {
 
@@ -22,5 +23,19 @@ bool Rect::Overlap(struct Rect *r){
 
   return true;
 }
+
+//float IntersectedRectArea(struct Rect *r1, struct Rect *r2)
+//{
+//  int i,j;
+//
+//  float area = 1.0f;
+//
+//  for( i=0; i<NUMDIMS; i++)
+//  {
+//    j=i+NUMDIMS;
+//    area *= min( r1->boundary[j], r2->boundary[j])-max(r1->boundary[i], r2->boundary[i]);
+//  }
+//  return area;
+//}
 
 } // End of ursus namespace

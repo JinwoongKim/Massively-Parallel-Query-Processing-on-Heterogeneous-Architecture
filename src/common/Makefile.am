@@ -5,7 +5,8 @@
 ######################################################################
 
 common_FILES = \
-               common/point.cpp
+               common/point.cpp \
+               common/rect.cpp
 
 common_INCLUDES = \
                  -I$(srcdir)/common    
