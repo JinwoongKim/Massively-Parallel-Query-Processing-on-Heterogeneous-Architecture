@@ -1,27 +1,9 @@
 ## -------------------------------
 ## Build artifacts
 ## -------------------------------
-build/
 *.o
 .*
-*.in
 *.swp
-*.lo
-*.la
-Makefile
-aclocal.m4
-autom4te.cache/
-compile
-config-h.*
-config.*
-configure
-depcomp
-install-sh
-ltmain.sh
-libtool
-missing
-src/ursus
-stamp-h1
 
 ## -------------------------------
 ## Backup artifacts
