@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iostream>
+
 namespace ursus {
 
 class Point{
@@ -35,6 +37,9 @@ class Point{
  //===--------------------------------------------------------------------===//
   friend bool operator> (Point &p1, Point &p2);
   friend bool operator< (Point &p1, Point &p2);
+
+  // Get a string representation for debugging
+  friend std::ostream &operator<<(std::ostream &os, const Point &point);
 
  //===--------------------------------------------------------------------===//
  // Members

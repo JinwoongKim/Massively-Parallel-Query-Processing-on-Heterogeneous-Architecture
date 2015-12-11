@@ -19,7 +19,7 @@ unsigned long long* Point::GetPoints(void) const{
 }
 
 unsigned long long Point::GetPoint(unsigned int position) const{
-  assert(position >= 0  || position < GetDims());
+  assert(position < GetDims());
   return points[position]; 
 }
 
@@ -34,7 +34,7 @@ void Point::SetBits(unsigned int _number_of_bits) {
 }
 
 void Point::SetPoints(unsigned long long* _points) { 
-  assert( _points != nullptr );
+  assert( _points != NULL );
   points = _points; 
 }
 
@@ -60,6 +60,15 @@ bool operator< (Point &p1, Point &p2) {
    }
  }
  return true;
+}
+
+
+// Get a string representation
+std::ostream &operator<<(std::ostream &os, const Point &point) {
+  os << " number of dimensions = " << point.GetDims() << ","
+     << " number of bits = " << point.GetBits() << std::endl;
+
+  return os;
 }
 
 } // End of ursus namespace
