@@ -1,7 +1,7 @@
-OBJECTS=./src/*/*.o
+export NVCC=nvcc
+export NVCCFLAGS=-arch=sm_20 -std=c++11
 
-NVCC=nvcc
-NVCCFLAGS=-arch=sm_20
+OBJECTS=./src/*/*.o
 
 all:
 	cd src; $(MAKE)
