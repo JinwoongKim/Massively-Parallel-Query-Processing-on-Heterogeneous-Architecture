@@ -1,8 +1,7 @@
+#include "common/macro.h"
 #include "common/point.h"
-#include <cassert>
 
-// TODO :: Move out to common.h
-#define range(i,a,b) i = (a); i < (b); ++i
+#include <cassert>
 
 namespace ursus {
 
