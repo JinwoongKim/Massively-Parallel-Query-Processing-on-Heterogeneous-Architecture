@@ -1,9 +1,11 @@
-#include "common/evaluator.h"
+#include "evaluator/evaluator.h"
+#include "tree/mphr.h"
 
 #include <cassert>
 #include <unistd.h>
 
 namespace ursus {
+namespace evaluator {
 
 /**
  * @brief Return the singleton evaluator instance
@@ -11,6 +13,23 @@ namespace ursus {
 Evaluator& Evaluator::GetInstance(){
   static Evaluator evaluator;
   return evaluator;
+}
+
+bool Evaluator::Initialize(int argc, char** argv){
+
+  // Parse the args and initialize variables
+  if( !ParseArgs(argc, argv)) {
+    PrintHelp(argv);
+    return false;
+  }
+
+  //TODO ??
+  ch_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
+  cd_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
+
+  ReadDataSet();
+
+  return true;
 }
 
 //TODO :: Need to fix?  scrub
@@ -99,8 +118,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
 
-  ch_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
-  cd_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
+  tree::Tree *mphr = new tree::MPHR();
+  tree_queue.push(mphr);
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
@@ -140,6 +159,31 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   return true;
 }
 
+
+/**
+ * @brief Build all indexing structure in tree_queue
+ * @return true if build all indexing structure successfully,
+ *  otherwise return false 
+ */
+bool Evaluator::Build(void) {
+  while(!tree_queue.empty())  {
+    auto tree = tree_queue.front();
+    if(!tree->Build(input_data_set)) {
+      return false;
+    }
+    tree_queue.pop();
+  }
+  return true;
+}
+
+bool Evaluator::ReadDataSet(void){
+  // Read data set
+  input_data_set = new io::DataSet(number_of_dimensions, number_of_data,
+                                   "/home/jwkim/dataFiles/input/real/NOAA0.bin", //TODO : hard coded now...
+                                    DATASET_TYPE_BINARY); //TODO : hard coded now...
+  return true;
+}
+
 // Get a string representation
 std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   os << " number of data = " << evaluator.number_of_data << std::endl
@@ -153,4 +197,5 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   return os;
 }
 
+} // End of evaluator namespace
 } // End of ursus namespace

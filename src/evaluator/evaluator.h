@@ -1,11 +1,14 @@
 #pragma once
 
-#include "common/logger.h"
+#include "io/dataset.h"
+#include "tree/tree.h"
 
 #include <iostream>
 #include <string>
+#include <queue>
 
 namespace ursus {
+namespace evaluator {
 
 class Evaluator{
  public:
@@ -21,13 +24,21 @@ class Evaluator{
   static Evaluator& GetInstance(void);
 
   //===--------------------------------------------------------------------===//
-  // Guide & Parse
+  // Initialize
   //===--------------------------------------------------------------------===//
+
+  bool Initialize(int argc, char **argv);
  
   // Print out usage to users
   void PrintHelp(char **argv) const;
  
   bool ParseArgs(int argc, char **argv);
+
+  //===--------------------------------------------------------------------===//
+  // Evaluate
+  //===--------------------------------------------------------------------===//
+
+  bool Build(void) ;
  
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator);
@@ -37,6 +48,8 @@ class Evaluator{
  //===--------------------------------------------------------------------===//
  private:
   Evaluator(){};
+
+  bool ReadDataSet(void);
 
   // # of data to be indexed
   unsigned number_of_data = 0;
@@ -61,14 +74,21 @@ class Evaluator{
   std::string query_size;
   
   // # of dims
-  unsigned number_of_dimensions;
+  unsigned number_of_dimensions=3; //TODO Remove hard coded number later
   
   // # of bits which represent each dimension 
   // TODO Do we need this ??
   unsigned number_of_bits;
 
   // Measure and record time and count  
-  Logger logger;
+  //Logger logger;
+
+  // TODO :: Default dataset ... for now it's fixed
+  //TODO Must delete data_set at some point
+  io::DataSet *input_data_set;
+  io::DataSet *query_data_set;
+
+  std::queue<tree::Tree*> tree_queue;
 
   char** ch_root;
   char** cd_root;
@@ -86,5 +106,6 @@ class Evaluator{
  
 };
 
+} // End of evaluator namespace
 } // End of ursus namespace
 

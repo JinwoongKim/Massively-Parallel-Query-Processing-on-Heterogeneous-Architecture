@@ -17,32 +17,7 @@ class DataSet{
   DataSet(unsigned int number_of_dimensions,
           unsigned int number_of_data,
           std::string data_set_path,
-          DataSetType data_set_type) 
-  : number_of_dimensions(number_of_dimensions), number_of_data(number_of_data),
-    data_set_path(data_set_path), data_set_type(data_set_type) {
-
-    points = new Point[number_of_dimensions*number_of_data];
-
-    // read data from data_set_path
-    std::ifstream infile; 
-
-    switch(data_set_type) {
-      case DATASET_TYPE_BINARY:
-        infile.open(data_set_path, std::ifstream::binary);
-        break;
-
-      default:
-        infile.open(data_set_path, std::ifstream::in);
-    }
-    infile.read(reinterpret_cast<char*>(&points[0]), 
-                sizeof(Point)*number_of_data*number_of_dimensions);
-
-
-    //For debugging
-    for( int range(i, 0, 5)) {
-      std::cout << i << std::endl;
-    }
-  };
+          DataSetType data_set_type);
 
   ~DataSet(){
     delete[] points;
@@ -67,10 +42,10 @@ class DataSet{
  //===--------------------------------------------------------------------===//
  private:
   // # of dims
-  unsigned int number_of_dimensions = 0;
+  unsigned int number_of_dimensions;
 
   // # of data to be indexed
-  unsigned int number_of_data = 0;
+  unsigned int number_of_data;
 
   // DataSet path
   std::string data_set_path;

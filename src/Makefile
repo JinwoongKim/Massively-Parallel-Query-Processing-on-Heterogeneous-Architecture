@@ -1,4 +1,8 @@
-SUBDIRS=common main
+SUBDIRS=common \
+				evaluator \
+				tree \
+				io \
+				main
 
 .PHONY: all clean $(SUBDIRS)
 

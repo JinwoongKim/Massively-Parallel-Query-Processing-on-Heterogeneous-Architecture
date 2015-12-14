@@ -3,7 +3,7 @@ export NVCCFLAGS=-arch=sm_20 -std=c++11
 
 OBJECTS=./src/*/*.o
 
-all:
+all: 
 	cd src; $(MAKE)
 	$(NVCC) $(NVCCFLAGS) $(OBJECTS) -o ./bin/cuda
 
