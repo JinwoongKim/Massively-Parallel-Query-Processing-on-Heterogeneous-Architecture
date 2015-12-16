@@ -5,7 +5,7 @@
 
 #include <iostream>
 #include <string>
-#include <queue>
+#include <memory>
 
 namespace ursus {
 namespace evaluator {
@@ -28,18 +28,16 @@ class Evaluator{
   //===--------------------------------------------------------------------===//
 
   bool Initialize(int argc, char **argv);
+
+  bool ReadDataSet(void);
  
+  bool Build(void);
+
   // Print out usage to users
   void PrintHelp(char **argv) const;
  
   bool ParseArgs(int argc, char **argv);
 
-  //===--------------------------------------------------------------------===//
-  // Evaluate
-  //===--------------------------------------------------------------------===//
-
-  bool Build(void) ;
- 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator);
 
@@ -47,9 +45,7 @@ class Evaluator{
  // Members
  //===--------------------------------------------------------------------===//
  private:
-  Evaluator(){};
-
-  bool ReadDataSet(void);
+  Evaluator() {};
 
   // # of data to be indexed
   unsigned number_of_data = 0;
@@ -83,12 +79,12 @@ class Evaluator{
   // Measure and record time and count  
   //Logger logger;
 
-  // TODO :: Default dataset ... for now it's fixed
-  //TODO Must delete data_set at some point
-  io::DataSet *input_data_set;
-  io::DataSet *query_data_set;
+  std::shared_ptr<io::DataSet> input_data_set;
+  std::shared_ptr<io::DataSet> query_data_set;
 
-  std::queue<tree::Tree*> tree_queue;
+  // Must free these trees at some point
+  // TODO SHould be smart pointers
+  std::vector<tree::Tree*> trees;
 
   char** ch_root;
   char** cd_root;

@@ -1,41 +1,50 @@
-#include "common/rect.h"
+#include "common/macro.h"
+#include "node/rect.h"
+
 #include <cassert>
+#include <iomanip>
 
 namespace ursus {
+namespace node {
 
-unsigned int Rect::GetDims(void) const{
-  return boundary[0].GetDims();
+void Rect::SetPoints(std::vector<Point> _points) {
+  points = _points;
 }
 
-unsigned int Rect::GetBits(void) const{
-  return boundary[0].GetBits();
+Point Rect::GetPoint(const unsigned int position) const{
+  assert(position < points.size());
+  return points[position];
 }
 
-__host__ __device__ 
-bool Rect::Overlap(struct Rect *r){
-  assert(GetDims()==r->GetDims());
-  assert(GetBits()==r->GetBits());
+std::vector<Point> Rect::GetPoints(void) const{
+  return points;
+}
 
-  // minimum boundary > maximum boundary or maximum boundary < minimum boundary
-  if( boundary[0] > r->boundary[1] || boundary[1] < r->boundary[0] ){
-    return false;
+bool Rect::Overlap(Rect& rect){
+  int number_of_dimensions = points.size()/2;
+
+  //TODO use for_each?
+  for( int range(lower_bound, 0, number_of_dimensions)) {
+    int upper_bound = lower_bound+number_of_dimensions;
+    if( points[lower_bound] > rect.GetPoint(upper_bound) ||
+        points[upper_bound] < rect.GetPoint(lower_bound)) {
+      return false;
+    }
   }
-
   return true;
 }
 
-//float IntersectedRectArea(struct Rect *r1, struct Rect *r2)
-//{
-//  int i,j;
-//
-//  float area = 1.0f;
-//
-//  for( i=0; i<NUMDIMS; i++)
-//  {
-//    j=i+NUMDIMS;
-//    area *= min( r1->boundary[j], r2->boundary[j])-max(r1->boundary[i], r2->boundary[i]);
-//  }
-//  return area;
-//}
+// Get a string representation
+std::ostream &operator<<(std::ostream &os, const Rect &rect) {
+  os << " Rect : " << std::endl;
+  auto points = rect.GetPoints();
+  os << std::fixed << std::setprecision( 6 );
+  for( auto point : points) {
+  os << " Point = " << point << std::endl;
+  }
 
+  return os;
+}
+
+} // End of node namespace
 } // End of ursus namespace

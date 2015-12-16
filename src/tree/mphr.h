@@ -17,14 +17,14 @@ class MPHR : public Tree {
  //===--------------------------------------------------------------------===//
 
   /**
-   * Build the indexing structure
+   * Build the MPHRtrees with input_data_set
    */
-  bool Build(io::DataSet *input_data_set);
+  bool Build(std::shared_ptr<io::DataSet> input_data_set);
 
   /**
    * Search the data 
    */
-  void Search(io::DataSet *query_data_set);
+  int Search(std::shared_ptr<io::DataSet> query_data_set);
 
 };
 

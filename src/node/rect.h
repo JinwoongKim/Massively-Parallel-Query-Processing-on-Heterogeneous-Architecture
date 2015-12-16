@@ -1,22 +1,58 @@
 #pragma once
-#include "common/point.h"
+
+#include "common/types.h"
+
+#include <iostream>
+#include <vector>
+#include <utility>
 
 namespace ursus {
+namespace node {
 
 class Rect {
  public:
-  unsigned int GetDims(void) const;
-  unsigned int GetBits(void) const;
-  __host__ __device__ bool Overlap(struct Rect *r);
+ //===--------------------------------------------------------------------===//
+ // Consteructor/Destructor
+ //===--------------------------------------------------------------------===//
+  Rect(){};
 
-  //TODO static function or ?? ...
-  //float IntersectedRectArea(struct Rect *r1, struct Rect *r2);
+  Rect(std::vector<Point> _points) {
+    SetPoints(_points);
+  }
+
+  // Copy constructor
+  Rect(const Rect& other) { 
+    points = other.points;
+  }
+
+ //===--------------------------------------------------------------------===//
+ // Accessor
+ //===--------------------------------------------------------------------===//
+  void SetPoints(std::vector<Point> _points);
+
+  Point GetPoint(const unsigned int position) const;
+
+  std::vector<Point> GetPoints(void) const;
+
+ //===--------------------------------------------------------------------===//
+ // Function
+ //===--------------------------------------------------------------------===//
+  bool Overlap(Rect& rect);
+
+  // Get a string representation for debugging
+  friend std::ostream &operator<<(std::ostream &os, const Rect &rect);
 
  private:
-  Point boundary[2];
-  // TODO :: Point MinBoundary, MaxBoundary;
+
+ //===--------------------------------------------------------------------===//
+ // Members
+ //===--------------------------------------------------------------------===//
+
+  // a harf of them shows lower boundary,
+  // the rest part represents upper boundary
+  std::vector<Point> points;
+
 };
 
+} // End of node namespace
 } // End of ursus namespace
-
-

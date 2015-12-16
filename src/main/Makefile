@@ -1,4 +1,5 @@
 OBJECTS=main.o 
+
 INC=-I. -I../.
 
 all: $(OBJECTS)

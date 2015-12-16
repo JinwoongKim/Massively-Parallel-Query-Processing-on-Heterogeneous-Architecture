@@ -4,6 +4,8 @@
 
 namespace ursus {
 
+typedef float Point;
+
 //===--------------------------------------------------------------------===//
 // DataSet
 //===--------------------------------------------------------------------===//
@@ -30,8 +32,6 @@ enum TreeType  {
   TREE_TYPE_MPHR = 1,
   TREE_TYPE_HYBRID =2
 };
-
-typedef float Point;
 
 /* define the bitmask_t type as an integer of sufficient size */
 //TODO :: Rename bitmask_t to another one

@@ -27,6 +27,7 @@ bool Evaluator::Initialize(int argc, char** argv){
   ch_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
   cd_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
 
+  // Read dataset based on initialized variables
   ReadDataSet();
 
   return true;
@@ -118,8 +119,9 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
 
+  // TODO Hard coded now
   tree::Tree *mphr = new tree::MPHR();
-  tree_queue.push(mphr);
+  trees.push_back(mphr);
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
@@ -161,32 +163,32 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 
 
 /**
- * @brief Build all indexing structure in tree_queue
- * @return true if build all indexing structure successfully,
+ * @brief Build all indexing structures in tree_queue with input_dataset
+ * @return true if building all indexing structures successfully,
  *  otherwise return false 
  */
 bool Evaluator::Build(void) {
-  while(!tree_queue.empty())  {
-    auto tree = tree_queue.front();
+  for(auto tree : trees) {
     if(!tree->Build(input_data_set)) {
       return false;
     }
-    tree_queue.pop();
   }
   return true;
 }
 
 bool Evaluator::ReadDataSet(void){
   // Read data set
-  input_data_set = new io::DataSet(number_of_dimensions, number_of_data,
-                                   "/home/jwkim/dataFiles/input/real/NOAA0.bin", //TODO : hard coded now...
-                                    DATASET_TYPE_BINARY); //TODO : hard coded now...
+  //TODO : hard coded now...
+  input_data_set.reset ( new io::DataSet(number_of_dimensions, number_of_data,
+                         "/home/jwkim/dataFiles/input/real/NOAA0.bin",
+                         DATASET_TYPE_BINARY)); 
   return true;
 }
 
 // Get a string representation
 std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
-  os << " number of data = " << evaluator.number_of_data << std::endl
+  os << " Evaluator : " << std::endl
+     << " number of data = " << evaluator.number_of_data << std::endl
      << " number of searches = " << evaluator.number_of_searches << std::endl
      << " number of partitioned trees = " << evaluator.number_of_partitioned_trees << std::endl
      << " number of thread blocks = " << evaluator.number_of_thread_blocks << std::endl

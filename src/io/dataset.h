@@ -1,10 +1,10 @@
 #pragma once
 
-#include "common/macro.h"
 #include "common/types.h"
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 namespace ursus {
 namespace io {
@@ -20,7 +20,6 @@ class DataSet{
           DataSetType data_set_type);
 
   ~DataSet(){
-    delete[] points;
   }
 
  //===--------------------------------------------------------------------===//
@@ -33,6 +32,8 @@ class DataSet{
   std::string GetDataSetPath(void) const;
 
   DataSetType GetDataSetType(void) const;
+
+  std::vector<Point> GetPoints(void) const;
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const DataSet &dataset);
@@ -53,8 +54,7 @@ class DataSet{
   // data type
   DataSetType data_set_type = DATASET_TYPE_INVALID;
 
-  // data points
-  Point *points;
+  std::vector<Point> points;
 };
 
 } // End of io namespace

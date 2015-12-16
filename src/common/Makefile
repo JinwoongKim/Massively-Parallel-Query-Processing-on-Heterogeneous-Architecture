@@ -1,10 +1,10 @@
 OBJECTS=types.o
-HEADERS=types.h macro.h
+HEADERS=macro.h
 
 INC=-I. -I../.
 
 all: $(OBJECTS)
 
-%.o: %.cpp $(HEADERS)
+%.o: %.cpp %.h $(HEADERS)
 	$(NVCC) -x cu $(NVCCFLAGS) $(INC) -dc $< -o $@ 
 

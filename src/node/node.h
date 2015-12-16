@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common/types.h"
+#include "node/branch.h"
 
 namespace ursus {
 namespace node {
@@ -10,7 +11,6 @@ class Node{
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
-  Node(){}
 
  //===--------------------------------------------------------------------===//
  // Members
@@ -21,12 +21,8 @@ class Node{
   // distance from root
   unsigned int level;
 
-  // FIXME MBB
-  //???
-
-  // child pointers 
-  Node* child;
-  
+  // branches
+  std::vector<Branch> branches;
 };
 
 } // End of node namespace
