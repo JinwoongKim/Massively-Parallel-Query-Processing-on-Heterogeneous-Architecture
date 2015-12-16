@@ -31,12 +31,21 @@ class Tree{
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set) = 0;
 
  //===--------------------------------------------------------------------===//
+ // Build Utility Function
+ //===--------------------------------------------------------------------===//
+  std::vector<node::Branch> CreateBranches(std::shared_ptr<io::DataSet> input_data_set) ;
+
+  void AssignHilbertIndexToBranches(std::vector<node::Branch> &branches);
+
+ //===--------------------------------------------------------------------===//
  // Members
  //===--------------------------------------------------------------------===//
  protected:
   TreeType tree_type = TREE_TYPE_INVALID;
 
   unsigned int number_of_dimensions;
+
+  unsigned int number_of_data;
 
   node::Node root_node;
   
