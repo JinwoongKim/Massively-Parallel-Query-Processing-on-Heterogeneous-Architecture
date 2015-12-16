@@ -1,6 +1,7 @@
 SUBDIRS=common \
 				evaluator \
 				node \
+				mapper \
 				tree \
 				io \
 				main
