@@ -1,4 +1,4 @@
-#include "node/node.h"
+#include "node/branch.h"
 
 #include <cassert>
 #include <utility>
@@ -21,6 +21,10 @@ void Branch::SetIndex(const unsigned long long _index) {
 void Branch::SetChild(Node* _child) {
   assert(_child);
   child = _child;
+}
+
+Point Branch::GetRectPoint(const unsigned int position) const{
+  return rect.GetPoint(position);
 }
 
 Rect Branch::GetRect(void) const {

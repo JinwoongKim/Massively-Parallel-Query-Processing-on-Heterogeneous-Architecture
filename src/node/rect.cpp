@@ -1,5 +1,6 @@
-#include "common/macro.h"
 #include "node/rect.h"
+
+#include "common/macro.h"
 
 #include <cassert>
 #include <iomanip>

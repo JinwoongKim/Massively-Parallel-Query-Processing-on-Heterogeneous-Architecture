@@ -23,6 +23,7 @@ class Branch {
 
   void SetChild(Node* child);
 
+  Point GetRectPoint(const unsigned int position) const;
 
   Rect GetRect(void) const;
 
