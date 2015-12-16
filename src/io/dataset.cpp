@@ -1,5 +1,6 @@
-#include "common/macro.h"
 #include "io/dataset.h"
+
+#include "common/macro.h"
 
 #include <cassert>
 
