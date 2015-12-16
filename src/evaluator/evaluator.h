@@ -72,10 +72,6 @@ class Evaluator{
   // # of dims
   unsigned number_of_dimensions=3; //TODO Remove hard coded number later
   
-  // # of bits which represent each dimension 
-  // TODO Do we need this ??
-  unsigned number_of_bits;
-
   // Measure and record time and count  
   //Logger logger;
 
