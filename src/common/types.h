@@ -15,6 +15,16 @@ enum DataSetType  {
 };
 
 //===--------------------------------------------------------------------===//
+// DataType
+//===--------------------------------------------------------------------===//
+enum DataType  {
+  DATA_TYPE_INVALID = -1,
+  DATA_TYPE_REAL = 1,
+  DATA_TYPE_SYNTHETIC = 2
+};
+
+
+//===--------------------------------------------------------------------===//
 // Node
 //===--------------------------------------------------------------------===//
 enum NodeType  {
@@ -33,8 +43,8 @@ enum TreeType  {
   TREE_TYPE_HYBRID =2
 };
 
-/* define the bitmask_t type as an integer of sufficient size */
 //TODO :: Rename bitmask_t to another one
+/* define the bitmask_t type as an integer of sufficient size */
 typedef unsigned long long bitmask_t;
 /* define the halfmask_t type as an integer of 1/2 the size of bitmask_t */
 typedef unsigned long halfmask_t;
@@ -55,5 +65,14 @@ typedef void (*BitWriter) (unsigned d, unsigned nBytes, char* c, unsigned y, int
 
 std::string DataSetTypeToString(DataSetType type);
 DataSetType StringToDataSetType(std::string str);
+
+std::string DataTypeToString(DataType type);
+DataType StringToDataType(std::string str);
+
+std::string NodeTypeToString(NodeType type);
+NodeType StringToNodeType(std::string str);
+
+std::string TreeTypeToString(TreeType type);
+TreeType StringToTreeType(std::string str);
 
 } // End of ursus namespace
