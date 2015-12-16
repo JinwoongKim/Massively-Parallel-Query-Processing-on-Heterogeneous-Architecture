@@ -1,4 +1,6 @@
-#include "hilbert_curve.h"
+#include "hilbert_mapper.h"
+
+#include "common/macro.h"
 
 namespace ursus {
 namespace mapper {
@@ -9,18 +11,21 @@ namespace mapper {
 * @param points : n number_of_bits-bit coordinates.
 * @return index value : number_of_dimensions*number_of_bits bits.
 */
-unsigned long long 
-Hilbert_Curve::MappingIntoSingle(Point points){
+bitmask_t 
+Hilbert_Mapper::MappingIntoSingle(unsigned int number_of_dimensions,
+                                  unsigned int number_of_bits,
+                                  std::vector<Point> points){
+  std::vector<bitmask_t> coord(number_of_dimensions);
 
-  unsigned int number_of_dimensions = points.GetDims();
-  unsigned int number_of_bits = points.GetBits();
-  unsigned long long *coord = points.GetPoints();
+  for(int range(i, 0, number_of_dimensions)) {
+    coord[i] = (bitmask_t) (1000000*points[i]);
+  }
 
   if (number_of_dimensions > 1) {
     unsigned const number_of_dimensionsBits = number_of_dimensions*number_of_bits;
-    unsigned long long index;
+    bitmask_t index;
     unsigned d;
-    unsigned long long coords = 0;
+    bitmask_t coords = 0;
 
     for (d = number_of_dimensions; d--; ) {
       coords <<= number_of_bits;
@@ -33,7 +38,7 @@ Hilbert_Curve::MappingIntoSingle(Point points){
       unsigned b = number_of_dimensionsBits;
       unsigned rotation = 0;
       halfmask_t flipBit = 0;
-      unsigned long long const nthbits = ones(unsigned long long,number_of_dimensionsBits) / ndOnes;
+      bitmask_t const nthbits = ones(bitmask_t,number_of_dimensionsBits) / ndOnes;
       coords = bitTranspose(number_of_dimensions, number_of_bits, coords);
       coords ^= coords >> number_of_dimensions;
       index = 0;
@@ -66,18 +71,18 @@ Hilbert_Curve::MappingIntoSingle(Point points){
  * @param number_of_dimensions : number of coordinate axes.
  * @param number_of_bits : number of bits per axis.
  * @param index  : The index, contains number_of_dimensions*number_of_bits bits
- *                 (so number_of_dimensions*number_of_bits must be <= 8*sizeof(unsigned long long)).
+ *                 (so number_of_dimensions*number_of_bits must be <= 8*sizeof(bitmask_t)).
  * @return coordinate : the list of number of dimensions points,
  *                      each with number of bits 
  */
-Point
-Hilbert_Curve::MappingIntoMulti(unsigned number_of_dimensions,
-                                unsigned number_of_bits,
-                                unsigned long long index){
-  unsigned long long coord[number_of_dimensions];
+std::vector<Point>
+Hilbert_Mapper::MappingIntoMulti(unsigned int number_of_dimensions,
+                                 unsigned int number_of_bits,
+                                 bitmask_t index){
+  std::vector<bitmask_t> coord(number_of_dimensions);
 
   if (number_of_dimensions > 1){
-    unsigned long long coords;
+    bitmask_t coords;
     halfmask_t const nbOnes = ones(halfmask_t,number_of_bits);
     unsigned d;
 
@@ -117,11 +122,17 @@ Hilbert_Curve::MappingIntoMulti(unsigned number_of_dimensions,
     coord[0] = index;
   }
 
-  //FIXME setting the point
+  std::vector<Point> points(number_of_dimensions);
+
+  for( int range(i, 0, number_of_dimensions)) {
+    points[i] = (Point)(coord[i]/1000000.0);
+  }
+
+  return points;
 }
 
 bitmask_t
-Hilbert_Curve::bitTranspose(unsigned number_of_dimensions, 
+Hilbert_Mapper::bitTranspose(unsigned number_of_dimensions, 
                             unsigned number_of_bits, 
                             bitmask_t inCoords){
 
@@ -171,7 +182,7 @@ Hilbert_Curve::bitTranspose(unsigned number_of_dimensions,
 }
 
 bitmask_t
-Hilbert_Curve::getIntBits(unsigned number_of_dimensions, 
+Hilbert_Mapper::getIntBits(unsigned number_of_dimensions, 
                           unsigned number_of_bytes, 
                           char const* c, 
                           unsigned y){
@@ -206,7 +217,7 @@ Hilbert_Curve::getIntBits(unsigned number_of_dimensions,
  */
 
 int
-Hilbert_Curve::hilbert_cmp(unsigned number_of_dimensions,
+Hilbert_Mapper::hilbert_cmp(unsigned number_of_dimensions,
                            unsigned number_of_bytes, 
                            unsigned number_of_bits,
                            void const* c1, 
@@ -220,7 +231,7 @@ Hilbert_Curve::hilbert_cmp(unsigned number_of_dimensions,
 }
 
 int
-Hilbert_Curve::hilbert_cmp_work(unsigned number_of_dimensions, 
+Hilbert_Mapper::hilbert_cmp_work(unsigned number_of_dimensions, 
                                 unsigned number_of_bytes, 
                                 unsigned number_of_bits,
                                 unsigned max, 
