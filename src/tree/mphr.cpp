@@ -13,6 +13,7 @@ MPHR::MPHR() {
 }
 
 bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
+  bool ret = false;
   std::cout << "Build MPHR Tree" << std::endl;
 
   // create branches with points in input_data_set
@@ -20,15 +21,12 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
 
   // TODO  choose policy later
   // assign hilbert indexes to branches 
-  AssignHilbertIndexToBranches(branches);
-
-  //For debugging
-  for( int range(i, 0, 10)) {
-    std::cout << branches[i] << std::endl;
-  }
+  ret = AssignHilbertIndexToBranches(branches);
+  assert(ret);
 
   // sort the branches
-  sort::Thrust_Sort::Sort(branches);
+  ret = sort::Thrust_Sort::Sort(branches);
+  assert(ret);
 
   //For debugging
   for( int range(i, 0, 10)) {

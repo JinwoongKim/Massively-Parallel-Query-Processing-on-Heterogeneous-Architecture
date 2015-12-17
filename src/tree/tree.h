@@ -35,7 +35,7 @@ class Tree{
  //===--------------------------------------------------------------------===//
   std::vector<node::Branch> CreateBranches(std::shared_ptr<io::DataSet> input_data_set) ;
 
-  void AssignHilbertIndexToBranches(std::vector<node::Branch> &branches);
+  bool AssignHilbertIndexToBranches(std::vector<node::Branch> &branches);
 
  //===--------------------------------------------------------------------===//
  // Members

@@ -27,7 +27,7 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   return branches;
 }
 
-void Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
+bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
   unsigned int number_of_bits = (number_of_dimensions>2) ? 20:31;
 
   for(int range(i, 0, branches.size())) {
@@ -35,6 +35,8 @@ void Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
     auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(number_of_dimensions, number_of_bits, points);
     branches[i].SetIndex(hilbert_index);
   }
+
+  return true;
 }
 
 } // End of tree namespace
