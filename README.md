@@ -1,4 +1,4 @@
-Setting variables for cuda then
+Setting system variables to run cuda then
 
-Simple make will be working
+Simply run 'make' and it will be working
 > make
