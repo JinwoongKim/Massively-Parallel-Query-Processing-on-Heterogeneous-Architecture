@@ -22,8 +22,6 @@ inline cudaError_t checkCuda(cudaError_t result) {
   return result;
 }
 
-void printHelp(char **argv);
-bool ParseArgs(int argc, char **argv) ;
 __device__ bool dev_Node_SOA_Overlap(struct Rect *r, struct Node_SOA* n, int tid);
 __device__ bool dev_BVH_Node_SOA_Overlap(struct Rect *r, BVH_Node_SOA* n, int tid);
 bool RadixNode_SOA_Overlap(struct Rect *r, RadixTreeNode_SOA* n, int tid);
