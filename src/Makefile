@@ -2,6 +2,7 @@ SUBDIRS=common \
 				evaluator \
 				node \
 				mapper \
+				sort \
 				tree \
 				io \
 				main

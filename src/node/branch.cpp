@@ -31,7 +31,7 @@ Rect Branch::GetRect(void) const {
   return rect;
 }
 
-unsigned long long Branch::GetIndex(void) const {
+__host__ __device__ unsigned long long Branch::GetIndex(void) const {
   return index;
 }
 

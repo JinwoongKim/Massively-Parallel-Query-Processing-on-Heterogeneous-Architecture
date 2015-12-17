@@ -2,6 +2,8 @@
 
 #include "node/rect.h"
 
+#include <thrust/sort.h>
+
 #include <iostream>
 #include <vector>
 
@@ -27,7 +29,7 @@ class Branch {
 
   Rect GetRect(void) const;
 
-  unsigned long long GetIndex(void) const;
+  __host__ __device__ unsigned long long GetIndex(void) const;
 
   Node* GetChild(void) const;
 

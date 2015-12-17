@@ -1,6 +1,7 @@
 #include "tree/mphr.h"
 
 #include "common/macro.h"
+#include "sort/thrust_sort.h"
 
 #include <iostream>
 
@@ -17,10 +18,17 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
   // create branches with points in input_data_set
   std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
-  AssignHilbertIndexToBranches(branches);
-
   // TODO  choose policy later
   // assign hilbert indexes to branches 
+  AssignHilbertIndexToBranches(branches);
+
+  //For debugging
+  for( int range(i, 0, 10)) {
+    std::cout << branches[i] << std::endl;
+  }
+
+  // sort the branches
+  sort::Thrust_Sort::Sort(branches);
 
   //For debugging
   for( int range(i, 0, 10)) {
