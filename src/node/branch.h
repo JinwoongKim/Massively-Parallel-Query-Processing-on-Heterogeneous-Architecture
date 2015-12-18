@@ -18,7 +18,7 @@ class Branch {
  //===--------------------------------------------------------------------===//
   void SetMBB(Point* points);
 
-  void SetIndex(const unsigned long long index);
+  __host__ __device__ void SetIndex(const unsigned long long index);
 
   void SetChild(Node* child);
 

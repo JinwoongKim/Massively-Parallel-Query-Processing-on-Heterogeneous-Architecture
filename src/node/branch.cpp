@@ -13,6 +13,7 @@ void Branch::SetMBB(Point* _point) {
   std::copy(_point, _point+GetNumberOfDims(), point+GetNumberOfDims());
 }
 
+__host__ __device__
 void Branch::SetIndex(const unsigned long long _index) {
   index = _index;
 }
@@ -32,7 +33,8 @@ Point Branch::GetPoint(const unsigned int position) const{
   return point[position];
 }
 
-__host__ __device__ unsigned long long Branch::GetIndex(void) const {
+__host__ __device__ 
+unsigned long long Branch::GetIndex(void) const {
   return index;
 }
 
