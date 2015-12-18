@@ -1,8 +1,7 @@
 #pragma once
 
-#include "node/rect.h"
-
-#include <thrust/sort.h>
+#include "common/global.h"
+#include "common/types.h"
 
 #include <iostream>
 #include <vector>
@@ -17,37 +16,39 @@ class Branch {
  //===--------------------------------------------------------------------===//
  // Accessors
  //===--------------------------------------------------------------------===//
-  void SetRect(Rect rect);
-
-  void SetRect(std::vector<Point> rect_points);
+  void SetMBB(Point* points);
 
   void SetIndex(const unsigned long long index);
 
   void SetChild(Node* child);
 
-  Point GetRectPoint(const unsigned int position) const;
 
-  Rect GetRect(void) const;
+  Point GetPoint(const unsigned int position) const;
+
+  std::vector<Point> GetPoints(void) const;
 
   __host__ __device__ unsigned long long GetIndex(void) const;
 
   Node* GetChild(void) const;
 
+
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);
+
+  friend __host__ __device__ bool operator<(const Branch &lhs, const Branch &rhs);
 
  //===--------------------------------------------------------------------===//
  // Members
  //===--------------------------------------------------------------------===//
  private:
   // Minimum Bounding Box
-  Rect rect;
+  Point point[GetNumberOfDims()*2];
 
   //Index to avoid re-visiting 
   unsigned long long index;
 
   // child pointers 
-  Node* child; 
+  Node* child = nullptr;
 };
 
 } // End of node namespace

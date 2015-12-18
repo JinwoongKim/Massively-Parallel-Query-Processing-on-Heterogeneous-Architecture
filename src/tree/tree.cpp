@@ -14,14 +14,8 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   // create branches
   std::vector<node::Branch> branches(number_of_data);
 
-  // create rect
-  std::vector<Point> rect_points(number_of_dimensions*2);
-
   for( int range(i, 0, number_of_data)) {
-    for( int range(j, 0, number_of_dimensions)) {
-      rect_points[j] = rect_points[j+number_of_dimensions] = points[i*number_of_dimensions+j];
-    }
-    branches[i].SetRect(rect_points);
+    branches[i].SetMBB(&points[i*number_of_dimensions]);
   }
 
   return branches;
@@ -31,8 +25,9 @@ bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
   unsigned int number_of_bits = (number_of_dimensions>2) ? 20:31;
 
   for(int range(i, 0, branches.size())) {
-    auto points = branches[i].GetRect().GetPoints();
-    auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(number_of_dimensions, number_of_bits, points);
+    auto points = branches[i].GetPoints();
+    auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(number_of_dimensions,
+                                                                   number_of_bits, points);
     branches[i].SetIndex(hilbert_index);
   }
 

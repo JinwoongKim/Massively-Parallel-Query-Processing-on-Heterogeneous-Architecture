@@ -1,12 +1,10 @@
-OBJECTS=rect.o \
-				branch.o
-HEADERS=node.h
+OBJECTS=branch.o
 
 INC=-I. -I../.
 
 all: $(OBJECTS)
 
-%.o: %.cpp %.h $(HEADERS)
+%.o: %.cpp %.h
 	$(NVCC) -x cu $(NVCCFLAGS) $(INC) -dc $< -o $@ 
 
 clean:
