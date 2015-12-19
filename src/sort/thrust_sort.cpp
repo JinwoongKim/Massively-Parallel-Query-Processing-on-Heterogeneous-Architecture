@@ -9,7 +9,8 @@
 namespace ursus {
 namespace sort {
 
-__global__ void ReassignHilbertIndexes(node::Branch* branches, int number_of_data ) {
+__global__ 
+void ReassignHilbertIndexes(node::Branch* branches, int number_of_data ) {
   int tid = ( blockIdx.x *blockDim.x ) + threadIdx.x;
 
   while( tid < number_of_data ){
