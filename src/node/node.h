@@ -16,13 +16,13 @@ class Node{
  // Members
  //===--------------------------------------------------------------------===//
  private:
+  // branches
+  std::vector<Branch> branches;
+
   NodeType node_type = NODE_TYPE_INVALID;
 
   // distance from root
   unsigned int level;
-
-  // branches
-  std::vector<Branch> branches;
 };
 
 } // End of node namespace
