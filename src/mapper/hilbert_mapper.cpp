@@ -1,4 +1,5 @@
 #include "hilbert_mapper.h"
+#include "mapper/hilbert_macro.h"
 
 #include "common/macro.h"
 
