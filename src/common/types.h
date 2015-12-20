@@ -5,6 +5,9 @@
 namespace ursus {
 
 typedef float Point;
+typedef unsigned int ui;
+typedef unsigned long ul;
+typedef unsigned long long ull;
 
 //===--------------------------------------------------------------------===//
 // DataSet
