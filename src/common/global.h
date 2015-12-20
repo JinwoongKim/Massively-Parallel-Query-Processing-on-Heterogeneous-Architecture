@@ -2,6 +2,8 @@
 
 namespace ursus {
   constexpr unsigned int GetNumberOfDims() { return 3; }
+
+  constexpr unsigned int GetNumberOfDegrees() { return 128; }
 } // End of ursus namespace
 
 // Another way
