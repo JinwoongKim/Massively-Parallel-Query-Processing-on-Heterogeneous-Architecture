@@ -24,9 +24,9 @@ void Branch::SetChild(Node* _child) {
 }
 
 std::vector<Point> Branch::GetPoints(void) const{
-  std::vector<Point> points_vec(GetNumberOfDims()*2);
-  std::copy(point, point+GetNumberOfDims()*2, points_vec.begin());
-  return points_vec;
+  std::vector<Point> point_vec(GetNumberOfDims()*2);
+  std::copy(point, point+GetNumberOfDims()*2, point_vec.begin());
+  return point_vec;
 }
 
 Point Branch::GetPoint(const unsigned int position) const{

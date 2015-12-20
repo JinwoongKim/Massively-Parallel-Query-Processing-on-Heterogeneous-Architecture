@@ -16,7 +16,7 @@ class Branch {
  //===--------------------------------------------------------------------===//
  // Accessors
  //===--------------------------------------------------------------------===//
-  void SetMBB(Point* points);
+  void SetMBB(Point* point);
 
   __host__ __device__ void SetIndex(const unsigned long long index);
 
