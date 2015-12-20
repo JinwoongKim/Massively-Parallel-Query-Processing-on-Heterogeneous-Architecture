@@ -6,6 +6,8 @@
 namespace ursus {
 namespace node {
 
+typedef class Node* Node_Ptr;
+
 class Node{
  public:
  //===--------------------------------------------------------------------===//
@@ -19,10 +21,11 @@ class Node{
   // branches
   std::vector<Branch> branches;
 
+  // node type
   NodeType node_type = NODE_TYPE_INVALID;
 
   // distance from root
-  unsigned int level;
+  ui level;
 };
 
 } // End of node namespace

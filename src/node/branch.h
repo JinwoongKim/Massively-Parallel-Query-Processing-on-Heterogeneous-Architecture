@@ -16,21 +16,20 @@ class Branch {
  //===--------------------------------------------------------------------===//
  // Accessors
  //===--------------------------------------------------------------------===//
-  void SetMBB(Point* point);
+  void SetMBB(Point_Ptr point);
 
-  __host__ __device__ void SetIndex(const unsigned long long index);
+  __host__ __device__ void SetIndex(const ull index);
 
-  void SetChild(Node* child);
+  void SetChild(Node_Ptr child);
 
 
-  Point GetPoint(const unsigned int position) const;
+  Point GetPoint(const ui position) const;
 
   std::vector<Point> GetPoints(void) const;
 
-  __host__ __device__ unsigned long long GetIndex(void) const;
+  __host__ __device__ ull GetIndex(void) const;
 
-  Node* GetChild(void) const;
-
+  Node_Ptr GetChild(void) const;
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);
@@ -45,10 +44,10 @@ class Branch {
   Point point[GetNumberOfDims()*2];
 
   //Index to avoid re-visiting 
-  unsigned long long index;
+  ull index;
 
   // child pointers 
-  Node* child = nullptr;
+  Node_Ptr child = nullptr;
 };
 
 } // End of node namespace
