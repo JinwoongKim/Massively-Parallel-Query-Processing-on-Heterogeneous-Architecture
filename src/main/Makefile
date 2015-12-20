@@ -1,9 +1,6 @@
 OBJECTS=main.o 
-SRCS=main.cpp
-INC=-I. -I../.
 
-NVCC=nvcc
-NVCCFLAGS=-arch=sm_20
+INC=-I. -I../.
 
 all: $(OBJECTS)
 
