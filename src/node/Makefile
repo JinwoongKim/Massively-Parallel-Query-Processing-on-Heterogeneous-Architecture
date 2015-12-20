@@ -1,4 +1,5 @@
-OBJECTS=branch.o
+OBJECTS=branch.o \
+				g_node.o
 
 INC=-I. -I../.
 
