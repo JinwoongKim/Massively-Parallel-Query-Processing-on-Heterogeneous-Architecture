@@ -26,6 +26,7 @@ class Node {
  NodeType GetNodeType(void) const;
  ui GetLevel(void) const;
 
+ void SetBranch(Branch branch);
  void SetNodeType(NodeType type);
  void SetLevel(ui level);
 

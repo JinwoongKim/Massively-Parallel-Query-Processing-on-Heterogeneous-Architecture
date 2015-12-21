@@ -23,6 +23,10 @@ ui Node::GetLevel(void) const {
   return level;
 }
 
+void Node::SetBranch(Branch branch) {
+  branches.push_back(branch);
+}
+
 void Node::SetNodeType(NodeType type) {
   assert(type);
   node_type = type;

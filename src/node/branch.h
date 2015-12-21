@@ -1,8 +1,8 @@
 #pragma once
 
-#include "common/global.h"
-
 #include "node/node.h"
+
+#include "common/global.h"
 
 #include <iostream>
 
@@ -11,6 +11,13 @@ namespace node {
 
 class Branch {
  public:
+ //===--------------------------------------------------------------------===//
+ // Constructor
+ //===--------------------------------------------------------------------===//
+ __host__ __device__ Branch(){};
+
+ __host__ __device__ Branch(const Branch& branch);
+
  //===--------------------------------------------------------------------===//
  // Accessors
  //===--------------------------------------------------------------------===//
@@ -21,13 +28,13 @@ class Branch {
   void SetChild(Node_Ptr child);
 
 
-  Point GetPoint(const ui position) const;
+  __host__ __device__ Point GetPoint(const ui position) const;
 
   std::vector<Point> GetPoints(void) const;
 
   __host__ __device__ ull GetIndex(void) const;
 
-  Node_Ptr GetChild(void) const;
+  __host__ __device__ Node_Ptr GetChild(void) const;
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);

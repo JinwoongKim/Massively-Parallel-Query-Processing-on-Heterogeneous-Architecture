@@ -8,6 +8,14 @@
 namespace ursus {
 namespace node {
 
+__host__ __device__
+Branch::Branch(const Branch& branch)
+ : index(branch.GetIndex()), child(branch.GetChild()) { 
+   for(ui range(i, 0, GetNumberOfDims()*2)) {
+     point[i] = branch.GetPoint(i);
+   }
+} 
+
 void Branch::SetMBB(Point* _point) {
   std::copy(_point, _point+GetNumberOfDims(), point);
   std::copy(_point, _point+GetNumberOfDims(), point+GetNumberOfDims());
@@ -29,6 +37,7 @@ std::vector<Point> Branch::GetPoints(void) const{
   return point_vec;
 }
 
+__host__ __device__ 
 Point Branch::GetPoint(const unsigned int position) const{
   return point[position];
 }
@@ -38,6 +47,7 @@ unsigned long long Branch::GetIndex(void) const {
   return index;
 }
 
+__host__ __device__
 Node* Branch::GetChild(void) const {
   return child;
 }
