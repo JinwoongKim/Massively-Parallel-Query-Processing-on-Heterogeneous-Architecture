@@ -1,15 +1,13 @@
 #pragma once
 
 #include "common/global.h"
-#include "common/types.h"
+
+#include "node/node.h"
 
 #include <iostream>
-#include <vector>
 
 namespace ursus {
 namespace node {
-
-class Node;
 
 class Branch {
  public:

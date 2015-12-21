@@ -1,10 +1,11 @@
 SUBDIRS=common \
 				evaluator \
-				node \
-				mapper \
-				sort \
-				tree \
 				io \
+				tree \
+				node \
+				sort \
+				mapper \
+				transformer \
 				main
 
 .PHONY: all clean $(SUBDIRS)

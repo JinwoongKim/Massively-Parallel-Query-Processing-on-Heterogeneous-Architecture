@@ -2,7 +2,7 @@
 
 #include "common/types.h"
 #include "io/dataset.h"
-#include "node/node.h"
+#include "node/branch.h"
 
 #include <memory>
 

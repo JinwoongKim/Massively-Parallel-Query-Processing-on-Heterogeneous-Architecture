@@ -1,10 +1,13 @@
 #pragma once
 
 #include "common/types.h"
-#include "node/branch.h"
+
+#include <vector>
 
 namespace ursus {
 namespace node {
+
+class Branch;
 
 typedef class Node* Node_Ptr;
 
@@ -13,6 +16,18 @@ class Node{
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
+
+ //===--------------------------------------------------------------------===//
+ // Accessor
+ //===--------------------------------------------------------------------===//
+
+ Branch GetBranch(ui offset) const;
+ ui GetBranchCount(void) const;
+ NodeType GetNodeType(void) const;
+ ui GetLevel(void) const;
+
+ void SetNodeType(NodeType type);
+ void SetLevel(ui level);
 
  //===--------------------------------------------------------------------===//
  // Members

@@ -18,23 +18,31 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
   LOG_INFO("Build MPHR Tree");
   bool ret = false;
 
-  // create branches with points in input_data_set
+ //===--------------------------------------------------------------------===//
+ // Create branches
+ //===--------------------------------------------------------------------===//
   std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
-  // TODO  choose policy later
-  // assign hilbert indexes to branches 
+ //===--------------------------------------------------------------------===//
+ // Assign Hilbert Id to branches
+ //===--------------------------------------------------------------------===//
+  // TODO  have to choose policy later
   ret = AssignHilbertIndexToBranches(branches);
   assert(ret);
 
-  //For debugging
-  for( int range(i, 0, 10)) {
-    std::cout << branches[i] << std::endl;
-  }
-
-  // sort the branches
+ //===--------------------------------------------------------------------===//
+ // Sort the branches on the GPU
+ //===--------------------------------------------------------------------===//
   ret = sort::Thrust_Sort::Sort(branches);
   assert(ret);
 
+ //===--------------------------------------------------------------------===//
+ // Transform the branches into SOA fashion 
+ //===--------------------------------------------------------------------===//
+
+ //===--------------------------------------------------------------------===//
+ // Build the tree in a bottop-up fashion on the GPU
+ //===--------------------------------------------------------------------===//
   // Bottom-up building on the GPU
 
   // Transfer to the GPU
