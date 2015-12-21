@@ -11,7 +11,7 @@ class Branch;
 
 typedef class Node* Node_Ptr;
 
-class Node{
+class Node {
  public:
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor

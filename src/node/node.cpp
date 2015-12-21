@@ -1,11 +1,13 @@
 #include "node/node.h"
+#include "node/branch.h"
 
-#include <assert>
+#include <cassert>
 
 namespace ursus {
 namespace node {
 
 Branch Node::GetBranch(ui offset) const {
+  assert(offset < branches.size());
   return branches[offset];
 }
 

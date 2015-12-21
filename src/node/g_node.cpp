@@ -1,6 +1,6 @@
 #include "node/g_node.h"
 
-#include <assert>
+#include <cassert>
 
 namespace ursus {
 namespace node {
@@ -13,17 +13,17 @@ ui G_Node::GetLevel(void) const {
 }
 
 void G_Node::SetPoint(ui offset, Point _point) {
-  assert(offset < GetNumberOfDims()*2*GetNumberOFDegrees());
+  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
   point[offset] = _point;
 }
 
 void G_Node::SetIndex(ui offset, ull _index) {
-  assert(offset < GetNumberOFDegrees());
+  assert(offset < GetNumberOfDegrees());
   index[offset] = _index;
 }
 
 void G_Node::SetChild(ui offset, G_Node_Ptr _child) {
-  assert(offset < GetNumberOFDegrees());
+  assert(offset < GetNumberOfDegrees());
   child[offset] = _child;
 }
 
@@ -37,8 +37,8 @@ void G_Node::SetLevel(ui _level) {
 }
 
 void G_Node::SetBranchCount(ui _branch_count) {
-  assert(_branch_count < GetNumberOFDegrees());
-  branch_count = _branch__count;
+  assert(_branch_count < GetNumberOfDegrees());
+  branch_count = _branch_count;
 }
 
 } // End of node namespace

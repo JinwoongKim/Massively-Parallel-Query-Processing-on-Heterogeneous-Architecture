@@ -1,4 +1,5 @@
 OBJECTS=branch.o \
+				node.o \
 				g_node.o
 
 INC=-I. -I../.

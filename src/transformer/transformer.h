@@ -6,18 +6,18 @@
 namespace ursus {
 namespace transformer {
 
-class Node_Transformer{
+class Transformer{
  public:
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
-  Node_Transformer(const Node_Transformer &) = delete;
-  Node_Transformer &operator=(const Node_Transformer &) = delete;
-  Node_Transformer(Node_Transformer &&) = delete;
-  Node_Transformer &operator=(Node_Transformer &&) = delete;
+  Transformer(const Transformer &) = delete;
+  Transformer &operator=(const Transformer &) = delete;
+  Transformer(Transformer &&) = delete;
+  Transformer &operator=(Transformer &&) = delete;
 
   // global singleton
-  static Node_Transformer& GetInstance(void);
+  static Transformer& GetInstance(void);
 
  //===--------------------------------------------------------------------===//
  // Transform Function
@@ -26,7 +26,7 @@ class Node_Transformer{
                                     ui number_of_nodes);
 
  private:
-  Node_Transformer() {};
+  Transformer() {};
 };
 
 } // End of transformer namespace

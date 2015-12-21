@@ -1,4 +1,4 @@
-OBJECTS=node_transformer.o
+OBJECTS=transformer.o
 
 INC=-I. -I../.
 
