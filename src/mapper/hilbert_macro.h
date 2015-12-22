@@ -16,10 +16,10 @@
 #define rdbit(w,k) (((w) >> (k)) & 1)
 
 #define rotateRight(arg, nRots, nDims)                                  \
-	((((arg) >> (nRots)) | ((arg) << ((nDims)-(nRots)))) & ones(bitmask_t,nDims))
+	((((arg) >> (nRots)) | ((arg) << ((nDims)-(nRots)))) & ones(ull,nDims))
 
 #define rotateLeft(arg, nRots, nDims)                                   \
-	((((arg) << (nRots)) | ((arg) >> ((nDims)-(nRots)))) & ones(bitmask_t,nDims))
+	((((arg) << (nRots)) | ((arg) >> ((nDims)-(nRots)))) & ones(ull,nDims))
 
 #if defined(sparc)
 #define __BIG_ENDIAN__

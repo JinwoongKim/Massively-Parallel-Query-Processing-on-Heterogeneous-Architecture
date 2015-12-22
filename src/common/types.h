@@ -10,6 +10,8 @@ typedef unsigned int ui;
 typedef unsigned long ul;
 typedef unsigned long long ull;
 
+#define __both__ __host__ __device__
+
 //===--------------------------------------------------------------------===//
 // DataSet
 //===--------------------------------------------------------------------===//
@@ -26,7 +28,6 @@ enum DataType  {
   DATA_TYPE_REAL = 1,
   DATA_TYPE_SYNTHETIC = 2
 };
-
 
 //===--------------------------------------------------------------------===//
 // Node
@@ -47,12 +48,6 @@ enum TreeType  {
   TREE_TYPE_HYBRID =2
 };
 
-//TODO :: Rename bitmask_t to another one
-/* define the bitmask_t type as an integer of sufficient size */
-typedef unsigned long long bitmask_t;
-/* define the halfmask_t type as an integer of 1/2 the size of bitmask_t */
-typedef unsigned long halfmask_t;
-
 //===--------------------------------------------------------------------===//
 // Hilbert Curve
 //===--------------------------------------------------------------------===//
@@ -60,7 +55,7 @@ typedef unsigned long halfmask_t;
  * Readers and writers of bits
  */
 
-typedef bitmask_t (*BitReader) (unsigned nDims, unsigned nBytes, char const* c, unsigned y);
+typedef ull (*BitReader) (unsigned nDims, unsigned nBytes, char const* c, unsigned y);
 typedef void (*BitWriter) (unsigned d, unsigned nBytes, char* c, unsigned y, int fold);
 
 //===--------------------------------------------------------------------===//

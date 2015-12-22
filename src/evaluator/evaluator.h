@@ -58,9 +58,6 @@ class Evaluator{
   // 2 or more indicate partitioned version
   ui number_of_partitioned_trees = 1;
 
-  // # of thread_blocks
-  ui number_of_thread_blocks = 128;
-
   // # of cpu cores to be used for evaluation
   ui number_of_cpu_cores = 0;
   
@@ -68,9 +65,6 @@ class Evaluator{
   std::string selectivity="0.01";
 
   std::string query_size;
-  
-  // # of dims
-  ui number_of_dimensions=3; //TODO Remove hard coded number later
   
   // Measure and record time and count  
   //Logger logger;
@@ -82,9 +76,6 @@ class Evaluator{
   // TODO SHould be smart pointers
   std::vector<tree::Tree*> trees;
 
-  char** ch_root;
-  char** cd_root;
- 
 /*
   //FIXME :: do later,
   BUILD_TYPE = 0;

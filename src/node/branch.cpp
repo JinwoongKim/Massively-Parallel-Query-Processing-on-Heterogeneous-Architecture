@@ -8,48 +8,61 @@
 namespace ursus {
 namespace node {
 
-__host__ __device__
+//===--------------------------------------------------------------------===//
+// Constructor
+//===--------------------------------------------------------------------===//
+__both__
 Branch::Branch(const Branch& branch)
  : index(branch.GetIndex()), child(branch.GetChild()) { 
    for(ui range(i, 0, GetNumberOfDims()*2)) {
      point[i] = branch.GetPoint(i);
    }
-} 
-
-void Branch::SetMBB(Point* _point) {
-  std::copy(_point, _point+GetNumberOfDims(), point);
-  std::copy(_point, _point+GetNumberOfDims(), point+GetNumberOfDims());
 }
 
-__host__ __device__
-void Branch::SetIndex(const unsigned long long _index) {
-  index = _index;
-}
-
-void Branch::SetChild(Node* _child) {
-  assert(_child);
-  child = _child;
-}
-
+//===--------------------------------------------------------------------===//
+// Accessors
+//===--------------------------------------------------------------------===//
 std::vector<Point> Branch::GetPoints(void) const{
   std::vector<Point> point_vec(GetNumberOfDims()*2);
   std::copy(point, point+GetNumberOfDims()*2, point_vec.begin());
   return point_vec;
 }
 
-__host__ __device__ 
-Point Branch::GetPoint(const unsigned int position) const{
+__both__ 
+Point Branch::GetPoint(const ui position) const{
   return point[position];
 }
 
-__host__ __device__ 
+__both__ 
 unsigned long long Branch::GetIndex(void) const {
   return index;
 }
 
-__host__ __device__
+__both__
 Node* Branch::GetChild(void) const {
   return child;
+}
+ 
+void Branch::SetMBB(Point* _point) {
+  std::copy(_point, _point+GetNumberOfDims(), point);
+  std::copy(_point, _point+GetNumberOfDims(), point+GetNumberOfDims());
+}
+
+__both__
+void Branch::SetPoint(Point _point, const ui offset) {
+  assert(offset < GetNumberOfDims()*2);
+  point[offset] = _point;
+}
+
+__both__
+void Branch::SetIndex(const ull _index) {
+  index = _index;
+}
+
+__both__
+void Branch::SetChild(Node* _child) {
+  assert(_child);
+  child = _child;
 }
 
 // Get a string representation
@@ -64,7 +77,7 @@ std::ostream &operator<<(std::ostream &os, const Branch &branch) {
   os << " Child = " << branch.GetChild() << std::endl;
   return os;
 }
-__host__ __device__ 
+__both__ 
 bool operator<(const Branch &lhs, const Branch &rhs) {
   return lhs.GetIndex() < rhs.GetIndex();
 }

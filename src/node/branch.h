@@ -1,45 +1,43 @@
 #pragma once
 
-#include "node/node.h"
-
-#include "common/global.h"
+#include "common/config.h"
+#include "common/types.h"
 
 #include <iostream>
+#include <vector>
 
 namespace ursus {
 namespace node {
+
+class Node;
+typedef Node* Node_Ptr;
 
 class Branch {
  public:
  //===--------------------------------------------------------------------===//
  // Constructor
  //===--------------------------------------------------------------------===//
- __host__ __device__ Branch(){};
+ __both__ Branch(){};
 
- __host__ __device__ Branch(const Branch& branch);
+ __both__ Branch(const Branch& branch);
 
  //===--------------------------------------------------------------------===//
  // Accessors
  //===--------------------------------------------------------------------===//
-  void SetMBB(Point_Ptr point);
-
-  __host__ __device__ void SetIndex(const ull index);
-
-  void SetChild(Node_Ptr child);
-
-
-  __host__ __device__ Point GetPoint(const ui position) const;
-
   std::vector<Point> GetPoints(void) const;
+  __both__ Point GetPoint(const ui position) const;
+  __both__ ull GetIndex(void) const;
+  __both__ Node_Ptr GetChild(void) const;
 
-  __host__ __device__ ull GetIndex(void) const;
-
-  __host__ __device__ Node_Ptr GetChild(void) const;
+  void SetMBB(Point_Ptr point);
+  __both__ void SetPoint(Point point, const ui offset);
+  __both__ void SetIndex(const ull index);
+  __both__ void SetChild(Node_Ptr child);
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);
 
-  friend __host__ __device__ bool operator<(const Branch &lhs, const Branch &rhs);
+  friend __both__ bool operator<(const Branch &lhs, const Branch &rhs);
 
  //===--------------------------------------------------------------------===//
  // Members

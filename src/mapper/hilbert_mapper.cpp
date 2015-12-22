@@ -8,25 +8,25 @@ namespace mapper {
 
 /**
 * @brief Convert points of a point on a Hilbert curve to its index.
-*        Assumptions : number_of_dimensions*number_of_bits <= (sizeof bitmask_t) * (bits_per_byte)
+*        Assumptions : number_of_dimensions*number_of_bits <= (sizeof ull) * (bits_per_byte)
 * @param points : n number_of_bits-bit coordinates.
 * @return index value : number_of_dimensions*number_of_bits bits.
 */
-bitmask_t 
-Hilbert_Mapper::MappingIntoSingle(unsigned int number_of_dimensions,
-                                  unsigned int number_of_bits,
-                                  std::vector<Point> points){
-  std::vector<bitmask_t> coord(number_of_dimensions);
+ull 
+Hilbert_Mapper::MappingIntoSingle(ui number_of_dimensions,
+                                  ui number_of_bits,
+                                  std::vector<Point> points) {
+  std::vector<ull> coord(number_of_dimensions);
 
   for(int range(i, 0, number_of_dimensions)) {
-    coord[i] = (bitmask_t) (1000000*points[i]);
+    coord[i] = (ull) (1000000*points[i]);
   }
 
   if (number_of_dimensions > 1) {
-    unsigned const number_of_dimensionsBits = number_of_dimensions*number_of_bits;
-    bitmask_t index;
-    unsigned d;
-    bitmask_t coords = 0;
+    ui const number_of_dimensionsBits = number_of_dimensions*number_of_bits;
+    ull index;
+    ui d;
+    ull coords = 0;
 
     for (d = number_of_dimensions; d--; ) {
       coords <<= number_of_bits;
@@ -34,22 +34,22 @@ Hilbert_Mapper::MappingIntoSingle(unsigned int number_of_dimensions,
     }
 
     if (number_of_bits > 1) {
-      halfmask_t const ndOnes = ones(halfmask_t,number_of_dimensions); 
-      halfmask_t const nd1Ones= ndOnes >> 1; /* for adjust_rotation */
-      unsigned b = number_of_dimensionsBits;
-      unsigned rotation = 0;
-      halfmask_t flipBit = 0;
-      bitmask_t const nthbits = ones(bitmask_t,number_of_dimensionsBits) / ndOnes;
+      ul const ndOnes = ones(ul,number_of_dimensions); 
+      ul const nd1Ones= ndOnes >> 1; /* for adjust_rotation */
+      ui b = number_of_dimensionsBits;
+      ui rotation = 0;
+      ul flipBit = 0;
+      ull const nthbits = ones(ull,number_of_dimensionsBits) / ndOnes;
       coords = bitTranspose(number_of_dimensions, number_of_bits, coords);
       coords ^= coords >> number_of_dimensions;
       index = 0;
 
       do {
-        halfmask_t bits = (coords >> (b-=number_of_dimensions)) & ndOnes;
+        ul bits = (coords >> (b-=number_of_dimensions)) & ndOnes;
         bits = rotateRight(flipBit ^ bits, rotation, number_of_dimensions);
         index <<= number_of_dimensions;
         index |= bits;
-        flipBit = (halfmask_t)1 << rotation;
+        flipBit = (ul)1 << rotation;
         adjust_rotation(rotation,number_of_dimensions,bits);
       } while (b);
       index ^= nthbits >> 1;
@@ -72,37 +72,37 @@ Hilbert_Mapper::MappingIntoSingle(unsigned int number_of_dimensions,
  * @param number_of_dimensions : number of coordinate axes.
  * @param number_of_bits : number of bits per axis.
  * @param index  : The index, contains number_of_dimensions*number_of_bits bits
- *                 (so number_of_dimensions*number_of_bits must be <= 8*sizeof(bitmask_t)).
+ *                 (so number_of_dimensions*number_of_bits must be <= 8*sizeof(ull)).
  * @return coordinate : the list of number of dimensions points,
  *                      each with number of bits 
  */
 std::vector<Point>
-Hilbert_Mapper::MappingIntoMulti(unsigned int number_of_dimensions,
-                                 unsigned int number_of_bits,
-                                 bitmask_t index){
-  std::vector<bitmask_t> coord(number_of_dimensions);
+Hilbert_Mapper::MappingIntoMulti(ui number_of_dimensions,
+                                 ui number_of_bits,
+                                 ull index) {
+  std::vector<ull> coord(number_of_dimensions);
 
   if (number_of_dimensions > 1){
-    bitmask_t coords;
-    halfmask_t const nbOnes = ones(halfmask_t,number_of_bits);
-    unsigned d;
+    ull coords;
+    ul const nbOnes = ones(ul,number_of_bits);
+    ui d;
 
     if (number_of_bits > 1){
-      unsigned const number_of_dimensionsBits = number_of_dimensions*number_of_bits;
-      halfmask_t const ndOnes = ones(halfmask_t,number_of_dimensions);
-      halfmask_t const nd1Ones= ndOnes >> 1; /* for adjust_rotation */
-      unsigned b = number_of_dimensionsBits;
-      unsigned rotation = 0;
-      halfmask_t flipBit = 0;
-      bitmask_t const nthbits = ones(bitmask_t,number_of_dimensionsBits) / ndOnes;
+      ui const number_of_dimensionsBits = number_of_dimensions*number_of_bits;
+      ul const ndOnes = ones(ul,number_of_dimensions);
+      ul const nd1Ones= ndOnes >> 1; /* for adjust_rotation */
+      ui b = number_of_dimensionsBits;
+      ui rotation = 0;
+      ul flipBit = 0;
+      ull const nthbits = ones(ull,number_of_dimensionsBits) / ndOnes;
       index ^= (index ^ nthbits) >> 1;
       coords = 0;
 
       do {
-        halfmask_t bits = (index >> (b-=number_of_dimensions)) & ndOnes;
+        ul bits = (index >> (b-=number_of_dimensions)) & ndOnes;
         coords <<= number_of_dimensions;
         coords |= rotateLeft(bits, rotation, number_of_dimensions) ^ flipBit;
-        flipBit = (halfmask_t)1 << rotation;
+        flipBit = (ul)1 << rotation;
         adjust_rotation(rotation,number_of_dimensions,bits);
       } while (b);
 
@@ -132,33 +132,33 @@ Hilbert_Mapper::MappingIntoMulti(unsigned int number_of_dimensions,
   return points;
 }
 
-bitmask_t
-Hilbert_Mapper::bitTranspose(unsigned number_of_dimensions, 
-                            unsigned number_of_bits, 
-                            bitmask_t inCoords){
+ull
+Hilbert_Mapper::bitTranspose(ui number_of_dimensions, 
+                             ui number_of_bits, 
+                             ull inCoords) {
 
-  unsigned const number_of_dimensions1 = number_of_dimensions-1;
-  unsigned inB = number_of_bits;
-  unsigned utB;
-  bitmask_t inFieldEnds = 1;
-  bitmask_t inMask = ones(bitmask_t,inB);
-  bitmask_t coords = 0;
+  ui const number_of_dimensions1 = number_of_dimensions-1;
+  ui inB = number_of_bits;
+  ui utB;
+  ull inFieldEnds = 1;
+  ull inMask = ones(ull,inB);
+  ull coords = 0;
 
   while ((utB = inB / 2)) {
-    unsigned const shiftAmt = number_of_dimensions1 * utB;
-    bitmask_t const utFieldEnds =
+    ui const shiftAmt = number_of_dimensions1 * utB;
+    ull const utFieldEnds =
       inFieldEnds | (inFieldEnds << (shiftAmt+utB));
-    bitmask_t const utMask =
+    ull const utMask =
       (utFieldEnds << utB) - utFieldEnds;
-    bitmask_t utCoords = 0;
-    unsigned d;
+    ull utCoords = 0;
+    ui d;
 
     if (inB & 1) {
-      bitmask_t const inFieldStarts = inFieldEnds << (inB-1);
-      unsigned oddShift = 2*shiftAmt;
+      ull const inFieldStarts = inFieldEnds << (inB-1);
+      ui oddShift = 2*shiftAmt;
 
       for (d = 0; d < number_of_dimensions; ++d) {
-        bitmask_t in = inCoords & inMask;
+        ull in = inCoords & inMask;
         inCoords >>= inB;
         coords |= (in & inFieldStarts) <<	oddShift++;
         in &= ~inFieldStarts;
@@ -167,7 +167,7 @@ Hilbert_Mapper::bitTranspose(unsigned number_of_dimensions,
       }
     } else {
       for (d = 0; d < number_of_dimensions; ++d) {
-        bitmask_t in = inCoords & inMask;
+        ull in = inCoords & inMask;
         inCoords >>= inB;
         in = (in | (in << shiftAmt)) & utMask;
         utCoords |= in << (d*utB);
@@ -182,15 +182,13 @@ Hilbert_Mapper::bitTranspose(unsigned number_of_dimensions,
   return coords;
 }
 
-bitmask_t
-Hilbert_Mapper::getIntBits(unsigned number_of_dimensions, 
-                          unsigned number_of_bytes, 
-                          char const* c, 
-                          unsigned y){
-  unsigned const bit = y%8;
-  unsigned const offs = whichByte(number_of_bytes,y);
-  unsigned d;
-  bitmask_t bits = 0;
+ull
+Hilbert_Mapper::getIntBits(ui number_of_dimensions, ui number_of_bytes, 
+                           char const* c, ui y){
+  ui const bit = y%8;
+  ui const offs = whichByte(number_of_bytes,y);
+  ui d;
+  ull bits = 0;
   c += offs;
 
   for (d = 0; d < number_of_dimensions; ++d) {
@@ -214,45 +212,39 @@ Hilbert_Mapper::getIntBits(unsigned number_of_dimensions,
  *      -1, 0, or 1 according to whether
  coord1<coord2, coord1==coord2, coord1>coord2
  * Assumptions:
- *      number_of_bits <= (sizeof bitmask_t) * (bits_per_byte)
+ *      number_of_bits <= (sizeof ull) * (bits_per_byte)
  */
 
 int
-Hilbert_Mapper::hilbert_cmp(unsigned number_of_dimensions,
-                           unsigned number_of_bytes, 
-                           unsigned number_of_bits,
-                           void const* c1, 
-                           void const* c2){
-
-  bitmask_t const one = 1;
-  bitmask_t bits = one << (number_of_dimensions-1);
-  return hilbert_cmp_work(number_of_dimensions, number_of_bytes, number_of_bits, 0, number_of_bits,
-      (char const*)c1, (char const*)c2,
-      0, bits, bits, getIntBits);
+Hilbert_Mapper::hilbert_cmp(ui number_of_dimensions, 
+                            ui number_of_bytes, 
+                            ui number_of_bits,
+                            void const* c1, void const* c2){
+  ull const one = 1;
+  ull bits = one << (number_of_dimensions-1);
+  return hilbert_cmp_work(number_of_dimensions, number_of_bytes, 
+                          number_of_bits, 0, number_of_bits, 
+                          (char const*)c1, (char const*)c2, 0, bits, bits, getIntBits);
 }
 
 int
-Hilbert_Mapper::hilbert_cmp_work(unsigned number_of_dimensions, 
-                                unsigned number_of_bytes, 
-                                unsigned number_of_bits,
-                                unsigned max, 
-                                unsigned y,
-                                char const* c1, 
-                                char const* c2,
-                                unsigned rotation,
-                                bitmask_t bits,
-                                bitmask_t index,
-                                BitReader getBits){
+Hilbert_Mapper::hilbert_cmp_work(ui number_of_dimensions, 
+                                 ui number_of_bytes, 
+                                 ui number_of_bits,
+                                 ui max, ui y,
+                                 char const* c1, char const* c2,
+                                 ui rotation, ull bits, ull index,
+                                 BitReader getBits){
 
-  bitmask_t const one = 1;
-  bitmask_t const nd1Ones = ones(bitmask_t,number_of_dimensions) >> 1; /* used in adjust_rotation macro */
+  ull const one = 1;
+  ull const nd1Ones = ones(ull,number_of_dimensions) >> 1; /* used in adjust_rotation macro */
   while (y-- > max) {
-    bitmask_t reflection = getBits(number_of_dimensions, number_of_bytes, c1, y);
-    bitmask_t diff = reflection ^ getBits(number_of_dimensions, number_of_bytes, c2, y);
+    ull reflection = getBits(number_of_dimensions, number_of_bytes, c1, y);
+    ull diff = reflection ^ getBits(number_of_dimensions, number_of_bytes, c2, y);
     bits ^= reflection;
     bits = rotateRight(bits, rotation, number_of_dimensions);
     if (diff) {
-      unsigned d;
+      ui d;
       diff = rotateRight(diff, rotation, number_of_dimensions);
       for (d = 1; d < number_of_dimensions; d *= 2) {
         index ^= index >> d;

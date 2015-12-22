@@ -6,6 +6,7 @@
 *.swp
 *.bak
 core
+out
 
 ## -------------------------------
 ## Backup artifacts

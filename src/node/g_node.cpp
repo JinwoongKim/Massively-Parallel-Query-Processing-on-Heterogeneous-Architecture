@@ -8,7 +8,7 @@ namespace node {
 NodeType G_Node::GetNodeType(void) const {
   return node_type;
 }
-ui G_Node::GetLevel(void) const {
+int G_Node::GetLevel(void) const {
   return level;
 }
 
@@ -32,8 +32,8 @@ void G_Node::SetNodeType(NodeType type) {
   node_type = type;
 }
 
-void G_Node::SetLevel(ui _level) {
-  level = level;
+void G_Node::SetLevel(int _level) {
+  level = _level;
 }
 
 void G_Node::SetBranchCount(ui _branch_count) {
