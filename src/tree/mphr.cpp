@@ -24,7 +24,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
   std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
  //===--------------------------------------------------------------------===//
- // Assign Hilbert Id to branches
+ // Assign Hilbert Ids to branches
  //===--------------------------------------------------------------------===//
   // TODO  have to choose policy later
   ret = AssignHilbertIndexToBranches(branches);
@@ -55,6 +55,9 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
   return true;
 }
 
+bool MPHR::Bottom_Up(std::vector<node::Branch> &branches) {
+  return true;
+}
 
 int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set){
   return -1  ;
