@@ -1,6 +1,6 @@
 #include "evaluator/evaluator.h"
 
-#include "tree/mphr.h"
+#include "tree/hybrid.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -121,8 +121,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   } 
 
   // TODO Hard coded now
-  tree::Tree *mphr = new tree::MPHR();
-  trees.push_back(mphr);
+  tree::Tree *hybrid = new tree::Hybrid();
+  trees.push_back(hybrid);
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
