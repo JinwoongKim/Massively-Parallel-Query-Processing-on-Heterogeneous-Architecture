@@ -1,6 +1,4 @@
-OBJECTS=branch.o \
-				node.o \
-				g_node.o
+OBJECTS=transformer.o
 
 INC=-I. -I../.
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "common/global.h"
+#include "common/config.h"
 #include "common/types.h"
 
 #include <iostream>
@@ -10,32 +10,34 @@ namespace ursus {
 namespace node {
 
 class Node;
+typedef Node* Node_Ptr;
 
 class Branch {
  public:
  //===--------------------------------------------------------------------===//
+ // Constructor
+ //===--------------------------------------------------------------------===//
+ __both__ Branch(){};
+
+ __both__ Branch(const Branch& branch);
+
+ //===--------------------------------------------------------------------===//
  // Accessors
  //===--------------------------------------------------------------------===//
-  void SetMBB(Point* points);
-
-  __host__ __device__ void SetIndex(const unsigned long long index);
-
-  void SetChild(Node* child);
-
-
-  Point GetPoint(const unsigned int position) const;
-
   std::vector<Point> GetPoints(void) const;
+  __both__ Point GetPoint(const ui position) const;
+  __both__ ull GetIndex(void) const;
+  __both__ Node_Ptr GetChild(void) const;
 
-  __host__ __device__ unsigned long long GetIndex(void) const;
-
-  Node* GetChild(void) const;
-
+  void SetMBB(Point_Ptr point);
+  __both__ void SetPoint(Point point, const ui offset);
+  __both__ void SetIndex(const ull index);
+  __both__ void SetChild(Node_Ptr child);
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);
 
-  friend __host__ __device__ bool operator<(const Branch &lhs, const Branch &rhs);
+  friend __both__ bool operator<(const Branch &lhs, const Branch &rhs);
 
  //===--------------------------------------------------------------------===//
  // Members
@@ -45,10 +47,10 @@ class Branch {
   Point point[GetNumberOfDims()*2];
 
   //Index to avoid re-visiting 
-  unsigned long long index;
+  ull index;
 
   // child pointers 
-  Node* child = nullptr;
+  Node_Ptr child = nullptr;
 };
 
 } // End of node namespace

@@ -41,36 +41,30 @@ class Evaluator{
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator);
 
- //===--------------------------------------------------------------------===//
- // Members
- //===--------------------------------------------------------------------===//
  private:
   Evaluator() {};
 
+ //===--------------------------------------------------------------------===//
+ // Members
+ //===--------------------------------------------------------------------===//
   // # of data to be indexed
-  unsigned number_of_data = 0;
+  ui number_of_data = 0;
 
   // # of searches
-  unsigned number_of_searches = 0;
+  ui number_of_searches = 0;
 
   // # of partitioned trees
   // 1 means braided version(no partition), 
   // 2 or more indicate partitioned version
-  unsigned number_of_partitioned_trees = 1;
-
-  // # of thread_blocks
-  unsigned number_of_thread_blocks = 128;
+  ui number_of_partitioned_trees = 1;
 
   // # of cpu cores to be used for evaluation
-  unsigned number_of_cpu_cores = 0;
+  ui number_of_cpu_cores = 0;
   
   //TODO Why is this string instead of float??
   std::string selectivity="0.01";
 
   std::string query_size;
-  
-  // # of dims
-  unsigned number_of_dimensions=3; //TODO Remove hard coded number later
   
   // Measure and record time and count  
   //Logger logger;
@@ -82,9 +76,6 @@ class Evaluator{
   // TODO SHould be smart pointers
   std::vector<tree::Tree*> trees;
 
-  char** ch_root;
-  char** cd_root;
- 
 /*
   //FIXME :: do later,
   BUILD_TYPE = 0;

@@ -5,24 +5,24 @@
 namespace ursus {
 namespace tree {
 
-class MPHR : public Tree {
+class Hybrid : public Tree {
  public:
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
-  MPHR();
+  Hybrid();
 
  //===--------------------------------------------------------------------===//
  // Main Function
  //===--------------------------------------------------------------------===//
 
   /**
-   * Build the MPHRtrees with input_data_set
+   * Build the Hybrid tree with input_data_set
    */
   bool Build(std::shared_ptr<io::DataSet> input_data_set);
 
   /**
-   * Build the internal nodes in MPHRtrees 
+   * Build the internal nodes
    */
   bool Bottom_Up(std::vector<node::Branch> &branches);
 
@@ -30,6 +30,8 @@ class MPHR : public Tree {
    * Search the data 
    */
   int Search(std::shared_ptr<io::DataSet> query_data_set);
+
+  void PrintTree(void);
 };
 
 } // End of tree namespace

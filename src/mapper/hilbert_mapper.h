@@ -9,39 +9,33 @@ namespace mapper {
 
 class Hilbert_Mapper {
  public:
- static bitmask_t MappingIntoSingle(unsigned int number_of_dimensions,
-                                    unsigned int number_of_bits,
-                                    std::vector<Point> points);
+ static ull MappingIntoSingle(ui number_of_dimensions,
+                              ui number_of_bits,
+                              std::vector<Point> points);
 
- static std::vector<Point> MappingIntoMulti(unsigned int number_of_dimensions,
-                                            unsigned int number_of_bits,
-                                            bitmask_t index);
+ static std::vector<Point> MappingIntoMulti(ui number_of_dimensions,
+                                            ui number_of_bits,
+                                            ull index);
  private:
-  static bitmask_t bitTranspose(unsigned int number_of_dimensions, 
-                                unsigned int number_of_bits, 
-                                bitmask_t inCoords);
+  static ull bitTranspose(ui number_of_dimensions, 
+                          ui number_of_bits, 
+                          ull inCoords);
 
-  static bitmask_t getIntBits(unsigned int number_of_dimensions, 
-                              unsigned int number_of_bytes, 
-                              char const* c, 
-                              unsigned int y);
+  static ull getIntBits(ui number_of_dimensions, 
+                        ui number_of_bytes, 
+                        char const* c, ui y);
 
-  static int hilbert_cmp(unsigned int number_of_dimensions, 
-                         unsigned int number_of_bytes, 
-                         unsigned int number_of_bits, 
-                         void const* coord1, 
-                         void const* coord2);
+  static int hilbert_cmp(ui number_of_dimensions, 
+                         ui number_of_bytes, 
+                         ui number_of_bits, 
+                         void const* coord1, void const* coord2);
 
-  static int hilbert_cmp_work(unsigned int number_of_dimensions, 
-                              unsigned int number_of_bytes, 
-                              unsigned int number_of_bits, 
-                              unsigned int max, 
-                              unsigned int y, 
-                              char const* c1, 
-                              char const* c2, 
-                              unsigned int rotation, 
-                              bitmask_t bits, 
-                              bitmask_t index, 
+  static int hilbert_cmp_work(ui number_of_dimensions, 
+                              ui number_of_bytes, 
+                              ui number_of_bits, 
+                              ui max, ui y, 
+                              char const* c1, char const* c2, 
+                              ui rotation, ull bits, ull index, 
                               BitReader getBits);
 };
 

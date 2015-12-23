@@ -1,6 +1,6 @@
 #include "evaluator/evaluator.h"
 
-#include "tree/mphr.h"
+#include "tree/hybrid.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -23,10 +23,6 @@ bool Evaluator::Initialize(int argc, char** argv){
     PrintHelp(argv);
     return false;
   }
-
-  //TODO ??
-  ch_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
-  cd_root = (char**)malloc(number_of_partitioned_trees*sizeof(char*));
 
   // Read dataset based on initialized variables
   ReadDataSet();
@@ -88,9 +84,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'q':
       case 'Q': number_of_searches = atoi(optarg); break;
       case 'p':
-      case 'P': number_of_thread_blocks = number_of_partitioned_trees = atoi(optarg); break;
-      case 'b':
-      case 'B': number_of_thread_blocks = atoi(optarg); number_of_partitioned_trees=1; break;
+      case 'P': number_of_partitioned_trees = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
       case 'c':
@@ -121,8 +115,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   } 
 
   // TODO Hard coded now
-  tree::Tree *mphr = new tree::MPHR();
-  trees.push_back(mphr);
+  tree::Tree *hybrid = new tree::Hybrid();
+  trees.push_back(hybrid);
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
@@ -180,7 +174,7 @@ bool Evaluator::Build(void) {
 bool Evaluator::ReadDataSet(void){
   // Read data set
   //TODO : hard coded now...
-  input_data_set.reset ( new io::DataSet(number_of_dimensions, number_of_data,
+  input_data_set.reset ( new io::DataSet(GetNumberOfDims(), number_of_data,
                          "/home/jwkim/dataFiles/input/real/NOAA0.bin",
                          DATASET_TYPE_BINARY)); 
   return true;
@@ -192,7 +186,6 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of data = " << evaluator.number_of_data << std::endl
      << " number of searches = " << evaluator.number_of_searches << std::endl
      << " number of partitioned trees = " << evaluator.number_of_partitioned_trees << std::endl
-     << " number of thread blocks = " << evaluator.number_of_thread_blocks << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_cores << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
