@@ -46,24 +46,7 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
  // Transform the branches into SOA fashion 
  //===--------------------------------------------------------------------===//
 
- //===--------------------------------------------------------------------===//
- // Build the tree in a bottop-up fashion on the GPU
- //===--------------------------------------------------------------------===//
-  // Bottom-up building on the GPU
-
-  // Transfer to the GPU
-
-  //For debugging
-  /*
-  LOG_INFO("Height %zu", level_node_count.size());
-  ui node_itr=0;
-  for( int i=level_node_count.size()-1; i>=0; --i) {
-    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
-    for( ui range(j, 0, level_node_count[i])){
-      std::cout << node[node_itr++] << std::endl;
-    }
-  }
-  */
+ //PrintTree();
 
   return true;
 }
@@ -91,7 +74,6 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   node::Node_Ptr d_node;
   cudaMalloc((void**) &d_node, sizeof(node::Node)*total_node_count);
   cudaMemcpy(d_node, node, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice);
-
  //===--------------------------------------------------------------------===//
  // Construct the rest part of trees on the GPU
  //===--------------------------------------------------------------------===//
@@ -100,7 +82,6 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   for( ui range(level_itr, 0, tree_height)) {
     current_offset -= level_node_count[level_itr];
     ul parent_offset = (current_offset-level_node_count[level_itr+1]);
-
     BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node);
   }
   // print out sorting time on the GPU
@@ -115,6 +96,20 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
 
 int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set){
   return -1  ;
+}
+
+void Hybrid::PrintTree(void) {
+  LOG_INFO("Height %zu", level_node_count.size());
+
+  ui node_itr=0;
+
+  for( int i=level_node_count.size()-1; i>=0; --i) {
+    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
+    for( ui range(j, 0, level_node_count[i])){
+      std::cout << node[node_itr++] << std::endl;
+    }
+  }
+
 }
 
 } // End of tree namespace

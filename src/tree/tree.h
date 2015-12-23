@@ -37,6 +37,11 @@ class Tree{
    */
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set) = 0;
 
+  /**
+   * Print tree
+   */
+  virtual void PrintTree(void) = 0;
+
  //===--------------------------------------------------------------------===//
  // Utility Function
  //===--------------------------------------------------------------------===//
