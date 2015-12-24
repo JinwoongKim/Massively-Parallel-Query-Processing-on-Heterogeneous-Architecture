@@ -22,15 +22,18 @@ class Hybrid : public Tree {
   bool Build(std::shared_ptr<io::DataSet> input_data_set);
 
   /**
-   * Build the internal nodes
-   */
-  bool Bottom_Up(std::vector<node::Branch> &branches);
-
-  /**
    * Search the data 
    */
   int Search(std::shared_ptr<io::DataSet> query_data_set);
 
+  /**
+   * Build the internal nodes
+   */
+  bool Bottom_Up(std::vector<node::Branch> &branches);
+
+ //===--------------------------------------------------------------------===//
+ // Utility
+ //===--------------------------------------------------------------------===//
   void PrintTree(ui count=0);
 };
 

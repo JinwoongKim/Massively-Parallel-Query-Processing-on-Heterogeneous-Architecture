@@ -26,11 +26,12 @@ class Evaluator{
   //===--------------------------------------------------------------------===//
   // Initialize
   //===--------------------------------------------------------------------===//
-
   bool Initialize(int argc, char **argv);
 
   bool ReadDataSet(void);
  
+  int SetDevice(ui number_of_gpus);
+
   bool Build(void);
 
   // Print out usage to users
@@ -65,6 +66,9 @@ class Evaluator{
   std::string selectivity="0.01";
 
   std::string query_size;
+
+  // # of gpus
+  ui number_of_gpus = 1;
   
   // Measure and record time and count  
   //Logger logger;
@@ -84,7 +88,6 @@ class Evaluator{
   // workload offset
   unsigned policy = 0;
   DEVICE_ID = 0;
-  keepDoing = 0;
 */
  
 };

@@ -51,6 +51,10 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   return true;
 }
 
+int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set){
+  return -1  ;
+}
+
 bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
@@ -93,10 +97,6 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   // Re-set child pointers
   SetChildPointers(node, total_node_count-level_node_count[0]);
   return true;
-}
-
-int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set){
-  return -1  ;
 }
 
 void Hybrid::PrintTree(ui count) {

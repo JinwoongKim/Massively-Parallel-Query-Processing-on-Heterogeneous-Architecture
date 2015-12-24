@@ -1,5 +1,7 @@
 #include "evaluator/evaluator.h"
 
+#include "common/macro.h"
+#include "common/logger.h"
 #include "tree/hybrid.h"
 
 #include <cassert>
@@ -30,8 +32,53 @@ bool Evaluator::Initialize(int argc, char** argv){
   return true;
 }
 
+bool Evaluator::ReadDataSet(void){
+  //TODO : hard coded now...
+  input_data_set.reset ( new io::DataSet(GetNumberOfDims(), number_of_data,
+                         "/home/jwkim/dataFiles/input/real/NOAA0.bin",
+                         DATASET_TYPE_BINARY)); 
+  return true;
+}
+
+int Evaluator::SetDevice(ui number_of_gpus) {
+
+  for(ui range(gpu_itr, 0, number_of_gpus)) {
+    // attempt to set the device
+    cudaError_t error = cudaSetDevice(gpu_itr);
+     // fail
+    if( error != cudaSuccess) {
+      continue;
+    }
+
+    size_t avail, total;
+    cudaMemGetInfo( &avail, &total );
+    // if available space is less than 10%, try to get another on,
+    // otherwise success to get the GPU
+    if( avail > 0.1 ) {
+      LOG_INFO("%uth GPU is selected", gpu_itr+1);
+      return gpu_itr;
+    }
+  }
+
+  LOG_INFO("Unfortunately, There is no available device on this machine");
+  return -1;
+}
+
+/**
+ * @brief Build all indexing structures in tree_queue with input_dataset
+ * @return true if building all indexing structures successfully,
+ *  otherwise return false 
+ */
+bool Evaluator::Build(void) {
+  for(auto tree : trees) {
+    if(!tree->Build(input_data_set)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 //TODO :: Need to fix?  scrub
-//TODO :: paint it up
 void Evaluator::PrintHelp(char **argv) const {
   std::cerr << "Usage:\n" << *argv << std::endl << 
   " -d number of data\n" 
@@ -43,6 +90,7 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -b braided version, number of block, default : 128 ]\n"
   " [ -p partitioned version, number of block ]\n" 
   " [ -s selection ratio(%), default : 1 (%) ]\n"
+  " [ -g number of gpus, default : 1 ]\n" 
   " [ -c number of cpu cores, default : 1 ]\n" 
   " [ -w workload offset, default : 0 ]\n" 
   " [ -v Specified device(GPU) id, default : 0 ]\n" 
@@ -55,17 +103,13 @@ void Evaluator::PrintHelp(char **argv) const {
 // http://www.boost.org/doc/libs/1_59_0/doc/html/program_options.html
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
-  static const char *options="d:D:q:Q:p:P:b:B:s:S:c:C:w:W:o:O:i:I:m:M:k:K:v:V:";
-  //extern char *optarg;
+  // TODO scrubbing
+  static const char *options="d:D:q:Q:p:P:b:B:s:S:g:G:c:C:w:W:o:O:i:I:m:M:k:K:v:V:";
   std::string number_of_data_str;
   int current_option;
 
   while ((current_option = getopt(argc, argv, options)) != -1) {
     switch (current_option) {
-//      case 'v':
-//      case 'V': DEVICE_ID = atoi(optarg); break;
-//      case 'k':
-//      case 'K': keepDoing = atoi(optarg); break;
 //      case 'w':
 //      case 'W': WORKLOAD = atoi(optarg); break;
 //      case 'o':
@@ -89,11 +133,17 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'S': selectivity = std::string(optarg);  break;
       case 'c':
       case 'C': number_of_cpu_cores = atoi(optarg); break;
+      case 'g':
+      case 'G': number_of_gpus = atoi(optarg); break;
      default: break;
     } // end of switch
   } // end of while
 
-  if( number_of_data_str.empty() ) return false;
+  int ret = SetDevice(number_of_gpus);
+  // if failed to set the device, terminate the program
+  if(ret == -1){ exit(1); }
+
+  if( number_of_data_str.empty() ){ return false; }
 
   if( number_of_cpu_cores > 0 )
     number_of_cpu_cores = ( number_of_partitioned_trees > 1 ) ? number_of_partitioned_trees : 1;  
@@ -153,30 +203,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO :: REMOVE, just for debugging now
   std::cout << *this << std::endl;
-  return true;
-}
-
-
-/**
- * @brief Build all indexing structures in tree_queue with input_dataset
- * @return true if building all indexing structures successfully,
- *  otherwise return false 
- */
-bool Evaluator::Build(void) {
-  for(auto tree : trees) {
-    if(!tree->Build(input_data_set)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-bool Evaluator::ReadDataSet(void){
-  // Read data set
-  //TODO : hard coded now...
-  input_data_set.reset ( new io::DataSet(GetNumberOfDims(), number_of_data,
-                         "/home/jwkim/dataFiles/input/real/NOAA0.bin",
-                         DATASET_TYPE_BINARY)); 
   return true;
 }
 
