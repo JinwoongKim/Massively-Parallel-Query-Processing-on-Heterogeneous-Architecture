@@ -3,7 +3,7 @@ OBJECTS=evaluator.o \
 
 INC=-I. -I../.
 
-all: $(OBJECTS)
+all: $(OBJECTS) $(HEADERS)
 
 %.o: %.cpp %.h
 	$(NVCC) -x cu $(NVCCFLAGS) $(INC) -dc $< -o $@ 

@@ -4,7 +4,7 @@ INC=-I. -I../.
 
 all: $(OBJECTS)
 
-%.o: %.cpp %.h
+%.o: %.cpp %.h 
 	$(NVCC) -x cu $(NVCCFLAGS) $(INC) -dc $< -o $@ 
 
 clean:
