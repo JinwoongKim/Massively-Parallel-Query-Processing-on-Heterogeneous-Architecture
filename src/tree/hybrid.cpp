@@ -15,7 +15,7 @@ Hybrid::Hybrid() {
 }
 
 bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
-  LOG_INFO("Build HYBRID Tree");
+  LOG_INFO("Build Hybrid Tree");
   bool ret = false;
 
  //===--------------------------------------------------------------------===//
@@ -46,11 +46,10 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
  // Transform the branches into SOA fashion 
  //===--------------------------------------------------------------------===//
 
- //PrintTree();
+ PrintTree();
 
   return true;
 }
-
 
 bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
@@ -91,6 +90,8 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   cudaMemcpy(node, d_node, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
   cudaFree(d_node);
 
+  // Re-set child pointers
+  SetChildPointers(node, total_node_count-level_node_count[0]);
   return true;
 }
 
@@ -98,7 +99,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set){
   return -1  ;
 }
 
-void Hybrid::PrintTree(void) {
+void Hybrid::PrintTree(ui count) {
   LOG_INFO("Height %zu", level_node_count.size());
 
   ui node_itr=0;
@@ -106,7 +107,10 @@ void Hybrid::PrintTree(void) {
   for( int i=level_node_count.size()-1; i>=0; --i) {
     LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
     for( ui range(j, 0, level_node_count[i])){
+      LOG_INFO("node %p",&node[node_itr]);
       std::cout << node[node_itr++] << std::endl;
+
+      if(count){ if( node_itr>=count){ return; } }
     }
   }
 

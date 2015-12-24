@@ -40,7 +40,7 @@ class Tree{
   /**
    * Print tree
    */
-  virtual void PrintTree(void) = 0;
+  virtual void PrintTree(ui count=0) = 0;
 
  //===--------------------------------------------------------------------===//
  // Utility Function
@@ -56,6 +56,7 @@ class Tree{
   bool CopyToNode(std::vector<node::Branch> &branches,
                   NodeType node_type, int level, ui offset);
 
+  void SetChildPointers(node::Node_Ptr node, ui number_of_nodes);
   /**
    * Simple wrapper function
    */

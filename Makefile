@@ -1,5 +1,5 @@
 export NVCC=nvcc
-export NVCCFLAGS=-arch=sm_20 -std=c++11
+export NVCCFLAGS=-arch=sm_20 -std=c++11 -w 
 
 OBJECTS=./src/*/*.o
 

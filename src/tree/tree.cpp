@@ -82,6 +82,16 @@ bool Tree::CopyToNode(std::vector<node::Branch> &branches,
   return true;
 }
 
+void Tree::SetChildPointers(node::Node_Ptr node, ui number_of_nodes) { 
+  ui child_offset=1;
+  for(ui range(node_itr, 0, number_of_nodes)) {
+    auto branch_count = node[node_itr].GetBranchCount();
+    for(ui range(branch_itr, 0, branch_count)) {
+      node[node_itr].SetBranchChild(node+child_offset++, branch_itr);
+   }
+  }
+}
+
 void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
                              ui number_of_node, node::Node_Ptr root) {
   global_BottomUpBuild_ILP<<<GetNumberOfBlocks(), GetNumberOfThreads()>>>(current_offset, parent_offset, number_of_node, root);

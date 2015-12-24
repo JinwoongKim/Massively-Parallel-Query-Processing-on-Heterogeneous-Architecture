@@ -184,6 +184,9 @@ bool Evaluator::ReadDataSet(void){
 std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   os << " Evaluator : " << std::endl
      << " number of data = " << evaluator.number_of_data << std::endl
+     << " number of degrees = " << GetNumberOfDegrees() << std::endl
+     << " number of thread blocks = " << GetNumberOfBlocks() << std::endl
+     << " number of threads = " << GetNumberOfThreads() << std::endl
      << " number of searches = " << evaluator.number_of_searches << std::endl
      << " number of partitioned trees = " << evaluator.number_of_partitioned_trees << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_cores << std::endl

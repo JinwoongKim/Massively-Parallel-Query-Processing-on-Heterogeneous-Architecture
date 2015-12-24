@@ -31,7 +31,7 @@ class Hybrid : public Tree {
    */
   int Search(std::shared_ptr<io::DataSet> query_data_set);
 
-  void PrintTree(void);
+  void PrintTree(ui count=0);
 };
 
 } // End of tree namespace

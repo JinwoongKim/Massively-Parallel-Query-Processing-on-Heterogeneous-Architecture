@@ -74,4 +74,5 @@ NodeType StringToNodeType(std::string str);
 std::string TreeTypeToString(TreeType type);
 TreeType StringToTreeType(std::string str);
 
+
 } // End of ursus namespace
