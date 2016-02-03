@@ -29,6 +29,8 @@ class Evaluator{
   bool Initialize(int argc, char **argv);
 
   bool ReadDataSet(void);
+
+  bool ReadQuerySet(void);
  
   int SetDevice(ui number_of_gpus);
 
@@ -62,9 +64,7 @@ class Evaluator{
   // # of cpu cores to be used for evaluation
   ui number_of_cpu_cores = 0;
   
-  //TODO Why is this string instead of float??
   std::string selectivity="0.01";
-
   std::string query_size;
 
   // # of gpus
@@ -72,24 +72,11 @@ class Evaluator{
   
   // Measure and record time and count  
   //Logger logger;
-
+  
   std::shared_ptr<io::DataSet> input_data_set;
   std::shared_ptr<io::DataSet> query_data_set;
 
-  // Must free these trees at some point
-  // TODO SHould be smart pointers
-  std::vector<tree::Tree*> trees;
-
-/*
-  //FIXME :: do later,
-  BUILD_TYPE = 0;
-  // workload offset
-  unsigned workload_offset = 0;
-  // workload offset
-  unsigned policy = 0;
-  DEVICE_ID = 0;
-*/
- 
+  std::vector<std::unique_ptr<tree::Tree>> trees;
 };
 
 } // End of evaluator namespace

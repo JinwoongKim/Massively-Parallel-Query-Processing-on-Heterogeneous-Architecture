@@ -19,6 +19,7 @@ Evaluator& Evaluator::GetInstance(){
 }
 
 bool Evaluator::Initialize(int argc, char** argv){
+  bool ret;
 
   // Parse the args and initialize variables
   if( !ParseArgs(argc, argv)) {
@@ -27,18 +28,34 @@ bool Evaluator::Initialize(int argc, char** argv){
   }
 
   // Read dataset based on initialized variables
-  ReadDataSet();
+  ret=ReadDataSet();
+  assert(ret);
+
+  if(number_of_searches > 0) {
+    ret=ReadQuerySet();
+    assert(ret);
+  }
 
   return true;
 }
 
 bool Evaluator::ReadDataSet(void){
   //TODO : hard coded now...
-  input_data_set.reset ( new io::DataSet(GetNumberOfDims(), number_of_data,
-                         "/home/jwkim/dataFiles/input/real/NOAA0.bin",
-                         DATASET_TYPE_BINARY)); 
+  input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
+                       "/home/jwkim/dataFiles/input/real/NOAA0.bin",
+                       DATASET_TYPE_BINARY)); 
   return true;
 }
+
+bool Evaluator::ReadQuerySet(void){
+  //TODO : hard coded now...
+  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_searches,
+                       "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."+selectivity+"s."+query_size,
+                       DATASET_TYPE_BINARY)); 
+
+  return true;
+}
+
 
 int Evaluator::SetDevice(ui number_of_gpus) {
 
@@ -55,7 +72,15 @@ int Evaluator::SetDevice(ui number_of_gpus) {
     // if available space is less than 10%, try to get another on,
     // otherwise success to get the GPU
     if( avail > 0.1 ) {
-      LOG_INFO("%uth GPU is selected", gpu_itr+1);
+      if((gpu_itr+1)%10==1) {
+        LOG_INFO("%ust GPU is selected", gpu_itr+1);
+      } else if((gpu_itr+1)%10==2) {
+        LOG_INFO("%und GPU is selected", gpu_itr+1);
+      } else if((gpu_itr+1)%10==3) {
+        LOG_INFO("%urd GPU is selected", gpu_itr+1);
+      } else {
+        LOG_INFO("%uth GPU is selected", gpu_itr+1);
+      }
       return gpu_itr;
     }
   }
@@ -70,7 +95,7 @@ int Evaluator::SetDevice(ui number_of_gpus) {
  *  otherwise return false 
  */
 bool Evaluator::Build(void) {
-  for(auto tree : trees) {
+  for(auto& tree : trees) {
     if(!tree->Build(input_data_set)) {
       return false;
     }
@@ -86,14 +111,10 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -i index type, default : R-trees]\n"
   " [ -m search algorithm type, 1: MPES, 2: MPTS, 3: MPHR, 4: MPHR2\n \
   5: Short-Stack, 6: Parent-Link, 7: Skip-Pointer ]\n"
-  " [ -o distribution policy, default : braided version]\n"
-  " [ -b braided version, number of block, default : 128 ]\n"
   " [ -p partitioned version, number of block ]\n" 
   " [ -s selection ratio(%), default : 1 (%) ]\n"
   " [ -g number of gpus, default : 1 ]\n" 
   " [ -c number of cpu cores, default : 1 ]\n" 
-  " [ -w workload offset, default : 0 ]\n" 
-  " [ -v Specified device(GPU) id, default : 0 ]\n" 
   "\n e.g:   ./cuda -d 1000000 -q 1000 -s 0.5 -c 4 -w 3\n" 
   << std::endl;
 }
@@ -104,16 +125,12 @@ void Evaluator::PrintHelp(char **argv) const {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="d:D:q:Q:p:P:b:B:s:S:g:G:c:C:w:W:o:O:i:I:m:M:k:K:v:V:";
+  static const char *options="d:D:q:Q:p:P:s:S:g:G:c:C:i:I:m:M:";
   std::string number_of_data_str;
   int current_option;
 
   while ((current_option = getopt(argc, argv, options)) != -1) {
     switch (current_option) {
-//      case 'w':
-//      case 'W': WORKLOAD = atoi(optarg); break;
-//      case 'o':
-//      case 'O': POLICY = atoi(optarg); break;
 //      case 'i':
 //      case 'I': BUILD_TYPE = atoi(optarg); break;
 //      case 'm':
@@ -139,15 +156,13 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     } // end of switch
   } // end of while
 
+  // try to get the gpu
   int ret = SetDevice(number_of_gpus);
   // if failed to set the device, terminate the program
   if(ret == -1){ exit(1); }
 
-  if( number_of_data_str.empty() ){ return false; }
-
-  if( number_of_cpu_cores > 0 )
-    number_of_cpu_cores = ( number_of_partitioned_trees > 1 ) ? number_of_partitioned_trees : 1;  
-
+  // set the number of data and query
+  if(number_of_data_str.empty()){ return false; }
   size_t position = number_of_data_str.find("m");
   if( position == std::string::npos )  {
     number_of_data = std::stoul(number_of_data_str);
@@ -163,10 +178,17 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   } else  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
+ 
+  //
+  if(number_of_cpu_cores > 0) {
+    number_of_cpu_cores = 
+      (number_of_partitioned_trees>1)?number_of_partitioned_trees:1;  
+  }
 
   // TODO Hard coded now
-  tree::Tree *hybrid = new tree::Hybrid();
-  trees.push_back(hybrid);
+  // if 'i' (index type?? maybe)  is hybrid, then insert hybrid tree into the queue
+  auto tree = std::unique_ptr<tree::Tree>( new tree::Hybrid());
+  trees.push_back(std::move(tree));
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
@@ -177,31 +199,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 //    number_of_searches = 1000;
 //  }
 
-//  if(BUILD_TYPE == 0)  {
-//    printf("DATATYPE : %s, PGSIZE %d, NUMDIMS %d, number_of_thread_blocks %d, NUMTHREADS %d,  NODECARD %d, number_of_data %d, number_of_searches %d, SELECTION RATIO %s, NCPU %d,   number_of_partitioned_trees %d, ",
-//            DATATYPE,      PGSIZE,    NUMDIMS,    number_of_thread_blocks,    NUMTHREADS,     NODECARD,    number_of_data,    number_of_searches,    SELECTIVITY ,       number_of_cpu_cores, number_of_partitioned_trees       );
-//  }
-//  else
-//  {
-//    printf("DATATYPE : %s, PGSIZE %d, NUMDIMS %d, number_of_thread_blocks %d, NUMTHREADS %d,  NODECARD %d, number_of_data %d, number_of_searches %d, SELECTION RATIO %s, NCPU %d,   number_of_partitioned_trees %d, ",
-//            DATATYPE,      BVH_PGSIZE,    NUMDIMS,    number_of_thread_blocks,    NUMTHREADS,     NODECARD,    number_of_data,    number_of_searches,    SELECTIVITY ,       number_of_cpu_cores, number_of_partitioned_trees       );
-//  }
-//
-//  if( BUILD_TYPE == 0 )
-//    printf("\n\nRTrees will be build up.. \n");
-//  else if ( BUILD_TYPE == 1 || BUILD_TYPE == 2 )
-//    printf("\n\nBVH-Trees (TYPE : %d )  will be build up..\n", BUILD_TYPE);
-//  else
-//    printf("\n\nHilbertRadix Tree (TYPE : %d )  will be build up..\n", BUILD_TYPE);
-//
-//
-//  if( POLICY == 0 )
-//    printf("Original distribution\n");
-//  else
-//    printf("Roundrobin distribution\n");
-//
-
-  // TODO :: REMOVE, just for debugging now
   std::cout << *this << std::endl;
   return true;
 }
