@@ -8,10 +8,16 @@
 namespace ursus {
 namespace tree {
 
+//===--------------------------------------------------------------------===//
+// Cuda Function
+//===--------------------------------------------------------------------===//
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
-                              ui number_of_node, node::Node_Ptr root);
+                              ui number_of_node, node::Node* root);
 
+/**
+ *@brief creating branches
+ */
 std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> input_data_set) {
   auto number_of_data = input_data_set->GetNumberOfData();
   auto points = input_data_set->GetPoints();
@@ -20,7 +26,7 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   std::vector<node::Branch> branches(number_of_data);
 
   for( int range(i, 0, number_of_data)) {
-    branches[i].SetMBB(&points[i*GetNumberOfDims()]);
+    branches[i].SetRect(&points[i*GetNumberOfDims()]);
   }
 
   return branches;
@@ -66,48 +72,48 @@ bool Tree::CopyToNode(std::vector<node::Branch> &branches,
   ui branch_itr=0;
 
   while(branch_itr < branches.size()) {
-    node[offset].SetBranch(branches[branch_itr++], branch_itr%GetNumberOfDegrees());
+    node_ptr[offset].SetBranch(branches[branch_itr++], branch_itr%GetNumberOfDegrees());
 
     // increase the node offset 
     if(!(branch_itr%GetNumberOfDegrees())){
-      node[offset].SetNodeType(node_type);
-      node[offset].SetLevel(level);
+      node_ptr[offset].SetNodeType(node_type);
+      node_ptr[offset].SetLevel(level);
       offset++;
     }
   }
 
-  node[offset].SetNodeType(node_type);
-  node[offset].SetLevel(level);
+  node_ptr[offset].SetNodeType(node_type);
+  node_ptr[offset].SetLevel(level);
 
   return true;
 }
 
-void Tree::SetChildPointers(node::Node_Ptr node, ui number_of_nodes) { 
+void Tree::SetChildPointers(node::Node* node_ptr, ui number_of_nodes) { 
   ui child_offset=1;
   for(ui range(node_itr, 0, number_of_nodes)) {
-    auto branch_count = node[node_itr].GetBranchCount();
+    auto branch_count = node_ptr[node_itr].GetBranchCount();
     for(ui range(branch_itr, 0, branch_count)) {
-      node[node_itr].SetBranchChild(node+child_offset++, branch_itr);
+      node_ptr[node_itr].SetBranchChild(node_ptr+child_offset++, branch_itr);
    }
   }
 }
 
 void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
-                             ui number_of_node, node::Node_Ptr root) {
+                             ui number_of_node, node::Node* root) {
   global_BottomUpBuild_ILP<<<GetNumberOfBlocks(), GetNumberOfThreads()>>>(current_offset, parent_offset, number_of_node, root);
 }
 
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
-                              ui number_of_node, node::Node_Ptr root) {
+                              ui number_of_node, node::Node* root) {
   ui bid = blockIdx.x;
   ui tid = threadIdx.x;
 
   ui block_incremental_value = GetNumberOfBlocks();
   ui block_offset = bid;
 
-  node::Node_Ptr current_node;
-  node::Node_Ptr parent_node;
+  node::Node* current_node;
+  node::Node* parent_node;
 
   while( block_offset < number_of_node ) {
     current_node = root+current_offset+block_offset;

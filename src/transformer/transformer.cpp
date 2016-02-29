@@ -15,10 +15,10 @@ namespace transformer {
  * @param number_of_nodes
  * @return G_Node pointer if success otherwise nullptr
  */
-node::G_Node_Ptr Transformer::Transform(node::Node_Ptr node,
+node::G_Node* Transformer::Transform(node::Node* node,
                                         ui number_of_nodes) {
 
-  node::G_Node_Ptr g_node = new node::G_Node[number_of_nodes];
+  node::G_Node* g_node = new node::G_Node[number_of_nodes];
 
   for(ui range(node_itr, 0, number_of_nodes)) {
     auto number_of_branches = node[node_itr].GetBranchCount();

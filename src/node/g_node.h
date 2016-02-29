@@ -6,8 +6,6 @@
 namespace ursus {
 namespace node {
 
-typedef class G_Node* G_Node_Ptr;
-
 class G_Node{
  public:
  //===--------------------------------------------------------------------===//
@@ -19,7 +17,7 @@ class G_Node{
 
  void SetPoint(ui offset, Point point);
  void SetIndex(ui offset, ull index);
- void SetChild(ui offset, G_Node_Ptr child);
+ void SetChild(ui offset, G_Node* child);
  void SetNodeType(NodeType type);
  void SetLevel(int level);
  void SetBranchCount(ui branch_count);
@@ -29,9 +27,9 @@ class G_Node{
  //===--------------------------------------------------------------------===//
  private:
   // transformed branches
-  Point point[GetNumberOfDims()*2*GetNumberOfDegrees()];
+  Point points[GetNumberOfDims()*2*GetNumberOfDegrees()];
   ull index[GetNumberOfDegrees()];
-  G_Node_Ptr child[GetNumberOfDegrees()];
+  G_Node* child[GetNumberOfDegrees()];
 
   // node type
   NodeType node_type = NODE_TYPE_INVALID;

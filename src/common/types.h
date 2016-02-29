@@ -5,7 +5,6 @@
 namespace ursus {
 
 typedef float Point;
-typedef Point* Point_Ptr;
 typedef unsigned int ui;
 typedef unsigned long ul;
 typedef unsigned long long ull;
@@ -34,9 +33,10 @@ enum DataType  {
 //===--------------------------------------------------------------------===//
 enum NodeType  {
   NODE_TYPE_INVALID = -1,
-  NODE_TYPE_ROOT = 1,
-  NODE_TYPE_INTERNAL = 2,
-  NODE_TYPE_LEAF = 3
+  NODE_TYPE_LEAF = 1,
+  NODE_TYPE_EXTENDLEAF = 2,
+  NODE_TYPE_INTERNAL = 3,
+  NODE_TYPE_ROOT = 4
 };
 
 //===--------------------------------------------------------------------===//

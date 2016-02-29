@@ -8,8 +8,6 @@
 namespace ursus {
 namespace node {
 
-typedef class Node* Node_Ptr;
-
 class Node {
  public:
  //===--------------------------------------------------------------------===//
@@ -21,7 +19,7 @@ class Node {
  __both__ Point GetBranchPoint(ui branch_offset, ui point_offset) const;
  __both__ ull GetBranchIndex(ui branch_offset) const;
  __both__ ull GetLastBranchIndex(void) const;
- __both__ Node_Ptr GetBranchChild(ui branch_offset) const;
+ __both__ Node* GetBranchChild(ui branch_offset) const;
  __both__ NodeType GetNodeType(void) const;
  __both__ int GetLevel(void) const;
 
@@ -29,7 +27,7 @@ class Node {
  __both__ void SetBranchCount(ui branch_count);
  __both__ void SetBranchPoint(Point point, ui branch_offset, ui point_offset);
  __both__ void SetBranchIndex(ull index, ui branch_offset);
- __both__ void SetBranchChild(Node_Ptr child, ui branch_offset);
+ __both__ void SetBranchChild(Node* child, ui branch_offset);
  __both__ void SetNodeType(NodeType type);
  __both__ void SetLevel(int level);
 
@@ -40,7 +38,7 @@ class Node {
  //===--------------------------------------------------------------------===//
  private:
   // branches
-  Branch branch[GetNumberOfDegrees()];
+  Branch branches[GetNumberOfDegrees()];
 
   // # of branch
   ui branch_count=0;

@@ -45,7 +45,7 @@ class DataSet{
   // # of dims
   unsigned int number_of_dimensions;
 
-  // # of data to be indexed
+  // # of data or query
   unsigned int number_of_data;
 
   // DataSet path

@@ -14,7 +14,7 @@ namespace node {
 __both__
 Branch Node::GetBranch(ui offset) const {
   assert(offset < branch_count);
-  return branch[offset];
+  return branches[offset];
 }
 
 __both__
@@ -24,22 +24,22 @@ ui Node::GetBranchCount(void) const {
 
 __both__
 Point Node::GetBranchPoint(ui branch_offset, ui point_offset) const{
-  return branch[branch_offset].GetPoint(point_offset);
+  return branches[branch_offset].GetPoint(point_offset);
 }
 
 __both__
 ull Node::GetBranchIndex(ui branch_offset) const{
-  return branch[branch_offset].GetIndex();
+  return branches[branch_offset].GetIndex();
 }
 
 __both__
 ull Node::GetLastBranchIndex(void) const{
-  return branch[branch_count-1].GetIndex();
+  return branches[branch_count-1].GetIndex();
 }
 
 __both__
-Node_Ptr Node::GetBranchChild(ui branch_offset) const{
-  return branch[branch_offset].GetChild();
+Node* Node::GetBranchChild(ui branch_offset) const{
+  return branches[branch_offset].GetChild();
 }
 
 __both__
@@ -54,7 +54,7 @@ int Node::GetLevel(void) const {
 
 __both__
 void Node::SetBranch(Branch _branch, ui offset) {
-  branch[offset++] = _branch;
+  branches[offset++] = _branch;
   branch_count = (offset>branch_count)?offset:branch_count;
 }
 
@@ -66,17 +66,17 @@ void Node::SetBranchCount(ui _branch_count) {
 __both__
 void Node::SetBranchPoint(Point point, 
                           ui branch_offset, ui point_offset) {
-  branch[branch_offset].SetPoint(point, point_offset);
+  branches[branch_offset].SetPoint(point, point_offset);
 }
 
 __both__
 void Node::SetBranchIndex(ull index, ui branch_offset) {
-  branch[branch_offset].SetIndex(index);
+  branches[branch_offset].SetIndex(index);
 }
 
 __both__
-void Node::SetBranchChild(Node_Ptr child, ui branch_offset) {
-  branch[branch_offset].SetChild(child);
+void Node::SetBranchChild(Node* child, ui branch_offset) {
+  branches[branch_offset].SetChild(child);
 }
 
 __both__

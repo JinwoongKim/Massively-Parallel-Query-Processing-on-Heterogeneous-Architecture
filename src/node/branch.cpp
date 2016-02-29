@@ -15,7 +15,7 @@ __both__
 Branch::Branch(const Branch& branch)
  : index(branch.GetIndex()), child(branch.GetChild()) { 
    for(ui range(i, 0, GetNumberOfDims()*2)) {
-     point[i] = branch.GetPoint(i);
+     points[i] = branch.GetPoint(i);
    }
 }
 
@@ -24,13 +24,13 @@ Branch::Branch(const Branch& branch)
 //===--------------------------------------------------------------------===//
 std::vector<Point> Branch::GetPoints(void) const{
   std::vector<Point> point_vec(GetNumberOfDims()*2);
-  std::copy(point, point+GetNumberOfDims()*2, point_vec.begin());
+  std::copy(points, points+GetNumberOfDims()*2, point_vec.begin());
   return point_vec;
 }
 
 __both__ 
 Point Branch::GetPoint(const ui position) const{
-  return point[position];
+  return points[position];
 }
 
 __both__ 
@@ -43,15 +43,15 @@ Node* Branch::GetChild(void) const {
   return child;
 }
  
-void Branch::SetMBB(Point* _point) {
-  std::copy(_point, _point+GetNumberOfDims(), point);
-  std::copy(_point, _point+GetNumberOfDims(), point+GetNumberOfDims());
+void Branch::SetRect(Point* _points) {
+  std::copy(_points, _points+GetNumberOfDims(), points);
+  std::copy(_points, _points+GetNumberOfDims(), points+GetNumberOfDims());
 }
 
 __both__
-void Branch::SetPoint(Point _point, const ui offset) {
+void Branch::SetPoint(Point point, const ui offset) {
   assert(offset < GetNumberOfDims()*2);
-  point[offset] = _point;
+  points[offset] = point;
 }
 
 __both__
@@ -71,7 +71,7 @@ std::ostream &operator<<(std::ostream &os, const Branch &branch) {
   os << " MBB : " << std::endl;
   os << std::fixed << std::setprecision(6);
   for( int range(i, 0, GetNumberOfDims()*2)) {
-    os << " Point["<< i << "] : " << branch.point[i] << std::endl;
+    os << " Point["<< i << "] : " << branch.points[i] << std::endl;
   }
   os << " Index = " << branch.GetIndex() << std::endl;
   os << " Child = " << branch.GetChild() << std::endl;

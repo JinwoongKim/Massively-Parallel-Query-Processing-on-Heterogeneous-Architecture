@@ -29,7 +29,7 @@ class Branch {
   __both__ ull GetIndex(void) const;
   __both__ Node_Ptr GetChild(void) const;
 
-  void SetMBB(Point_Ptr point);
+  void SetRect(Point* point);
   __both__ void SetPoint(Point point, const ui offset);
   __both__ void SetIndex(const ull index);
   __both__ void SetChild(Node_Ptr child);
@@ -44,7 +44,7 @@ class Branch {
  //===--------------------------------------------------------------------===//
  private:
   // Minimum Bounding Box
-  Point point[GetNumberOfDims()*2];
+  Point points[GetNumberOfDims()*2];
 
   //Index to avoid re-visiting 
   ull index;

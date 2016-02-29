@@ -70,13 +70,13 @@ class Tree{
   TreeType tree_type = TREE_TYPE_INVALID;
 
   // root node pointer
-  node::Node_Ptr node;
+  node::Node* node_ptr;
 
   // number of nodes in each level
   std::vector<ui> level_node_count;
 
   // root node pointer on the GPU
-  node::G_Node_Ptr g_node;
+  node::G_Node* g_node_ptr;
 
   // number of nodes in each level
   std::vector<ui> level_g_node_count;

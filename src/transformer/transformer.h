@@ -22,7 +22,7 @@ class Transformer{
  //===--------------------------------------------------------------------===//
  // Transform Function
  //===--------------------------------------------------------------------===//
-  static node::G_Node_Ptr Transform(node::Node_Ptr node,
+  static node::G_Node* Transform(node::Node* node,
                                     ui number_of_nodes);
 
  private:

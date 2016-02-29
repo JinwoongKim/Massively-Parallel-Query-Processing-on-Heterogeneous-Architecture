@@ -12,9 +12,9 @@ int G_Node::GetLevel(void) const {
   return level;
 }
 
-void G_Node::SetPoint(ui offset, Point _point) {
+void G_Node::SetPoint(ui offset, Point point) {
   assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
-  point[offset] = _point;
+  points[offset] = point;
 }
 
 void G_Node::SetIndex(ui offset, ull _index) {
@@ -22,7 +22,7 @@ void G_Node::SetIndex(ui offset, ull _index) {
   index[offset] = _index;
 }
 
-void G_Node::SetChild(ui offset, G_Node_Ptr _child) {
+void G_Node::SetChild(ui offset, G_Node* _child) {
   assert(offset < GetNumberOfDegrees());
   child[offset] = _child;
 }

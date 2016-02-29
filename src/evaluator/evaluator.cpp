@@ -103,6 +103,19 @@ bool Evaluator::Build(void) {
   return true;
 }
 
+/**
+ * @brief explore indexing structure with given query file
+ * @return true for now 
+ */
+bool Evaluator::Search(void) {
+  for(auto& tree : trees) {
+    if(!tree->Search(query_data_set)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 //TODO :: Need to fix?  scrub
 void Evaluator::PrintHelp(char **argv) const {
   std::cerr << "Usage:\n" << *argv << std::endl << 

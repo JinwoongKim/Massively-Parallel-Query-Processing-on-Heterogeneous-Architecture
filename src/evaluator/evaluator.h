@@ -36,6 +36,8 @@ class Evaluator{
 
   bool Build(void);
 
+  bool Search(void);
+
   // Print out usage to users
   void PrintHelp(char **argv) const;
  

@@ -13,20 +13,28 @@ DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
     data_set_path(data_set_path), data_set_type(data_set_type) {
 
   // read data from data_set_path
-  std::ifstream infile; 
+  std::ifstream input_stream; 
 
   switch(data_set_type) {
     case DATASET_TYPE_BINARY:
-      infile.open(data_set_path, std::ios::in | std::ios::binary);
+      input_stream.open(data_set_path, std::ios::in | std::ios::binary);
       break;
 
     default:
-      infile.open(data_set_path, std::ifstream::in);
+      input_stream.open(data_set_path, std::ifstream::in);
+
   }
+
+  // print out an error message when it was failed to be opened
+  if(!input_stream){
+    std::cerr << "Failed to open a file\n";
+    return;
+  } 
+ 
 
   points.resize(number_of_dimensions*number_of_data);
 
-  infile.read(reinterpret_cast<char*>(&points[0]), 
+  input_stream.read(reinterpret_cast<char*>(&points[0]), 
               sizeof(Point)*number_of_data*number_of_dimensions);
 
   std::cout << *this << std::endl;
