@@ -34,9 +34,8 @@ enum DataType  {
 enum NodeType  {
   NODE_TYPE_INVALID = -1,
   NODE_TYPE_LEAF = 1,
-  NODE_TYPE_EXTENDLEAF = 2,
-  NODE_TYPE_INTERNAL = 3,
-  NODE_TYPE_ROOT = 4
+  NODE_TYPE_INTERNAL = 2,
+  NODE_TYPE_ROOT = 3
 };
 
 //===--------------------------------------------------------------------===//
@@ -44,8 +43,8 @@ enum NodeType  {
 //===--------------------------------------------------------------------===//
 enum TreeType  {
   TREE_TYPE_INVALID = -1,
-  TREE_TYPE_MPHR = 1,
-  TREE_TYPE_HYBRID =2
+  TREE_TYPE_HYBRID =1,
+  TREE_TYPE_MPHR = 2,
 };
 
 //===--------------------------------------------------------------------===//

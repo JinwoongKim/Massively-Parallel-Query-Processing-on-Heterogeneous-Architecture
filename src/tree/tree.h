@@ -3,7 +3,7 @@
 #include "common/types.h"
 #include "io/dataset.h"
 #include "node/node.h"
-#include "node/g_node.h"
+#include "node/node_soa.h"
 
 #include <memory>
 #include <vector>
@@ -72,16 +72,21 @@ class Tree{
   // root node pointer
   node::Node* node_ptr;
 
+  // root pointer for node_soa
+  node::Node_SOA* node_soa_ptr;
+
   // number of nodes in each level
   std::vector<ui> level_node_count;
 
-  // root node pointer on the GPU
-  node::G_Node* g_node_ptr;
-
-  // number of nodes in each level
-  std::vector<ui> level_g_node_count;
+  // total node count 
+  ui total_node_count;
   
 };
+
+// I don't know how to make it a member variable
+// root pointer for node_soa on the GPU
+// TODO
+//__device__ node::Node_SOA* g_node_soa;
 
 } // End of tree namespace
 } // End of ursus namespace

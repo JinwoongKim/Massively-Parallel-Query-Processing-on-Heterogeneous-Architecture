@@ -1,6 +1,6 @@
 OBJECTS=branch.o \
 				node.o \
-				g_node.o
+				node_soa.o
 
 INC=-I. -I../.
 

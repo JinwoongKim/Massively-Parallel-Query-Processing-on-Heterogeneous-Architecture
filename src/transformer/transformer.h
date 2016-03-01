@@ -1,7 +1,7 @@
 #pragma once
 
 #include "node/node.h"
-#include "node/g_node.h"
+#include "node/node_soa.h"
 
 namespace ursus {
 namespace transformer {
@@ -22,8 +22,8 @@ class Transformer{
  //===--------------------------------------------------------------------===//
  // Transform Function
  //===--------------------------------------------------------------------===//
-  static node::G_Node* Transform(node::Node* node,
-                                    ui number_of_nodes);
+  static node::Node_SOA* Transform(node::Node* node,
+                                   ui number_of_nodes);
 
  private:
   Transformer() {};

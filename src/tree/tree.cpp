@@ -124,6 +124,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
 
     parent_node->SetLevel(current_node->GetLevel()-1);
     parent_node->SetBranchCount(GetNumberOfDegrees());
+    parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
 
     //Find out the min, max boundaries in this node and set up the parent rect.
     for( ui range(dim, 0, GetNumberOfDims())) {
@@ -195,6 +196,11 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     }else{
       parent_node->SetBranchCount(number_of_node%GetNumberOfDegrees());
     }
+  }
+
+  // setting the node type for root at the end
+  if( tid == 0 ) {
+    root->SetNodeType(NODE_TYPE_ROOT);
   }
 }
 

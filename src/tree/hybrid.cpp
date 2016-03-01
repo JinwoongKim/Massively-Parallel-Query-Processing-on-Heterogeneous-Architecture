@@ -4,6 +4,7 @@
 #include "common/logger.h"
 #include "evaluator/recorder.h"
 #include "sort/thrust_sort.h"
+#include "transformer/transformer.h"
 
 #include <cassert>
 
@@ -46,10 +47,12 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
  // Transform the branches into SOA fashion 
  //===--------------------------------------------------------------------===//
 
- // TODO :: move branches into nodes
- //g_node_ptr = transformer::Transformer::Transform(node_ptr,node_ptr # of nodes);
+ //transform nodes into SOA architecture
+ node_soa_ptr = transformer::Transformer::Transform(node_ptr,total_node_count);
 
  PrintTree();
+
+ PrintTreeInSOA();
 
   return true;
 }
@@ -64,9 +67,10 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
  //===--------------------------------------------------------------------===//
  // Configure trees
  //===--------------------------------------------------------------------===//
+  // Get node count for each level
   level_node_count = GetLevelNodeCount(branches);
   auto tree_height = level_node_count.size()-1;
-  ui total_node_count = GetTotalNodeCount();
+  total_node_count = GetTotalNodeCount();
   auto leaf_node_offset = total_node_count-level_node_count[0];;
 
  //===--------------------------------------------------------------------===//
@@ -103,6 +107,7 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
 }
 
 void Hybrid::PrintTree(ui count) {
+  LOG_INFO("Print Tree");
   LOG_INFO("Height %zu", level_node_count.size());
 
   ui node_itr=0;
@@ -114,6 +119,23 @@ void Hybrid::PrintTree(ui count) {
       std::cout << node_ptr[node_itr++] << std::endl;
 
       if(count){ if( node_itr>=count){ return; } }
+    }
+  }
+}
+
+void Hybrid::PrintTreeInSOA(ui count) {
+  LOG_INFO("Print Tree in SOA");
+  LOG_INFO("Height %zu", level_node_count.size());
+
+  ui node_soa_itr=0;
+
+  for( int i=level_node_count.size()-1; i>=0; --i) {
+    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
+    for( ui range(j, 0, level_node_count[i])){
+      LOG_INFO("node %p",&node_soa_ptr[node_soa_itr]);
+      std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
+
+      if(count){ if( node_soa_itr>=count){ return; } }
     }
   }
 }
@@ -135,14 +157,14 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
   __shared__ bool isHit;
   __shared__  Point query[GetNumberOfDims()]; // XXX Use rect plz
 
-  G_Node* g_node_ptr;
+  Node_SOA* node_soa_ptr;
 
   t_hit[tid] = 0;
   hit[bid] = 0;
 
-  G_Node* root = (G_Node*) deviceRoot[partition_index];
-  G_Node* leafNode_ptr = (G_Node*) ( (char*) root+(PGSIZE*leafNode_offset) );
-  G_Node* extendNode_ptr = (G_Node*) ( (char*) root+(PGSIZE*extendLeafNode_offset) );
+  Node_SOA* root = (Node_SOA*) deviceRoot[partition_index];
+  Node_SOA* leafNode_ptr = (Node_SOA*) ( (char*) root+(PGSIZE*leafNode_offset) );
+  Node_SOA* extendNode_ptr = (Node_SOA*) ( (char*) root+(PGSIZE*extendLeafNode_offset) );
   __syncthreads();
 
 
@@ -154,7 +176,7 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
   passed_hIndex = 0;
   last_hIndex   = root->index[root->count-1];
 
-    g_node_ptr = root;
+    node_soa_ptr = root;
     if( tid == 0 )
     {
       rootCount[bid]++;
@@ -163,11 +185,11 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
 
     while( passed_hIndex < last_hIndex )
     {//find out left most child node till leaf level
-      while( g_node_ptr ->level > 0 ) {
+      while( node_soa_ptr ->level > 0 ) {
 
-        if( (tid < g_node_ptr ->count) &&
-            (g_node_ptr ->index[tid]> passed_hIndex) &&
-            (dev_Node_SOA_Overlap(&query, g_node_ptr , tid)))
+        if( (tid < node_soa_ptr ->count) &&
+            (node_soa_ptr ->index[tid]> passed_hIndex) &&
+            (dev_Node_SOA_Overlap(&query, node_soa_ptr , tid)))
         {
           childOverlap[tid] = tid;
         }
@@ -200,9 +222,9 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
 
         // none of the branches overlapped the query
         if( childOverlap[0] == ( GetNumberOfDegrees()+1)) {
-          passed_hIndex = g_node_ptr->index[g_node_ptr->count-1];
+          passed_hIndex = node_soa_ptr->index[node_soa_ptr->count-1];
 
-          g_node_ptr = root;
+          node_soa_ptr = root;
           if( tid == 0 )
           {
             rootCount[bid]++;
@@ -211,7 +233,7 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
         }
         // there exists some overlapped node
         else{
-          g_node_ptr = g_node_ptr->child[ childOverlap[0] ];
+          node_soa_ptr = node_soa_ptr->child[ childOverlap[0] ];
           if( tid == 0 )
           {
               count[bid]++;
@@ -221,27 +243,27 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
       }
 
 
-      while( g_node_ptr->level == 0 )
+      while( node_soa_ptr->level == 0 )
       {
 
         isHit = false;
 
-        if ( tid < g_node_ptr->count && dev_Node_SOA_Overlap(&query, g_node_ptr, tid))
+        if ( tid < node_soa_ptr->count && dev_Node_SOA_Overlap(&query, node_soa_ptr, tid))
         {
           t_hit[tid]++;
           isHit = true;
         }
         __syncthreads();
 
-        passed_hIndex = g_node_ptr->index[g_node_ptr->count-1];
+        passed_hIndex = node_soa_ptr->index[node_soa_ptr->count-1];
 
         //last leaf node
 
-        if ( g_node_ptr->index[g_node_ptr->count-1] == last_hIndex )
+        if ( node_soa_ptr->index[node_soa_ptr->count-1] == last_hIndex )
           break;
         else if( isHit )
         {
-          g_node_ptr++;
+          node_soa_ptr++;
           if( tid == 0 )
           {
             count[bid]++;
@@ -250,10 +272,10 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
         }
         else
         {
-          g_node_ptr = extendNode_ptr + ( ( g_node_ptr - leafNode_ptr) / GetNumberOfDegrees()) ;
+          node_soa_ptr = extendNode_ptr + ( ( node_soa_ptr - leafNode_ptr) / GetNumberOfDegrees()) ;
           if( tid == 0 )
           {
-            if( g_node_ptr == root)
+            if( node_soa_ptr == root)
               rootCount[bid]++;
             else
               count[bid]++;

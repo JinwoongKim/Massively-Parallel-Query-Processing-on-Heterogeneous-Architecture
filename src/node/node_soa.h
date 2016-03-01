@@ -3,10 +3,12 @@
 #include "common/config.h"
 #include "common/types.h"
 
+#include <iostream>
+
 namespace ursus {
 namespace node {
 
-class G_Node{
+class Node_SOA{
  public:
  //===--------------------------------------------------------------------===//
  // Accessor
@@ -17,11 +19,12 @@ class G_Node{
 
  void SetPoint(ui offset, Point point);
  void SetIndex(ui offset, ull index);
- void SetChild(ui offset, G_Node* child);
+ void SetChild(ui offset, Node_SOA* child);
  void SetNodeType(NodeType type);
  void SetLevel(int level);
  void SetBranchCount(ui branch_count);
 
+ friend std::ostream &operator<<(std::ostream &os, const Node_SOA &node_soa);
  //===--------------------------------------------------------------------===//
  // Members
  //===--------------------------------------------------------------------===//
@@ -29,7 +32,7 @@ class G_Node{
   // transformed branches
   Point points[GetNumberOfDims()*2*GetNumberOfDegrees()];
   ull index[GetNumberOfDegrees()];
-  G_Node* child[GetNumberOfDegrees()];
+  Node_SOA* child[GetNumberOfDegrees()];
 
   // node type
   NodeType node_type = NODE_TYPE_INVALID;

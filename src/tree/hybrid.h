@@ -35,6 +35,8 @@ class Hybrid : public Tree {
  // Utility
  //===--------------------------------------------------------------------===//
   void PrintTree(ui count=0);
+
+  void PrintTreeInSOA(ui count=0);
 };
 
 } // End of tree namespace
