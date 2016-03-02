@@ -9,9 +9,6 @@
 namespace ursus {
 namespace node {
 
-class Node;
-typedef Node* Node_Ptr;
-
 class Branch {
  public:
  //===--------------------------------------------------------------------===//
@@ -27,12 +24,12 @@ class Branch {
   std::vector<Point> GetPoints(void) const;
   __both__ Point GetPoint(const ui position) const;
   __both__ ull GetIndex(void) const;
-  __both__ Node_Ptr GetChild(void) const;
+  __both__ ull GetChildOffset(void) const;
 
   void SetRect(Point* point);
   __both__ void SetPoint(Point point, const ui offset);
   __both__ void SetIndex(const ull index);
-  __both__ void SetChild(Node_Ptr child);
+  __both__ void SetChildOffset(const ull child_offset);
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);
@@ -49,8 +46,8 @@ class Branch {
   //Index to avoid re-visiting 
   ull index;
 
-  // child pointers 
-  Node_Ptr child = nullptr;
+  // child offset from current node
+  ull child_offset;
 };
 
 } // End of node namespace

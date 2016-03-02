@@ -13,7 +13,7 @@ namespace node {
 //===--------------------------------------------------------------------===//
 __both__
 Branch::Branch(const Branch& branch)
- : index(branch.GetIndex()), child(branch.GetChild()) { 
+ : index(branch.GetIndex()), child_offset(branch.GetChildOffset()) { 
    for(ui range(i, 0, GetNumberOfDims()*2)) {
      points[i] = branch.GetPoint(i);
    }
@@ -39,8 +39,8 @@ unsigned long long Branch::GetIndex(void) const {
 }
 
 __both__
-Node* Branch::GetChild(void) const {
-  return child;
+ull Branch::GetChildOffset(void) const {
+  return child_offset;
 }
  
 void Branch::SetRect(Point* _points) {
@@ -60,9 +60,8 @@ void Branch::SetIndex(const ull _index) {
 }
 
 __both__
-void Branch::SetChild(Node* _child) {
-  assert(_child);
-  child = _child;
+void Branch::SetChildOffset(const ull _child_offset) {
+  child_offset = _child_offset;
 }
 
 // Get a string representation
@@ -74,9 +73,10 @@ std::ostream &operator<<(std::ostream &os, const Branch &branch) {
     os << " Point["<< i << "] : " << branch.points[i] << std::endl;
   }
   os << " Index = " << branch.GetIndex() << std::endl;
-  os << " Child = " << branch.GetChild() << std::endl;
+  os << " Child offset = " << branch.GetChildOffset() << std::endl;
   return os;
 }
+
 __both__ 
 bool operator<(const Branch &lhs, const Branch &rhs) {
   return lhs.GetIndex() < rhs.GetIndex();

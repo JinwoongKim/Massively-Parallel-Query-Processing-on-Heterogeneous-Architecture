@@ -38,8 +38,8 @@ ull Node::GetLastBranchIndex(void) const{
 }
 
 __both__
-Node* Node::GetBranchChild(ui branch_offset) const{
-  return branches[branch_offset].GetChild();
+ull Node::GetBranchChildOffset(ui branch_offset) const{
+  return branches[branch_offset].GetChildOffset();
 }
 
 __both__
@@ -75,8 +75,8 @@ void Node::SetBranchIndex(ull index, ui branch_offset) {
 }
 
 __both__
-void Node::SetBranchChild(Node* child, ui branch_offset) {
-  branches[branch_offset].SetChild(child);
+void Node::SetBranchChildOffset(ui branch_offset, ull child_offset) {
+  branches[branch_offset].SetChildOffset(child_offset);
 }
 
 __both__

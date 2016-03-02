@@ -29,7 +29,7 @@ node::Node_SOA* Transformer::Transform(node::Node* node,
 
       auto points = branch.GetPoints();
       auto index = branch.GetIndex();
-      auto child = branch.GetChild();
+      auto child_offset = branch.GetChildOffset();
 
 
       // set points in Node_SOA
@@ -40,14 +40,7 @@ node::Node_SOA* Transformer::Transform(node::Node* node,
 
       // set the index
       node_soa[node_itr].SetIndex(branch_itr, index);
-
-      // get the child node offset 
-      auto child_offset = (child - &node[node_itr]);///sizeof(node::Node);
-
-      // child ptr for Node_SOA
-      auto node_soa_child = node_soa+child_offset;
-
-      node_soa[node_itr].SetChild(branch_itr, node_soa_child);
+      node_soa[node_itr].SetChildOffset(branch_itr, child_offset);
     }
 
     // node type 
@@ -56,10 +49,6 @@ node::Node_SOA* Transformer::Transform(node::Node* node,
     // node level
     node_soa[node_itr].SetLevel(node[node_itr].GetLevel());
   }
-
-  // free the node pointer and make it null_pointer
-  free(node);
-  node = NULL;
 
   return node_soa;
 }

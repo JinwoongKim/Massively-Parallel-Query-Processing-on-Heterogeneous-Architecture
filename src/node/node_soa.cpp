@@ -23,9 +23,9 @@ void Node_SOA::SetIndex(ui offset, ull _index) {
   index[offset] = _index;
 }
 
-void Node_SOA::SetChild(ui offset, Node_SOA* _child) {
+void Node_SOA::SetChildOffset(ui offset, ull _child_offset) {
   assert(offset < GetNumberOfDegrees());
-  child[offset] = _child;
+  child_offset[offset] = _child_offset;
 }
 
 void Node_SOA::SetNodeType(NodeType type) {
@@ -57,7 +57,7 @@ std::ostream &operator<<(std::ostream &os, const Node_SOA &node_soa) {
     }
 
     os << " index : " << node_soa.index[i] << std::endl;
-    os << " child : " << node_soa.child[i] << std::endl;
+    os << " child offset: " << node_soa.child_offset[i] << std::endl;
   }
 
   return os;

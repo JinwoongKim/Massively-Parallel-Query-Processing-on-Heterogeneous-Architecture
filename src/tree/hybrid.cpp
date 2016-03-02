@@ -15,6 +15,11 @@ Hybrid::Hybrid() {
   tree_type = TREE_TYPE_HYBRID;
 }
 
+/**
+ * @brief build trees on the GPU
+ * @param input_data_set 
+ * @return true if success to build otherwise false
+ */
 bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   LOG_INFO("Build Hybrid Tree");
   bool ret = false;
@@ -44,15 +49,20 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   assert(ret);
 
  //===--------------------------------------------------------------------===//
- // Transform the branches into SOA fashion 
+ // Transform nodes into SOA fashion 
  //===--------------------------------------------------------------------===//
+  node_soa_ptr = transformer::Transformer::Transform(node_ptr,total_node_count);
+  assert(node_soa_ptr);
 
- //transform nodes into SOA architecture
- node_soa_ptr = transformer::Transformer::Transform(node_ptr,total_node_count);
+ //===--------------------------------------------------------------------===//
+ // Move Trees to the GPU
+ //===--------------------------------------------------------------------===//
+  ret = MoveTreeToGPU();
+  assert(ret);
 
- PrintTree();
-
- PrintTreeInSOA();
+  // TODO :: REMOVE now it's only For debugging
+  PrintTree();
+  PrintTreeInSOA();
 
   return true;
 }
@@ -78,7 +88,7 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
  //===--------------------------------------------------------------------===//
   node_ptr = new node::Node[total_node_count];
   // Copy the branches to nodes 
-  auto ret = CopyToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
+  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
   assert(ret);
 
   node::Node* d_node_ptr;
@@ -101,8 +111,6 @@ bool Hybrid::Bottom_Up(std::vector<node::Branch> &branches) {
   cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
   cudaFree(d_node_ptr);
 
-  // Re-set child pointers
-  SetChildPointers(node_ptr, total_node_count-level_node_count[0]);
   return true;
 }
 
@@ -139,6 +147,7 @@ void Hybrid::PrintTreeInSOA(ui count) {
     }
   }
 }
+
 
 /*
 __global__ 

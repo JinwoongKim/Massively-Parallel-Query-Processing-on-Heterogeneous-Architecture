@@ -19,7 +19,7 @@ class Node_SOA{
 
  void SetPoint(ui offset, Point point);
  void SetIndex(ui offset, ull index);
- void SetChild(ui offset, Node_SOA* child);
+ void SetChildOffset(ui offset, ull child_offset);
  void SetNodeType(NodeType type);
  void SetLevel(int level);
  void SetBranchCount(ui branch_count);
@@ -32,7 +32,7 @@ class Node_SOA{
   // transformed branches
   Point points[GetNumberOfDims()*2*GetNumberOfDegrees()];
   ull index[GetNumberOfDegrees()];
-  Node_SOA* child[GetNumberOfDegrees()];
+  ull child_offset[GetNumberOfDegrees()];
 
   // node type
   NodeType node_type = NODE_TYPE_INVALID;

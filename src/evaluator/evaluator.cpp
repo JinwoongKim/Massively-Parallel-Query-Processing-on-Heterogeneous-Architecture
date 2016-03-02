@@ -192,7 +192,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
  
-  //
   if(number_of_cpu_cores > 0) {
     number_of_cpu_cores = 
       (number_of_partitioned_trees>1)?number_of_partitioned_trees:1;  

@@ -1,6 +1,7 @@
 #include "tree/tree.h"
 
 #include "common/macro.h"
+#include "common/logger.h"
 #include "mapper/hilbert_mapper.h"
 
 #include <cmath>
@@ -9,12 +10,16 @@ namespace ursus {
 namespace tree {
 
 //===--------------------------------------------------------------------===//
-// Cuda Function
+// Cuda Function & variables
 //===--------------------------------------------------------------------===//
+__device__ node::Node_SOA* g_node_soa_ptr;
+
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
                               ui number_of_node, node::Node* root);
-
+__global__ 
+void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
+ 
 /**
  *@brief creating branches
  */
@@ -67,8 +72,8 @@ ui Tree::GetTotalNodeCount(void) const{
   return total_node_count;
 }
 
-bool Tree::CopyToNode(std::vector<node::Branch> &branches, 
-                      NodeType node_type,int level, ui offset) {
+bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, 
+                            NodeType node_type,int level, ui offset) {
   ui branch_itr=0;
 
   while(branch_itr < branches.size()) {
@@ -88,19 +93,26 @@ bool Tree::CopyToNode(std::vector<node::Branch> &branches,
   return true;
 }
 
-void Tree::SetChildPointers(node::Node* node_ptr, ui number_of_nodes) { 
-  ui child_offset=1;
-  for(ui range(node_itr, 0, number_of_nodes)) {
-    auto branch_count = node_ptr[node_itr].GetBranchCount();
-    for(ui range(branch_itr, 0, branch_count)) {
-      node_ptr[node_itr].SetBranchChild(node_ptr+child_offset++, branch_itr);
-   }
-  }
-}
-
 void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
                              ui number_of_node, node::Node* root) {
-  global_BottomUpBuild_ILP<<<GetNumberOfBlocks(), GetNumberOfThreads()>>>(current_offset, parent_offset, number_of_node, root);
+  global_BottomUpBuild_ILP<<<GetNumberOfBlocks(), GetNumberOfThreads()>>>
+                          (current_offset, parent_offset, number_of_node, root);
+}
+
+/**
+ * @brief move tree to the GPU
+ * @return true if success otherwise false
+ */ 
+bool Tree::MoveTreeToGPU(void){
+
+ node::Node_SOA* d_node_soa_ptr;
+ cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*total_node_count);
+ cudaMemcpy(d_node_soa_ptr, node_soa_ptr, sizeof(node::Node_SOA)*total_node_count, 
+            cudaMemcpyHostToDevice);
+
+ global_MoveTreeToGPU<<<1,1>>>(d_node_soa_ptr, total_node_count);
+
+ return true;
 }
 
 __global__ 
@@ -119,7 +131,13 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     current_node = root+current_offset+block_offset;
     parent_node = root+parent_offset+(ul)(block_offset/GetNumberOfDegrees());
 
-    parent_node->SetBranchChild(current_node, block_offset%GetNumberOfDegrees());
+    // parent_node->SetBranchChildOffset(block_offset%GetNumberOfDegrees(), current_offset+block_offset);
+    // NOTE :: To get the offset from the root node, use the above line otherwise use the below line.
+    // With the below line, you will get the child offset from the current node
+    // TODO This is not the good code to see, it might be better to scrub the codes at some point.
+    parent_node->SetBranchChildOffset(block_offset%GetNumberOfDegrees(), 
+                                     (current_offset+block_offset)-(parent_offset+(ul)(block_offset/GetNumberOfDegrees())));
+
     parent_node->SetBranchIndex(current_node->GetLastBranchIndex(), block_offset%GetNumberOfDegrees());
 
     parent_node->SetLevel(current_node->GetLevel()-1);
@@ -203,6 +221,14 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     root->SetNodeType(NODE_TYPE_ROOT);
   }
 }
+
+__global__ 
+void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count) { 
+  g_node_soa_ptr = (node::Node_SOA*)malloc (sizeof(node::Node_SOA)*total_node_count);
+  g_node_soa_ptr = d_node_soa_ptr;
+}
+
+
 
 } // End of tree namespace
 } // End of ursus namespace
