@@ -61,13 +61,23 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   assert(ret);
 
   // TODO :: REMOVE now it's only For debugging
-  PrintTree();
-  PrintTreeInSOA();
+  //PrintTree();
+  //PrintTreeInSOA();
 
   return true;
 }
 
-int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set){
+int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
+                   ui number_of_search){
+  
+  std::vector<Point> query;
+  evaluator::Recorder* d_recorder;
+  std::vector<long> node_offsets;
+
+  cudaMalloc((void**) &d_recorder, sizeof(evaluator::Recorder));
+
+  //global_RestartScanning_and_ParentCheck<<<1,1>>>(query, d_recorder, node_offsets);
+
   return -1  ;
 }
 
@@ -148,25 +158,32 @@ void Hybrid::PrintTreeInSOA(ui count) {
   }
 }
 
-
-/*
+//===--------------------------------------------------------------------===//
+// Cuda Function 
+//===--------------------------------------------------------------------===//
+/**
+ * @brief execute MPRS algorithm 
+ * @param recorder recording 
+ */
+ /*
 __global__ 
-void global_MPHR_ParentCheck(std::vector<Point> query, 
-                             evaluator::Recorder recorder, 
-                             std::vector<long> node_offsets){
+void global_RestartScanning_and_ParentCheck(std::vector<Point> query, 
+                                            evaluator::Recorder* recorder, 
+                                            std::vector<long> node_offsets) {
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
-  // Get a node offset based on the node type
-  long leafNode_offset = node_offsets[NODE_TYPE_LEAF];
-  long extendLeafNode_offset = node_offsets[NODE_TYPE_EXTENDLEAF];
+  // Get node offsets based on the node type
+  ul leafNode_offset = node_offsets[0];
+  ul extendLeafNode_offset = node_offsets[1];
 
-  __shared__ int t_hit[GetNumberOfDegrees()]; 
-  __shared__ int childOverlap[GetNumberOfDegrees()];
+
+  __shared__ ui t_hit[GetNumberOfDegrees()]; 
+  __shared__ ui childOverlap[GetNumberOfDegrees()];
+  __shared__ Point query[GetNumberOfDims()]; // XXX Use rect plz
   __shared__ bool isHit;
-  __shared__  Point query[GetNumberOfDims()]; // XXX Use rect plz
 
-  Node_SOA* node_soa_ptr;
+  node::Node_SOA* node_soa_ptr;
 
   t_hit[tid] = 0;
   hit[bid] = 0;
@@ -175,7 +192,6 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
   Node_SOA* leafNode_ptr = (Node_SOA*) ( (char*) root+(PGSIZE*leafNode_offset) );
   Node_SOA* extendNode_ptr = (Node_SOA*) ( (char*) root+(PGSIZE*extendLeafNode_offset) );
   __syncthreads();
-
 
   // TODO :: rename
   int passed_hIndex; 
@@ -186,24 +202,21 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
   last_hIndex   = root->index[root->count-1];
 
     node_soa_ptr = root;
-    if( tid == 0 )
-    {
+    if( tid == 0 ) {
       rootCount[bid]++;
     }
     __syncthreads();
 
-    while( passed_hIndex < last_hIndex )
-    {//find out left most child node till leaf level
+    while( passed_hIndex < last_hIndex ) {
+
+      //find out left most child node till leaf level
       while( node_soa_ptr ->level > 0 ) {
 
         if( (tid < node_soa_ptr ->count) &&
             (node_soa_ptr ->index[tid]> passed_hIndex) &&
-            (dev_Node_SOA_Overlap(&query, node_soa_ptr , tid)))
-        {
+            (dev_Node_SOA_Overlap(&query, node_soa_ptr , tid))) {
           childOverlap[tid] = tid;
-        }
-        else
-        {
+        } else {
           childOverlap[tid] = GetNumberOfDegrees()+1;
         }
         __syncthreads();
@@ -234,8 +247,8 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
           passed_hIndex = node_soa_ptr->index[node_soa_ptr->count-1];
 
           node_soa_ptr = root;
-          if( tid == 0 )
-          {
+
+          if( tid == 0 ) {
             rootCount[bid]++;
           }
           break;
@@ -243,8 +256,8 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
         // there exists some overlapped node
         else{
           node_soa_ptr = node_soa_ptr->child[ childOverlap[0] ];
-          if( tid == 0 )
-          {
+
+          if( tid == 0 ) {
               count[bid]++;
           }
         }
@@ -252,13 +265,11 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
       }
 
 
-      while( node_soa_ptr->level == 0 )
-      {
+      while( node_soa_ptr->level == 0 ) {
 
         isHit = false;
 
-        if ( tid < node_soa_ptr->count && dev_Node_SOA_Overlap(&query, node_soa_ptr, tid))
-        {
+        if ( tid < node_soa_ptr->count && dev_Node_SOA_Overlap(&query, node_soa_ptr, tid)) {
           t_hit[tid]++;
           isHit = true;
         }
@@ -297,9 +308,9 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
 
   __syncthreads();
   int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
-  while(N > 1){
-    if ( tid < N )
-    {
+
+  while(N > 1) {
+    if ( tid < N ) {
       t_hit[tid] = t_hit[tid] + t_hit[tid+N];
     }
 
@@ -308,16 +319,16 @@ void global_MPHR_ParentCheck(std::vector<Point> query,
   }
 
   if(tid==0) {
-    if(N==1) 
+    if(N==1) {
       hit[bid] = t_hit[0] + t_hit[1];
-    else
+    } else {
       hit[bid] = t_hit[0];
+    }
   }
 
 }
 
 */
-
 
 } // End of tree namespace
 } // End of ursus namespace

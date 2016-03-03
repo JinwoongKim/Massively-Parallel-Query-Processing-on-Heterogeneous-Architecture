@@ -24,5 +24,11 @@ class Thrust_Sort{
   static bool Sort(std::vector<node::Branch> &branches);
 };
 
+//===--------------------------------------------------------------------===//
+// Cuda Function 
+//===--------------------------------------------------------------------===//
+__global__ 
+void ReassignHilbertIndexes(node::Branch* branches, int number_of_data );
+
 } // End of sort namespace
 } // End of ursus namespace

@@ -2,6 +2,7 @@
 
 #include "common/macro.h"
 #include "common/logger.h"
+#include "evaluator/recorder.h"
 #include "mapper/hilbert_mapper.h"
 
 #include <cmath>
@@ -9,21 +10,13 @@
 namespace ursus {
 namespace tree {
 
-//===--------------------------------------------------------------------===//
-// Cuda Function & variables
-//===--------------------------------------------------------------------===//
-__device__ node::Node_SOA* g_node_soa_ptr;
-
-__global__ 
-void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
-                              ui number_of_node, node::Node* root);
-__global__ 
-void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
- 
 /**
  *@brief creating branches
  */
 std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> input_data_set) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
   auto number_of_data = input_data_set->GetNumberOfData();
   auto points = input_data_set->GetPoints();
 
@@ -34,10 +27,15 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
     branches[i].SetRect(&points[i*GetNumberOfDims()]);
   }
 
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Create Branche  Time on the GPU = %.6fs", elapsed_time/1000.0f);
+
   return branches;
 }
 
 bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
   unsigned int number_of_bits = (GetNumberOfDims()>2) ? 20:31;
 
   for(int range(i, 0, branches.size())) {
@@ -47,6 +45,8 @@ bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
     branches[i].SetIndex(hilbert_index);
   }
 
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Assign Hilbert Index Time on the GPU = %.6fs", elapsed_time/1000.0f);
   return true;
 }
 
@@ -114,6 +114,11 @@ bool Tree::MoveTreeToGPU(void){
 
  return true;
 }
+
+//===--------------------------------------------------------------------===//
+// Cuda Variable & Function 
+//===--------------------------------------------------------------------===//
+__device__ node::Node_SOA* g_node_soa_ptr;
 
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
@@ -227,8 +232,6 @@ void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count) {
   g_node_soa_ptr = (node::Node_SOA*)malloc (sizeof(node::Node_SOA)*total_node_count);
   g_node_soa_ptr = d_node_soa_ptr;
 }
-
-
 
 } // End of tree namespace
 } // End of ursus namespace

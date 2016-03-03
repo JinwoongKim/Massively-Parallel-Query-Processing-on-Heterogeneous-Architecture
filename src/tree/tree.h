@@ -35,7 +35,7 @@ class Tree{
   /**
    * Search the data 
    */
-  virtual int Search(std::shared_ptr<io::DataSet> query_data_set) = 0;
+  virtual int Search(std::shared_ptr<io::DataSet> query_data_set, ui number_of_search) = 0;
 
   virtual void PrintTree(ui count=0) = 0;
 
@@ -79,6 +79,17 @@ class Tree{
   // total node count 
   ui total_node_count;
 };
+
+//===--------------------------------------------------------------------===//
+// Cuda function
+//===--------------------------------------------------------------------===//
+extern __device__ node::Node_SOA* g_node_soa_ptr;
+
+__global__ 
+void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
+                              ui number_of_node, node::Node* root);
+__global__ 
+void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
 
 } // End of tree namespace
 } // End of ursus namespace

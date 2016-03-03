@@ -1,10 +1,10 @@
 #include "transformer/transformer.h"
 
 #include "common/macro.h"
+#include "common/logger.h"
+#include "evaluator/recorder.h"
 #include "node/branch.h"
 
-// XXX for debugging
-#include "common/logger.h"
 
 namespace ursus {
 namespace transformer {
@@ -17,6 +17,8 @@ namespace transformer {
  */
 node::Node_SOA* Transformer::Transform(node::Node* node,
                                         ui number_of_nodes) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
 
   node::Node_SOA* node_soa = new node::Node_SOA[number_of_nodes];
 
@@ -49,6 +51,9 @@ node::Node_SOA* Transformer::Transform(node::Node* node,
     // node level
     node_soa[node_itr].SetLevel(node[node_itr].GetLevel());
   }
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Transform Time on the GPU = %.6fs", elapsed_time/1000.0f);
 
   return node_soa;
 }

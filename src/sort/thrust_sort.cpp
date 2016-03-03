@@ -9,17 +9,6 @@
 namespace ursus {
 namespace sort {
 
-__global__ 
-void ReassignHilbertIndexes(node::Branch* branches, int number_of_data ) {
-  int tid = ( blockIdx.x *blockDim.x ) + threadIdx.x;
-
-  while( tid < number_of_data ){
-    branches[tid].SetIndex(tid+1);
-    branches[tid].SetChildOffset(0);
-    tid+=524288;
-  }
-}
-
 bool Thrust_Sort::Sort(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
@@ -47,6 +36,19 @@ bool Thrust_Sort::Sort(std::vector<node::Branch> &branches) {
   return true;
 }
 
+//===--------------------------------------------------------------------===//
+// Cuda Function 
+//===--------------------------------------------------------------------===//
+__global__ 
+void ReassignHilbertIndexes(node::Branch* branches, int number_of_data ) {
+  int tid = ( blockIdx.x *blockDim.x ) + threadIdx.x;
+
+  while( tid < number_of_data ){
+    branches[tid].SetIndex(tid+1);
+    branches[tid].SetChildOffset(0);
+    tid+=524288;
+  }
+}
 
 } // End of sort namespace
 } // End of ursus namespace

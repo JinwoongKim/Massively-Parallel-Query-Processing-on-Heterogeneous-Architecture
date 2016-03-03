@@ -31,7 +31,7 @@ bool Evaluator::Initialize(int argc, char** argv){
   ret=ReadDataSet();
   assert(ret);
 
-  if(number_of_searches > 0) {
+  if(number_of_search > 0) {
     ret=ReadQuerySet();
     assert(ret);
   }
@@ -49,7 +49,7 @@ bool Evaluator::ReadDataSet(void){
 
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
-  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_searches,
+  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search,
                        "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."+selectivity+"s."+query_size,
                        DATASET_TYPE_BINARY)); 
 
@@ -85,7 +85,7 @@ int Evaluator::SetDevice(ui number_of_gpus) {
     }
   }
 
-  LOG_INFO("Unfortunately, There is no available device on this machine");
+  LOG_INFO("Unfortunately, none of devices is available in this machine");
   return -1;
 }
 
@@ -109,7 +109,7 @@ bool Evaluator::Build(void) {
  */
 bool Evaluator::Search(void) {
   for(auto& tree : trees) {
-    if(!tree->Search(query_data_set)) {
+    if(!tree->Search(query_data_set, number_of_search)) {
       return false;
     }
   }
@@ -156,13 +156,13 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'd':
       case 'D': number_of_data_str = std::string(optarg); break;
       case 'q':
-      case 'Q': number_of_searches = atoi(optarg); break;
+      case 'Q': number_of_search = atoi(optarg); break;
       case 'p':
-      case 'P': number_of_partitioned_trees = atoi(optarg); break;
+      case 'P': number_of_partitioned_tree = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
       case 'c':
-      case 'C': number_of_cpu_cores = atoi(optarg); break;
+      case 'C': number_of_cpu_core = atoi(optarg); break;
       case 'g':
       case 'G': number_of_gpus = atoi(optarg); break;
      default: break;
@@ -192,9 +192,9 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
  
-  if(number_of_cpu_cores > 0) {
-    number_of_cpu_cores = 
-      (number_of_partitioned_trees>1)?number_of_partitioned_trees:1;  
+  if(number_of_cpu_core > 0) {
+    number_of_cpu_core = 
+      (number_of_partitioned_tree>1)?number_of_partitioned_tree:1;  
   }
 
   // TODO Hard coded now
@@ -206,9 +206,9 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
 //
 //
-//  if( (METHOD[0] || METHOD[1] || METHOD[2] ||  METHOD[3] || METHOD[4] || METHOD[5] || METHOD[6]) && number_of_searches == 0)
+//  if( (METHOD[0] || METHOD[1] || METHOD[2] ||  METHOD[3] || METHOD[4] || METHOD[5] || METHOD[6]) && number_of_search == 0)
 //  {
-//    number_of_searches = 1000;
+//    number_of_search = 1000;
 //  }
 
   std::cout << *this << std::endl;
@@ -222,9 +222,9 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of degrees = " << GetNumberOfDegrees() << std::endl
      << " number of thread blocks = " << GetNumberOfBlocks() << std::endl
      << " number of threads = " << GetNumberOfThreads() << std::endl
-     << " number of searches = " << evaluator.number_of_searches << std::endl
-     << " number of partitioned trees = " << evaluator.number_of_partitioned_trees << std::endl
-     << " number of cpu cores = " << evaluator.number_of_cpu_cores << std::endl
+     << " number of searches = " << evaluator.number_of_search << std::endl
+     << " number of partitioned trees = " << evaluator.number_of_partitioned_tree << std::endl
+     << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
 

@@ -56,15 +56,15 @@ class Evaluator{
   ui number_of_data = 0;
 
   // # of searches
-  ui number_of_searches = 0;
+  ui number_of_search = 0;
 
   // # of partitioned trees
   // 1 means braided version(no partition), 
   // 2 or more indicate partitioned version
-  ui number_of_partitioned_trees = 1;
+  ui number_of_partitioned_tree = 1;
 
   // # of cpu cores to be used for evaluation
-  ui number_of_cpu_cores = 0;
+  ui number_of_cpu_core = 0;
   
   std::string selectivity="0.01";
   std::string query_size;
