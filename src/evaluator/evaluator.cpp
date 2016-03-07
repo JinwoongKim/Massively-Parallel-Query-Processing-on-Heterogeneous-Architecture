@@ -2,7 +2,7 @@
 
 #include "common/macro.h"
 #include "common/logger.h"
-#include "tree/hybrid.h"
+#include "tree/mphr.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -49,7 +49,7 @@ bool Evaluator::ReadDataSet(void){
 
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
-  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search,
+  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
                        "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."+selectivity+"s."+query_size,
                        DATASET_TYPE_BINARY)); 
 
@@ -108,11 +108,14 @@ bool Evaluator::Build(void) {
  * @return true for now 
  */
 bool Evaluator::Search(void) {
+  if( number_of_search == 0 ) return false;
+
   for(auto& tree : trees) {
     if(!tree->Search(query_data_set, number_of_search)) {
       return false;
     }
   }
+
   return true;
 }
 
@@ -199,7 +202,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO Hard coded now
   // if 'i' (index type?? maybe)  is hybrid, then insert hybrid tree into the queue
-  auto tree = std::unique_ptr<tree::Tree>( new tree::Hybrid());
+  auto tree = std::unique_ptr<tree::Tree>( new tree::MPHR());
   trees.push_back(std::move(tree));
 
 //  if( METHOD[7] == true)

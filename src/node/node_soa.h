@@ -14,12 +14,17 @@ class Node_SOA{
  // Accessor
  //===--------------------------------------------------------------------===//
 
- NodeType GetNodeType(void) const;
- int GetLevel(void) const;
+ __both__ NodeType GetNodeType(void) const;
+ __both__ int GetLevel(void) const;
+ __both__ ui GetBranchCount(void) const;
+ __both__ ul GetIndex(ui offset) const;
+ __both__ ul GetLastIndex() const;
+ __both__ ul GetChildOffset(ui offset) const;
+__both__  bool IsOverlap(Point* query, ui child_offset);
 
  void SetPoint(ui offset, Point point);
- void SetIndex(ui offset, ull index);
- void SetChildOffset(ui offset, ull child_offset);
+ void SetIndex(ui offset, ul index);
+ void SetChildOffset(ui offset, ul child_offset);
  void SetNodeType(NodeType type);
  void SetLevel(int level);
  void SetBranchCount(ui branch_count);
@@ -31,8 +36,8 @@ class Node_SOA{
  private:
   // transformed branches
   Point points[GetNumberOfDims()*2*GetNumberOfDegrees()];
-  ull index[GetNumberOfDegrees()];
-  ull child_offset[GetNumberOfDegrees()];
+  ul index[GetNumberOfDegrees()];
+  ul child_offset[GetNumberOfDegrees()];
 
   // node type
   NodeType node_type = NODE_TYPE_INVALID;

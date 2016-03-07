@@ -1,6 +1,5 @@
-#include "node/branch.h"
-
 #include "common/macro.h"
+#include "node/branch.h"
 
 #include <cassert>
 #include <iomanip>

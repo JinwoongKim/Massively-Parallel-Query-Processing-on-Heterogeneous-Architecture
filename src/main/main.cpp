@@ -11,7 +11,6 @@ int main(int argc, char** argv){
     return -1;
   }
 
-  // TODO : Build Index
   evaluator.Build();
 
   // TODO : Search

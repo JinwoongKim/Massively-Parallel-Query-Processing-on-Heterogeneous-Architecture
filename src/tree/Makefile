@@ -1,5 +1,4 @@
 OBJECTS=tree.o \
-				hybrid.o \
 				mphr.o
 
 INC=-I. -I../.

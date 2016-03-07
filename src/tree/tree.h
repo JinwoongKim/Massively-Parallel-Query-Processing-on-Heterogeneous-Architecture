@@ -11,7 +11,7 @@
 namespace ursus {
 namespace tree {
 
-class Tree{
+class Tree {
  public:
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
@@ -35,7 +35,8 @@ class Tree{
   /**
    * Search the data 
    */
-  virtual int Search(std::shared_ptr<io::DataSet> query_data_set, ui number_of_search) = 0;
+  virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
+                     ui number_of_search) = 0;
 
   virtual void PrintTree(ui count=0) = 0;
 
@@ -73,7 +74,7 @@ class Tree{
 
   TreeType tree_type = TREE_TYPE_INVALID;
 
-  // number of nodes in each level
+  // number of nodes in each level(start from leaf)
   std::vector<ui> level_node_count;
 
   // total node count 

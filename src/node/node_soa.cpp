@@ -2,15 +2,62 @@
 #include "node/node_soa.h"
 
 #include <cassert>
+#include <iomanip>
 
 namespace ursus {
 namespace node {
 
+__both__
 NodeType Node_SOA::GetNodeType(void) const {
   return node_type;
 }
+
+__both__
 int Node_SOA::GetLevel(void) const {
   return level;
+}
+
+__both__
+ui Node_SOA::GetBranchCount(void) const {
+  return branch_count;
+}
+
+__both__
+ul Node_SOA::GetIndex(ui offset) const {
+  assert(offset < branch_count);
+  return index[offset];
+}
+
+__both__
+ul Node_SOA::GetLastIndex(void) const {
+  return index[branch_count-1];
+}
+
+__both__
+ul Node_SOA::GetChildOffset(ui offset) const {
+  assert(offset < branch_count);
+  return child_offset[offset];
+}
+
+__both__  
+bool Node_SOA::IsOverlap(Point* query, ui child_offset) {
+
+  for(ui range(lower_boundary, 0, GetNumberOfDims())) {
+    ui upper_boundary = lower_boundary+GetNumberOfDims();
+
+    ui node_soa_lower_boundary = lower_boundary*GetNumberOfDegrees()+child_offset;
+    ui node_soa_upper_boundary = upper_boundary*GetNumberOfDegrees()+child_offset;
+
+    // Either the query's lower boundary is greather than node's upper boundary
+    // or query's upper boundary is less than node's lower boundary, returns
+    // false
+    if(query[lower_boundary] > points[node_soa_upper_boundary] ||
+        query[upper_boundary] < points[node_soa_lower_boundary]) { 
+      return false; 
+    }
+  } 
+
+  return true; 
 }
 
 void Node_SOA::SetPoint(ui offset, Point point) {
@@ -18,12 +65,12 @@ void Node_SOA::SetPoint(ui offset, Point point) {
   points[offset] = point;
 }
 
-void Node_SOA::SetIndex(ui offset, ull _index) {
+void Node_SOA::SetIndex(ui offset, ul _index) {
   assert(offset < GetNumberOfDegrees());
   index[offset] = _index;
 }
 
-void Node_SOA::SetChildOffset(ui offset, ull _child_offset) {
+void Node_SOA::SetChildOffset(ui offset, ul _child_offset) {
   assert(offset < GetNumberOfDegrees());
   child_offset[offset] = _child_offset;
 }
@@ -44,6 +91,8 @@ void Node_SOA::SetBranchCount(ui _branch_count) {
 
 // Get a string representation
 std::ostream &operator<<(std::ostream &os, const Node_SOA &node_soa) {
+  os << std::fixed << std::setprecision(6);
+
   os << " Node : " << std::endl;
   os << " NodeType = " << NodeTypeToString(node_soa.GetNodeType()) << std::endl;
   os << " NodeLevel = " << node_soa.GetLevel() << std::endl;

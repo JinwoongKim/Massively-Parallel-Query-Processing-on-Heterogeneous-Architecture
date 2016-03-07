@@ -143,6 +143,11 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     parent_node->SetBranchChildOffset(block_offset%GetNumberOfDegrees(), 
                                      (current_offset+block_offset)-(parent_offset+(ul)(block_offset/GetNumberOfDegrees())));
 
+    // keep the parent node offset in order to go back to the parent node 
+    if( current_node->GetNodeType() == NODE_TYPE_LEAF) {
+      current_node->SetBranchChildOffset(0, parent_offset+(ul)(block_offset/GetNumberOfDegrees()));
+    }
+
     parent_node->SetBranchIndex(current_node->GetLastBranchIndex(), block_offset%GetNumberOfDegrees());
 
     parent_node->SetLevel(current_node->GetLevel()-1);
@@ -156,7 +161,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
       __shared__ float lower_boundary[GetNumberOfDegrees()];
       __shared__ float upper_boundary[GetNumberOfDegrees()];
 
-      for( ui jump(thread, tid, GetNumberOfDegrees(), GetNumberOfThreads())) {
+      for( ui range(thread, tid, GetNumberOfDegrees(), GetNumberOfThreads())) {
         if( thread < current_node->GetBranchCount()){
           lower_boundary[ thread ] = current_node->GetBranchPoint(thread,dim);
           upper_boundary[ thread ] = current_node->GetBranchPoint(thread,high_dim);
@@ -170,7 +175,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
 
       int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
       while(N > 1){
-        for( ui jump(thread, tid, N, GetNumberOfThreads())) {
+        for( ui range(thread, tid, N, GetNumberOfThreads())) {
           if(lower_boundary[thread] > lower_boundary[thread+N])
             lower_boundary[thread] = lower_boundary[thread+N];
         }
@@ -186,7 +191,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
       //other half threads get upper boundary
       N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
       while(N > 1){
-        for( ui jump(thread, tid, N, GetNumberOfThreads())) {
+        for( ui range(thread, tid, N, GetNumberOfThreads())) {
           if(upper_boundary[thread] < upper_boundary[thread+N])
             upper_boundary[thread] = upper_boundary[thread+N];
         }

@@ -27,8 +27,8 @@ DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
 
   // print out an error message when it was failed to be opened
   if(!input_stream){
-    std::cerr << "Failed to open a file\n";
-    return;
+    std::cerr << "Failed to open a file(" << data_set_path << ")\n";
+    exit(1);
   } 
  
 
