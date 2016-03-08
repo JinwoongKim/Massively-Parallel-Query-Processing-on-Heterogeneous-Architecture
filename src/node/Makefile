@@ -6,8 +6,12 @@ INC=-I. -I../.
 
 all: $(OBJECTS)
 
-%.o: %.cpp %.h ../common/config.h
+%.o: %.cpp %.h 
 	$(NVCC) -x cu $(NVCCFLAGS) $(INC) -dc $< -o $@ 
+
+branch.o : ./../common/macro.h ./../common/config.h
+node.o : ./../common/macro.h ./../common/config.h
+node_soa.o : ./../common/macro.h ./../common/config.h
 
 clean:
 	rm -f *.o
