@@ -133,7 +133,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   }
   cudaThreadSynchronize();
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Search Time on the GPU = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
   //===--------------------------------------------------------------------===//
   // Show Results
@@ -157,8 +157,8 @@ bool MPHR::Bottom_Up(std::vector<node::Branch> &branches) {
   total_node_count = GetTotalNodeCount();
   auto leaf_node_offset = total_node_count - level_node_count[0];
 
-  for(ui range(l, 0, tree_height)) {
-    LOG_INFO("Level[%u] : %u nodes", l, level_node_count[l]);
+  for(auto node_count : level_node_count) {
+    LOG_INFO("Level : %u nodes", node_count);
   }
 
  //===--------------------------------------------------------------------===//
@@ -249,10 +249,12 @@ void global_RestartScanning_and_ParentCheck(Point* query, ui* hit,
   ui query_offset = bid*GetNumberOfDims()*2;
 //  __shared__ Point query[GetNumberOfDims()*2]; make it a shared variable later
 
+  root_visit_count[bid] = 0;
+  node_visit_count[bid] = 0;
+
   t_hit[tid] = 0;
 
   node::Node_SOA* root = g_node_soa_ptr;
-
   node::Node_SOA* node_soa_ptr = root;
 
   ul passed_hIndex = 0;
