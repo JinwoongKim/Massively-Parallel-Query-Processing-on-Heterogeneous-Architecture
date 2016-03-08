@@ -64,6 +64,12 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
   //PrintTree();
   //PrintTreeInSOA();
 
+  // TODO Use smart pointer?
+  free(node_ptr);
+  free(node_soa_ptr);
+  node_ptr = nullptr;
+  node_soa_ptr = nullptr;
+
   return true;
 }
 
