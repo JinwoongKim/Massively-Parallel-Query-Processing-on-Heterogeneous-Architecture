@@ -39,20 +39,14 @@ class MPHR : public Tree {
   void PrintTree(ui count=0);
 
   void PrintTreeInSOA(ui count=0);
-
- //===--------------------------------------------------------------------===//
- // Members
- //===--------------------------------------------------------------------===//
- ui node_offset[2]; // leaf node offset and extend leaf node offset
-
 };
 
 //===--------------------------------------------------------------------===//
 // Cuda Function 
 //===--------------------------------------------------------------------===//
 __global__ 
-void global_RestartScanning_and_ParentCheck(Point* query, ul* node_offset,
-                                            ui* hit, ui* root_visit_count, ui* node_visit_count);;
+void global_RestartScanning_and_ParentCheck(Point* query, ui* hit, 
+                     ui* root_visit_count, ui* node_visit_count);
  
 } // End of tree namespace
 } // End of ursus namespace

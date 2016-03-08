@@ -80,13 +80,6 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   cudaMemcpy(d_query, &points[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search, cudaMemcpyHostToDevice);
 
   //===--------------------------------------------------------------------===//
-  // Copy Node Offsets
-  //===--------------------------------------------------------------------===//
-  ul* d_node_offset;
-  cudaMalloc((void**) &d_node_offset, sizeof(ul)*2);
-  cudaMemcpy(d_node_offset, node_offset, sizeof(ul)*2, cudaMemcpyHostToDevice);
-
-  //===--------------------------------------------------------------------===//
   // Prepare Hit & Node Visit Variables for evaluations
   //===--------------------------------------------------------------------===//
   ui h_hit[GetNumberOfBlocks()] = {0};
@@ -120,7 +113,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
 
     LOG_INFO("Execute MPRS with %u CUDA blocks", number_of_batch);
     global_RestartScanning_and_ParentCheck<<<number_of_batch,GetNumberOfThreads()>>>
-           (&d_query[query_itr*GetNumberOfDims()*2], d_node_offset, 
+           (&d_query[query_itr*GetNumberOfDims()*2], 
            d_hit, d_root_visit_count, d_node_visit_count);
     cudaMemcpy(h_hit, d_hit, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
     cudaMemcpy(h_root_visit_count, d_root_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
@@ -156,19 +149,10 @@ bool MPHR::Bottom_Up(std::vector<node::Branch> &branches) {
   level_node_count = GetLevelNodeCount(branches);
   auto tree_height = level_node_count.size()-1;
   total_node_count = GetTotalNodeCount();
+  auto leaf_node_offset = total_node_count - level_node_count[0];
 
   for(ui range(l, 0, tree_height)) {
     LOG_INFO("Level[%u] : %u nodes", l, level_node_count[l]);
-  }
-
-
-  //get the leaf node offset and extend leaf node offset
-  node_offset[0] = total_node_count-level_node_count[0];
-
-  if( level_node_count.size() > 1) {
-    node_offset[1] = node_offset[0]-level_node_count[1];
-  } else {
-    node_offset[1] = 0;
   }
 
  //===--------------------------------------------------------------------===//
@@ -176,7 +160,7 @@ bool MPHR::Bottom_Up(std::vector<node::Branch> &branches) {
  //===--------------------------------------------------------------------===//
   node_ptr = new node::Node[total_node_count];
   // Copy the branches to nodes 
-  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, node_offset[0]);
+  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
   assert(ret);
 
   node::Node* d_node_ptr;
@@ -246,8 +230,8 @@ void MPHR::PrintTreeInSOA(ui count) {
  * @param 
  */
 __global__ 
-void global_RestartScanning_and_ParentCheck(Point* query, ul* node_offset, 
-                                            ui* hit, ui* root_visit_count, ui* node_visit_count) {
+void global_RestartScanning_and_ParentCheck(Point* query, ui* hit, 
+                    ui* root_visit_count, ui* node_visit_count) {
 
   int bid = blockIdx.x;
   int tid = threadIdx.x;
@@ -262,8 +246,6 @@ void global_RestartScanning_and_ParentCheck(Point* query, ul* node_offset,
   t_hit[tid] = 0;
 
   node::Node_SOA* root = g_node_soa_ptr;
-  node::Node_SOA* leafNode_ptr = root+node_offset[0]; // leaf_node offset
-  node::Node_SOA* extendNode_ptr = root+node_offset[1]; // extendleaf_node offset
 
   node::Node_SOA* node_soa_ptr = root;
 
@@ -354,8 +336,10 @@ void global_RestartScanning_and_ParentCheck(Point* query, ul* node_offset,
           node_visit_count[bid]++;
         }
         __syncthreads();
-      } else { // go back to the parent node to check wthether other child nodes are overlapped with given query
-        //node_soa_ptr = extendNode_ptr + (node_soa_ptr-leafNode_ptr)/GetNumberOfDegrees();
+      } else { 
+        // go back to the parent node to check wthether other child nodes are overlapped with given query
+        // Since ChildOffset of leaf node is pointing its parent node,
+        // we can use it to go back to the parent node
         node_soa_ptr = root+node_soa_ptr->GetChildOffset(0);
 
         if( tid == 0 ) {
