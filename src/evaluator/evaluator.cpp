@@ -135,6 +135,13 @@ void Evaluator::PrintHelp(char **argv) const {
   << std::endl;
 }
 
+void Evaluator::PrintMemoryUsageOftheGPU() {
+  size_t avail, total;
+  cudaMemGetInfo( &avail, &total );
+  size_t used = total-avail;
+  LOG_INFO(" Used Memory %lu(MB) / GPU Capacity %lu(MB) ( %.2f % )", 
+           used/1000000, total/1000000, ( (double)used/(double)total)*100);
+}
 
 //TODO :: Boost.Program_options
 // http://www.boost.org/doc/libs/1_59_0/doc/html/program_options.html

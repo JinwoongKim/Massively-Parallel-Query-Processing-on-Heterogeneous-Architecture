@@ -40,6 +40,8 @@ class Evaluator{
 
   // Print out usage to users
   void PrintHelp(char **argv) const;
+
+  void PrintMemoryUsageOftheGPU();
  
   bool ParseArgs(int argc, char **argv);
 

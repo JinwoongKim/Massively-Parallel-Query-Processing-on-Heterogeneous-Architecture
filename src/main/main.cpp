@@ -13,6 +13,8 @@ int main(int argc, char** argv){
 
   evaluator.Build();
 
+  evaluator.PrintMemoryUsageOftheGPU();
+
   // TODO : Search
   evaluator.Search();
   return 0;
