@@ -32,13 +32,6 @@ class MPHR : public Tree {
    * Build the internal nodes
    */
   bool Bottom_Up(std::vector<node::Branch> &branches);
-
- //===--------------------------------------------------------------------===//
- // Utility
- //===--------------------------------------------------------------------===//
-  void PrintTree(ui count=0);
-
-  void PrintTreeInSOA(ui count=0);
 };
 
 //===--------------------------------------------------------------------===//
@@ -46,7 +39,7 @@ class MPHR : public Tree {
 //===--------------------------------------------------------------------===//
 __global__ 
 void global_RestartScanning_and_ParentCheck(Point* query, ui* hit, 
-                     ui* root_visit_count, ui* node_visit_count);
+                                 ui* root_visit_count, ui* node_visit_count);
  
 } // End of tree namespace
 } // End of ursus namespace

@@ -10,6 +10,42 @@
 namespace ursus {
 namespace tree {
 
+void Tree::PrintTree(ui count) {
+  LOG_INFO("Print Tree");
+  LOG_INFO("Height %zu", level_node_count.size());
+
+  ui node_itr=0;
+
+  for( int i=level_node_count.size()-1; i>=0; --i) {
+    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
+    for( ui range(j, 0, level_node_count[i])){
+      LOG_INFO("node %p",&node_ptr[node_itr]);
+      std::cout << node_ptr[node_itr++] << std::endl;
+
+      if(count){ if( node_itr>=count){ return; } }
+    }
+  }
+}
+
+void Tree::PrintTreeInSOA(ui count) {
+  LOG_INFO("Print Tree in SOA");
+  LOG_INFO("Height %zu", level_node_count.size());
+
+  ui node_soa_itr=0;
+
+  for( int i=level_node_count.size()-1; i>=0; --i) {
+    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
+    for( ui range(j, 0, level_node_count[i])){
+      LOG_INFO("node %p",&node_soa_ptr[node_soa_itr]);
+      if( node_soa_ptr[node_soa_itr].GetNodeType() != NODE_TYPE_LEAF) {
+        std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
+      }
+
+      if(count){ if( node_soa_itr>=count){ return; } }
+    }
+  }
+}
+
 /**
  *@brief creating branches
  */
@@ -28,7 +64,7 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Create Branche  Time on the GPU = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Create Branche  Time = %.6fs", elapsed_time/1000.0f);
 
   return branches;
 }
@@ -103,14 +139,14 @@ void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset,
  * @brief move tree to the GPU
  * @return true if success otherwise false
  */ 
-bool Tree::MoveTreeToGPU(void){
+bool Tree::MoveTreeToGPU(ui count){
 
  node::Node_SOA* d_node_soa_ptr;
- cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*total_node_count);
- cudaMemcpy(d_node_soa_ptr, node_soa_ptr, sizeof(node::Node_SOA)*total_node_count, 
+ cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*count);
+ cudaMemcpy(d_node_soa_ptr, node_soa_ptr, sizeof(node::Node_SOA)*count, 
             cudaMemcpyHostToDevice);
 
- global_MoveTreeToGPU<<<1,1>>>(d_node_soa_ptr, total_node_count);
+ global_MoveTreeToGPU<<<1,1>>>(d_node_soa_ptr, count);
 
  return true;
 }
@@ -224,11 +260,6 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     }else{
       parent_node->SetBranchCount(number_of_node%GetNumberOfDegrees());
     }
-  }
-
-  // setting the node type for root at the end
-  if( tid == 0 ) {
-    root->SetNodeType(NODE_TYPE_ROOT);
   }
 }
 

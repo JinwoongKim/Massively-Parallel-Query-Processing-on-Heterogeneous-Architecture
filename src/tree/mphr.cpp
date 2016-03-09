@@ -20,7 +20,7 @@ MPHR::MPHR() {
  * @param input_data_set 
  * @return true if success to build otherwise false
  */
-bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
+bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   LOG_INFO("Build MPHR Tree");
   bool ret = false;
 
@@ -57,7 +57,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
  //===--------------------------------------------------------------------===//
  // Move Trees to the GPU
  //===--------------------------------------------------------------------===//
-  ret = MoveTreeToGPU();
+  ret = MoveTreeToGPU(total_node_count);
   assert(ret);
 
   // FIXME :: REMOVE now it's only For debugging
@@ -74,7 +74,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set){
 }
 
 int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set, 
-                   ui number_of_search){
+                   ui number_of_search) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
   //===--------------------------------------------------------------------===//
@@ -82,8 +82,8 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   Point* d_query;
   cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search);
-  auto points = query_data_set->GetPoints();
-  cudaMemcpy(d_query, &points[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search, cudaMemcpyHostToDevice);
+  auto query = query_data_set->GetPoints();
+  cudaMemcpy(d_query, &query[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search, cudaMemcpyHostToDevice);
 
   //===--------------------------------------------------------------------===//
   // Prepare Hit & Node Visit Variables for evaluations
@@ -192,42 +192,6 @@ bool MPHR::Bottom_Up(std::vector<node::Branch> &branches) {
   return true;
 }
 
-void MPHR::PrintTree(ui count) {
-  LOG_INFO("Print Tree");
-  LOG_INFO("Height %zu", level_node_count.size());
-
-  ui node_itr=0;
-
-  for( int i=level_node_count.size()-1; i>=0; --i) {
-    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
-    for( ui range(j, 0, level_node_count[i])){
-      LOG_INFO("node %p",&node_ptr[node_itr]);
-      std::cout << node_ptr[node_itr++] << std::endl;
-
-      if(count){ if( node_itr>=count){ return; } }
-    }
-  }
-}
-
-void MPHR::PrintTreeInSOA(ui count) {
-  LOG_INFO("Print Tree in SOA");
-  LOG_INFO("Height %zu", level_node_count.size());
-
-  ui node_soa_itr=0;
-
-  for( int i=level_node_count.size()-1; i>=0; --i) {
-    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
-    for( ui range(j, 0, level_node_count[i])){
-      LOG_INFO("node %p",&node_soa_ptr[node_soa_itr]);
-      if( node_soa_ptr[node_soa_itr].GetNodeType() != NODE_TYPE_LEAF) {
-        std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
-      }
-
-      if(count){ if( node_soa_itr>=count){ return; } }
-    }
-  }
-}
-
 //===--------------------------------------------------------------------===//
 // Cuda Function 
 //===--------------------------------------------------------------------===//
@@ -236,7 +200,7 @@ void MPHR::PrintTreeInSOA(ui count) {
  * @param 
  */
 __global__ 
-void global_RestartScanning_and_ParentCheck(Point* query, ui* hit, 
+void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit, 
                     ui* root_visit_count, ui* node_visit_count) {
 
   int bid = blockIdx.x;
@@ -247,7 +211,11 @@ void global_RestartScanning_and_ParentCheck(Point* query, ui* hit,
   __shared__ bool isHit;
 
   ui query_offset = bid*GetNumberOfDims()*2;
-//  __shared__ Point query[GetNumberOfDims()*2]; make it a shared variable later
+  __shared__ Point query[GetNumberOfDims()*2];
+
+  if(tid < GetNumberOfDims()*2) {
+    query[tid] = _query[query_offset+tid];
+  }
 
   root_visit_count[bid] = 0;
   node_visit_count[bid] = 0;
@@ -268,11 +236,11 @@ void global_RestartScanning_and_ParentCheck(Point* query, ui* hit,
   while( passed_hIndex < last_hIndex ) {
 
     //look over the left most child node before reaching leaf node level
-    while( node_soa_ptr->GetNodeType() != NODE_TYPE_LEAF ) {
+    while( node_soa_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
 
       if( (tid < node_soa_ptr->GetBranchCount()) &&
           (node_soa_ptr->GetIndex(tid) > passed_hIndex) &&
-          (node_soa_ptr->IsOverlap(&query[query_offset], tid))) {
+          (node_soa_ptr->IsOverlap(query, tid))) {
         childOverlap[tid] = tid;
       } else {
         childOverlap[tid] = GetNumberOfDegrees()+1;
@@ -325,7 +293,7 @@ void global_RestartScanning_and_ParentCheck(Point* query, ui* hit,
       isHit = false;
 
       if(tid < node_soa_ptr->GetBranchCount() &&
-        node_soa_ptr->IsOverlap(&query[query_offset], tid)){
+        node_soa_ptr->IsOverlap(query, tid)){
 
         t_hit[tid]++;
         isHit = true;

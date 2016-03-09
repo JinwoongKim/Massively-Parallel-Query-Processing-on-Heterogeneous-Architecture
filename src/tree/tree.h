@@ -38,9 +38,9 @@ class Tree {
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
                      ui number_of_search) = 0;
 
-  virtual void PrintTree(ui count=0) = 0;
+  virtual void PrintTree(ui count=0);
 
-  virtual void PrintTreeInSOA(ui count=0) = 0;
+  virtual void PrintTreeInSOA(ui count=0);
 
  //===--------------------------------------------------------------------===//
  // Utility Function
@@ -56,13 +56,12 @@ class Tree {
   bool CopyBranchToNode(std::vector<node::Branch> &branches,
                         NodeType node_type, int level, ui offset);
 
-
   /**
    * wrapper function for Cuda 
    */
   void BottomUpBuild_ILP(ul offset, ul parent_offset, ui number_of_node, node::Node* root);
 
-  bool MoveTreeToGPU(void);
+  bool MoveTreeToGPU(ui count);
 
  //===--------------------------------------------------------------------===//
  // Members
