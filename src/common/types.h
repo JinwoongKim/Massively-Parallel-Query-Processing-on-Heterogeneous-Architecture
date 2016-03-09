@@ -34,8 +34,7 @@ enum DataType  {
 enum NodeType  {
   NODE_TYPE_INVALID = -1,
   NODE_TYPE_LEAF = 1,
-  NODE_TYPE_INTERNAL = 2,
-  NODE_TYPE_ROOT = 3
+  NODE_TYPE_INTERNAL = 2
 };
 
 //===--------------------------------------------------------------------===//

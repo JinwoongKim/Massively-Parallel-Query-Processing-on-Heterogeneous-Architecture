@@ -76,8 +76,6 @@ std::string NodeTypeToString(NodeType type) {
   switch (type) {
     case (NODE_TYPE_INVALID):
       return "INVALID";
-    case (NODE_TYPE_ROOT):
-      return "ROOT";
     case (NODE_TYPE_INTERNAL):
       return "INTERNAL";
     case (NODE_TYPE_LEAF):
@@ -94,8 +92,6 @@ std::string NodeTypeToString(NodeType type) {
 NodeType StringToNodeType(std::string str) {
   if (str == "INVALID") {
     return NODE_TYPE_INVALID;
-  } else if (str == "ROOT") {
-    return NODE_TYPE_ROOT;
   } else if (str == "INTERNAL") {
     return NODE_TYPE_INTERNAL;
   } else if (str == "LEAF") {
