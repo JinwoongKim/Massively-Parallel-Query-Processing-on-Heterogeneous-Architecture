@@ -39,27 +39,6 @@ ul Node_SOA::GetChildOffset(ui offset) const {
   return child_offset[offset];
 }
 
-__both__  
-bool Node_SOA::IsOverlap(Point* query, ui child_offset) {
-
-  for(ui range(lower_boundary, 0, GetNumberOfDims())) {
-    ui upper_boundary = lower_boundary+GetNumberOfDims();
-
-    ui node_soa_lower_boundary = lower_boundary*GetNumberOfDegrees()+child_offset;
-    ui node_soa_upper_boundary = upper_boundary*GetNumberOfDegrees()+child_offset;
-
-    // Either the query's lower boundary is greather than node's upper boundary
-    // or query's upper boundary is less than node's lower boundary, returns
-    // false
-    if(query[lower_boundary] > points[node_soa_upper_boundary] ||
-        query[upper_boundary] < points[node_soa_lower_boundary]) { 
-      return false; 
-    }
-  } 
-
-  return true; 
-}
-
 void Node_SOA::SetPoint(ui offset, Point point) {
   assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
   points[offset] = point;
@@ -87,6 +66,27 @@ void Node_SOA::SetLevel(int _level) {
 void Node_SOA::SetBranchCount(ui _branch_count) {
   assert(_branch_count <= GetNumberOfDegrees());
   branch_count = _branch_count;
+}
+
+__both__  
+bool Node_SOA::IsOverlap(Point* query, ui child_offset) {
+
+  for(ui range(lower_boundary, 0, GetNumberOfDims())) {
+    ui upper_boundary = lower_boundary+GetNumberOfDims();
+
+    ui node_soa_lower_boundary = lower_boundary*GetNumberOfDegrees()+child_offset;
+    ui node_soa_upper_boundary = upper_boundary*GetNumberOfDegrees()+child_offset;
+
+    // Either the query's lower boundary is greather than node's upper boundary
+    // or query's upper boundary is less than node's lower boundary, returns
+    // false
+    if(query[lower_boundary] > points[node_soa_upper_boundary] ||
+        query[upper_boundary] < points[node_soa_lower_boundary]) { 
+      return false; 
+    }
+  } 
+
+  return true; 
 }
 
 // Get a string representation

@@ -20,7 +20,6 @@ class Node_SOA{
  __both__ ul GetIndex(ui offset) const;
  __both__ ul GetLastIndex() const;
  __both__ ul GetChildOffset(ui offset) const;
-__both__  bool IsOverlap(Point* query, ui child_offset);
 
  void SetPoint(ui offset, Point point);
  void SetIndex(ui offset, ul index);
@@ -28,6 +27,8 @@ __both__  bool IsOverlap(Point* query, ui child_offset);
  void SetNodeType(NodeType type);
  void SetLevel(int level);
  void SetBranchCount(ui branch_count);
+
+ __both__  bool IsOverlap(Point* query, ui child_offset);
 
  friend std::ostream &operator<<(std::ostream &os, const Node_SOA &node_soa);
  //===--------------------------------------------------------------------===//
