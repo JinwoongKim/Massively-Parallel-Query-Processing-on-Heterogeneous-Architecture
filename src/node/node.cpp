@@ -90,6 +90,20 @@ void Node::SetLevel(int _level) {
   level = _level;
 }
 
+bool Node::IsOverlap(Point* query, ui branch_offset) {
+
+  for(ui range(lower_boundary, 0, GetNumberOfDims())) {
+    int upper_boundary = lower_boundary+GetNumberOfDims();  
+
+    if (query[lower_boundary] > branches[branch_offset].GetPoint(upper_boundary) ||
+        query[upper_boundary] < branches[branch_offset].GetPoint(lower_boundary)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Get a string representation
 std::ostream &operator<<(std::ostream &os, const Node &node) {
   os << " Node : " << std::endl;

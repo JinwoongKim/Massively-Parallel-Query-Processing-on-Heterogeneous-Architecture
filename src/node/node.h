@@ -31,6 +31,8 @@ class Node {
  __both__ void SetNodeType(NodeType type);
  __both__ void SetLevel(int level);
 
+ bool IsOverlap(Point* query, ui branch_offset);
+
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Node &node);
  //===--------------------------------------------------------------------===//
