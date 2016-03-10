@@ -228,7 +228,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
   ul passed_hIndex = 0;
   ul last_hIndex = root->GetLastIndex();
 
-  if( tid == 0 ) {
+  MasterThreadOnly {
     root_visit_count[bid]++;
   }
   __syncthreads();
@@ -250,22 +250,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
       // check if I am the leftmost
       // Gather the Overlap idex and compare
-      int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
-      while(N > 1){
-        if ( tid < N ){
-          if(childOverlap[tid] > childOverlap[tid+N] )  
-            childOverlap[tid] = childOverlap[tid+N];
-        }
-        N = N/2+N%2;
-        __syncthreads();
-      }
-      if( tid == 0) {
-        if(N==1){
-          if(childOverlap[0] > childOverlap[1])
-            childOverlap[0] = childOverlap[1];
-        }
-      }
-      __syncthreads();
+      FindLeftMostOverlappingChild(GetNumberOfDegrees(), childOverlap);
 
       // none of the branches overlapped the query
       if( childOverlap[0] == ( GetNumberOfDegrees()+1)) {
@@ -273,7 +258,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
         passed_hIndex = node_soa_ptr->GetLastIndex();
         node_soa_ptr = root;
         
-        if(tid == 0){
+        MasterThreadOnly {
           root_visit_count[bid]++;
         }
         break;
@@ -281,7 +266,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
       // there exists some overlapped node
       else{
         node_soa_ptr = node_soa_ptr+node_soa_ptr->GetChildOffset(childOverlap[0]);
-        if( tid == 0 ) {
+        MasterThreadOnly {
           node_visit_count[bid]++;
         }
      }
@@ -308,7 +293,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
       } else if( isHit ) { // continue searching function by jumping next leaf node
         node_soa_ptr++;
 
-        if( tid == 0 ) {
+        MasterThreadOnly {
           node_visit_count[bid]++;
         }
         __syncthreads();
@@ -318,7 +303,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
         // we can use it to go back to the parent node
         node_soa_ptr = root+node_soa_ptr->GetChildOffset(0);
 
-        if( tid == 0 ) {
+        MasterThreadOnly {
           if( node_soa_ptr == root){
             root_visit_count[bid]++;
           }else{
@@ -332,17 +317,10 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
 
   __syncthreads();
-  int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
 
-  while(N > 1) {
-    if ( tid < N ) {
-      t_hit[tid] = t_hit[tid] + t_hit[tid+N];
-    }
-    N = N/2 + N%2;
-    __syncthreads();
-  }
+  ParallelReduction(GetNumberOfDegrees(), t_hit);
 
-  if(tid==0) {
+  MasterThreadOnly {
     if(N==1) {
       hit[bid] = t_hit[0] + t_hit[1];
     } else {

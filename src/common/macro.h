@@ -7,3 +7,37 @@
                             range_4(__VA_ARGS__),\
                             range_3(__VA_ARGS__)\
                             ) 
+
+#define ParallelReduction(size, array) \
+        int N = size/2 + size%2; \
+        while(N > 1) { \
+          if( tid < N ) { \
+            array[tid] = array[tid] + array[tid+N]; \
+          } \
+          N = N/2 + N%2; \
+          __syncthreads(); \
+        }\
+
+#define FindLeftMostOverlappingChild(size, array) \
+        int N = size/2 + size%2; \
+        while(N > 1) { \
+          if( tid < N ) { \
+            if( array[tid] > array[tid+N]) { \
+              array[tid] = array[tid+N]; \
+            } \
+          } \
+          N = N/2 + N%2; \
+          __syncthreads(); \
+        }\
+        if( tid == 0 ) { \
+          if(N==1) { \
+            if( array[0] > array[1]) { \
+              array[0] = array[1]; \
+            } \
+          } \
+        } \
+        __syncthreads(); \
+
+#define MasterThreadOnly\
+        if( tid == 0 )\
+
