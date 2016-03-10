@@ -3,6 +3,7 @@
 #include "common/macro.h"
 #include "common/logger.h"
 #include "tree/mphr.h"
+#include "tree/hybrid.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -207,10 +208,16 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       (number_of_partitioned_tree>1)?number_of_partitioned_tree:1;  
   }
 
-  // TODO Hard coded now
+  // FIXME Hard coded now
   // if 'i' (index type?? maybe)  is hybrid, then insert hybrid tree into the queue
-  auto tree = std::unique_ptr<tree::Tree>( new tree::MPHR());
-  trees.push_back(std::move(tree));
+  {
+    auto tree = std::unique_ptr<tree::Tree>( new tree::MPHR());
+    trees.push_back(std::move(tree));
+  }
+  {
+    auto tree = std::unique_ptr<tree::Tree>( new tree::Hybrid());
+    trees.push_back(std::move(tree));
+  }
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
