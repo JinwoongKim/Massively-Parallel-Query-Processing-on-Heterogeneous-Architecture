@@ -23,13 +23,13 @@ ui Node_SOA::GetBranchCount(void) const {
 }
 
 __both__
-ul Node_SOA::GetIndex(ui offset) const {
+ull Node_SOA::GetIndex(ui offset) const {
   assert(offset < branch_count);
   return index[offset];
 }
 
 __both__
-ul Node_SOA::GetLastIndex(void) const {
+ull Node_SOA::GetLastIndex(void) const {
   return index[branch_count-1];
 }
 
@@ -44,7 +44,7 @@ void Node_SOA::SetPoint(ui offset, Point point) {
   points[offset] = point;
 }
 
-void Node_SOA::SetIndex(ui offset, ul _index) {
+void Node_SOA::SetIndex(ui offset, ull _index) {
   assert(offset < GetNumberOfDegrees());
   index[offset] = _index;
 }
