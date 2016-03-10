@@ -8,7 +8,7 @@
                             range_3(__VA_ARGS__)\
                             ) 
 
-#define ParallelReduction(size, array) \
+#define ParallelReduction(array, size) \
         int N = size/2 + size%2; \
         while(N > 1) { \
           if( tid < N ) { \
@@ -18,7 +18,7 @@
           __syncthreads(); \
         }\
 
-#define FindLeftMostOverlappingChild(size, array) \
+#define FindLeftMostOverlappingChild(array, size) \
         int N = size/2 + size%2; \
         while(N > 1) { \
           if( tid < N ) { \

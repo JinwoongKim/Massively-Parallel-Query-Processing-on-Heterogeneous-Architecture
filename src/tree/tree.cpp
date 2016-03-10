@@ -10,11 +10,11 @@
 namespace ursus {
 namespace tree {
 
-void Tree::PrintTree(ui count) {
+void Tree::PrintTree(ui offset, ui count) {
   LOG_INFO("Print Tree");
   LOG_INFO("Height %zu", level_node_count.size());
 
-  ui node_itr=0;
+  ui node_itr=offset;
 
   for( int i=level_node_count.size()-1; i>=0; --i) {
     LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
@@ -27,19 +27,17 @@ void Tree::PrintTree(ui count) {
   }
 }
 
-void Tree::PrintTreeInSOA(ui count) {
+void Tree::PrintTreeInSOA(ui offset, ui count) {
   LOG_INFO("Print Tree in SOA");
   LOG_INFO("Height %zu", level_node_count.size());
 
-  ui node_soa_itr=0;
+  ui node_soa_itr=offset;
 
   for( int i=level_node_count.size()-1; i>=0; --i) {
     LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
     for( ui range(j, 0, level_node_count[i])){
       LOG_INFO("node %p",&node_soa_ptr[node_soa_itr]);
-      if( node_soa_ptr[node_soa_itr].GetNodeType() != NODE_TYPE_LEAF) {
-        std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
-      }
+      std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
 
       if(count){ if( node_soa_itr>=count){ return; } }
     }
@@ -139,11 +137,15 @@ void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset,
  * @brief move tree to the GPU
  * @return true if success otherwise false
  */ 
-bool Tree::MoveTreeToGPU(ui count){
+bool Tree::MoveTreeToGPU(ui offset, ui count){
+
+ if( count == 0 ) {
+   count = total_node_count;
+ }
 
  node::Node_SOA* d_node_soa_ptr;
  cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*count);
- cudaMemcpy(d_node_soa_ptr, node_soa_ptr, sizeof(node::Node_SOA)*count, 
+ cudaMemcpy(d_node_soa_ptr, &node_soa_ptr[offset], sizeof(node::Node_SOA)*count, 
             cudaMemcpyHostToDevice);
 
  global_MoveTreeToGPU<<<1,1>>>(d_node_soa_ptr, count);

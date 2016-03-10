@@ -38,9 +38,9 @@ class Tree {
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
                      ui number_of_search) = 0;
 
-  virtual void PrintTree(ui count=0);
+  virtual void PrintTree(ui offset=0, ui count=0);
 
-  virtual void PrintTreeInSOA(ui count=0);
+  virtual void PrintTreeInSOA(ui offset=0, ui count=0);
 
  //===--------------------------------------------------------------------===//
  // Utility Function
@@ -61,7 +61,7 @@ class Tree {
    */
   void BottomUpBuild_ILP(ul offset, ul parent_offset, ui number_of_node, node::Node* root);
 
-  bool MoveTreeToGPU(ui count);
+  bool MoveTreeToGPU(ui offset=0, ui count=0);
 
  //===--------------------------------------------------------------------===//
  // Members

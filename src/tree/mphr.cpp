@@ -57,7 +57,8 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
  //===--------------------------------------------------------------------===//
  // Move Trees to the GPU
  //===--------------------------------------------------------------------===//
-  ret = MoveTreeToGPU(total_node_count);
+  // copy the entire tree from the root node
+  ret = MoveTreeToGPU();
   assert(ret);
 
   // FIXME :: REMOVE now it's only For debugging
@@ -250,7 +251,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
       // check if I am the leftmost
       // Gather the Overlap idex and compare
-      FindLeftMostOverlappingChild(GetNumberOfDegrees(), childOverlap);
+      FindLeftMostOverlappingChild(childOverlap, GetNumberOfDegrees());
 
       // none of the branches overlapped the query
       if( childOverlap[0] == ( GetNumberOfDegrees()+1)) {
@@ -318,7 +319,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
   __syncthreads();
 
-  ParallelReduction(GetNumberOfDegrees(), t_hit);
+  ParallelReduction(t_hit, GetNumberOfDegrees());
 
   MasterThreadOnly {
     if(N==1) {
