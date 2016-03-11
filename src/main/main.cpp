@@ -15,7 +15,6 @@ int main(int argc, char** argv){
 
   evaluator.PrintMemoryUsageOftheGPU();
 
-  // TODO : Search
   evaluator.Search();
   return 0;
 }

@@ -45,6 +45,10 @@ class Evaluator{
  
   bool ParseArgs(int argc, char **argv);
 
+  void AddTrees(std::string index_type);
+
+  std::string ToLowerCase(std::string str);
+
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator);
 

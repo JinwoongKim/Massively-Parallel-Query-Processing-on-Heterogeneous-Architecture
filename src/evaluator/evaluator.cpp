@@ -7,6 +7,7 @@
 
 #include <cassert>
 #include <unistd.h>
+#include <locale> 
 
 namespace ursus {
 namespace evaluator {
@@ -155,8 +156,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   while ((current_option = getopt(argc, argv, options)) != -1) {
     switch (current_option) {
-//      case 'i':
-//      case 'I': BUILD_TYPE = atoi(optarg); break;
+      case 'i':
+      case 'I': AddTrees(std::string(optarg)); break;
 //      case 'm':
 //      case 'M': METHOD[atoi(optarg)-1] = true;
 //                optind--;
@@ -208,17 +209,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       (number_of_partitioned_tree>1)?number_of_partitioned_tree:1;  
   }
 
-  // FIXME Hard coded now
-  // if 'i' (index type?? maybe)  is hybrid, then insert hybrid tree into the queue
-  {
-    auto tree = std::unique_ptr<tree::Tree>( new tree::MPHR());
-    trees.push_back(std::move(tree));
-  }
-  {
-    auto tree = std::unique_ptr<tree::Tree>( new tree::Hybrid());
-    trees.push_back(std::move(tree));
-  }
-
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
 //
@@ -230,6 +220,28 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   std::cout << *this << std::endl;
   return true;
+}
+
+void Evaluator::AddTrees(std::string _index_type) {
+  // Make it lower case
+  auto index_type = ToLowerCase(_index_type);
+
+  if( index_type == "hybrid" ) {
+    auto tree = std::unique_ptr<tree::Tree>(new tree::Hybrid());
+    trees.push_back(std::move(tree));
+  } else if ( index_type == "mphr" ) {
+    auto tree = std::unique_ptr<tree::Tree>(new tree::MPHR());
+    trees.push_back(std::move(tree));
+  }
+}
+
+std::string Evaluator::ToLowerCase(std::string str) {
+ std::string lower_str;
+ std::locale loc;
+ for (std::string::size_type range(i, 0, str.length())) {
+   lower_str.append(sizeof(char), std::tolower(str[i],loc));
+ }
+ return lower_str;
 }
 
 // Get a string representation
