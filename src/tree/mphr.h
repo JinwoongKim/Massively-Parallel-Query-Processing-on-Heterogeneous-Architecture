@@ -28,10 +28,6 @@ class MPHR : public Tree {
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
              ui number_of_search);
 
-  /**
-   * Build the internal nodes
-   */
-  bool Bottom_Up(std::vector<node::Branch> &branches);
 };
 
 //===--------------------------------------------------------------------===//

@@ -6,9 +6,61 @@
 #include "mapper/hilbert_mapper.h"
 
 #include <cmath>
+#include <cassert>
 
 namespace ursus {
 namespace tree {
+
+bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+ //===--------------------------------------------------------------------===//
+ // Configure trees
+ //===--------------------------------------------------------------------===//
+  // Get node count for each level
+  level_node_count = GetLevelNodeCount(branches);
+  auto tree_height = level_node_count.size()-1;
+  total_node_count = GetTotalNodeCount();
+  auto leaf_node_offset = total_node_count - level_node_count[0];
+
+  if(tree_type == TREE_TYPE_HYBRID) {
+    leaf_node_offset = leaf_node_offset;
+  }
+
+  for(auto node_count : level_node_count) {
+    LOG_INFO("Level : %u nodes", node_count);
+  }
+
+ //===--------------------------------------------------------------------===//
+ // Copy the leaf nodes to the GPU
+ //===--------------------------------------------------------------------===//
+  node_ptr = new node::Node[total_node_count];
+  // Copy the branches to nodes 
+  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
+  assert(ret);
+
+  node::Node* d_node_ptr;
+  cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count);
+  cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice);
+ //===--------------------------------------------------------------------===//
+ // Construct the rest part of trees on the GPU
+ //===--------------------------------------------------------------------===//
+  recorder.TimeRecordStart();
+  ul current_offset = total_node_count;
+  for( ui range(level_itr, 0, tree_height)) {
+    current_offset -= level_node_count[level_itr];
+    ul parent_offset = (current_offset-level_node_count[level_itr+1]);
+    BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
+  }
+  // print out construction time on the GPU
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Bottom-Up Construction Time on the GPU = %.6fs", elapsed_time/1000.0f);
+
+  cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
+  cudaFree(d_node_ptr);
+
+  return true;
+}
 
 void Tree::PrintTree(ui offset, ui count) {
   LOG_INFO("Print Tree");

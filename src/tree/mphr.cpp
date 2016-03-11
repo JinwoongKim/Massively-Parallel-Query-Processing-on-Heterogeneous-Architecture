@@ -45,7 +45,8 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
  //===--------------------------------------------------------------------===//
  // Build the internal nodes in a bottop-up fashion on the GPU
  //===--------------------------------------------------------------------===//
-  ret = Bottom_Up(branches);
+  // TODO We may pass TREE_TYPE so that we can set the child offset to some useful data in leaf nodes 
+  ret = Bottom_Up(branches/*, tree_type*/);
   assert(ret);
 
  //===--------------------------------------------------------------------===//
@@ -79,7 +80,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   auto& recorder = evaluator::Recorder::GetInstance();
 
   //===--------------------------------------------------------------------===//
-  // Load Query 
+  // Read Query 
   //===--------------------------------------------------------------------===//
   Point* d_query;
   cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search);
@@ -118,7 +119,6 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
       number_of_batch = number_of_search - query_itr;
     }
 
-    LOG_INFO("Execute MPRS with %u CUDA blocks", number_of_batch);
     global_RestartScanning_and_ParentCheck<<<number_of_batch,GetNumberOfThreads()>>>
            (&d_query[query_itr*GetNumberOfDims()*2], 
            d_hit, d_root_visit_count, d_node_visit_count);
@@ -142,53 +142,6 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Hit : %u", total_hit);
   LOG_INFO("Root visit count : %u", total_root_visit_count);
   LOG_INFO("Node visit count : %u", total_node_visit_count);
-
-  return true;
-}
-
-bool MPHR::Bottom_Up(std::vector<node::Branch> &branches) {
-  auto& recorder = evaluator::Recorder::GetInstance();
-
- //===--------------------------------------------------------------------===//
- // Configure trees
- //===--------------------------------------------------------------------===//
-  // Get node count for each level
-  level_node_count = GetLevelNodeCount(branches);
-  auto tree_height = level_node_count.size()-1;
-  total_node_count = GetTotalNodeCount();
-  auto leaf_node_offset = total_node_count - level_node_count[0];
-
-  for(auto node_count : level_node_count) {
-    LOG_INFO("Level : %u nodes", node_count);
-  }
-
- //===--------------------------------------------------------------------===//
- // Copy the leaf nodes to the GPU
- //===--------------------------------------------------------------------===//
-  node_ptr = new node::Node[total_node_count];
-  // Copy the branches to nodes 
-  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
-  assert(ret);
-
-  node::Node* d_node_ptr;
-  cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count);
-  cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice);
- //===--------------------------------------------------------------------===//
- // Construct the rest part of trees on the GPU
- //===--------------------------------------------------------------------===//
-  recorder.TimeRecordStart();
-  ul current_offset = total_node_count;
-  for( ui range(level_itr, 0, tree_height)) {
-    current_offset -= level_node_count[level_itr];
-    ul parent_offset = (current_offset-level_node_count[level_itr+1]);
-    BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
-  }
-  // print out construction time on the GPU
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Bottom-Up Construction Time on the GPU = %.6fs", elapsed_time/1000.0f);
-
-  cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
-  cudaFree(d_node_ptr);
 
   return true;
 }

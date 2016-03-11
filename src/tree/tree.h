@@ -30,7 +30,7 @@ class Tree {
   /**
    * Build the internal nodes
    */
-  virtual bool Bottom_Up(std::vector<node::Branch> &branches) = 0;
+  virtual bool Bottom_Up(std::vector<node::Branch> &branches);
 
   /**
    * Search the data 
