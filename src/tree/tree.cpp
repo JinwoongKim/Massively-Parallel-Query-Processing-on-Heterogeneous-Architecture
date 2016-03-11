@@ -7,6 +7,8 @@
 
 #include <cmath>
 #include <cassert>
+#include <thread>
+#include <functional>
 
 namespace ursus {
 namespace tree {
@@ -119,24 +121,54 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   return branches;
 }
 
+void Tree::Thread_Mapping(std::vector<node::Branch> &branches, ui start_offset, ui end_offset) {
+  ui number_of_bits = (GetNumberOfDims()>2) ? 20:31;
+
+  for(ui range(offset, start_offset, end_offset)) {
+    auto points = branches[offset].GetPoints();
+    auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(GetNumberOfDims(),
+                                                                   number_of_bits, points);
+    branches[offset].SetIndex(hilbert_index);
+  }
+}
+
 bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
-  unsigned int number_of_bits = (GetNumberOfDims()>2) ? 20:31;
 
-  for(int range(i, 0, branches.size())) {
-    auto points = branches[i].GetPoints();
-    auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(GetNumberOfDims(),
-                                                                   number_of_bits, points);
-    branches[i].SetIndex(hilbert_index);
+  const size_t number_of_threads = std::thread::hardware_concurrency();
+  LOG_INFO("Create %zu threads for mapping hilbert index in parallel", number_of_threads);
+
+  // parallel for loop using c++ std 11 
+  {
+    std::vector<std::thread> threads;
+
+    auto chunk_size = branches.size()/number_of_threads;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + branches.size()%number_of_threads;
+    std::vector<int> vec[10];
+
+    //Launch a group of threads
+    for (ui range(thread_itr, 0, number_of_threads)) {
+      threads.push_back(std::thread(&Tree::Thread_Mapping, this, 
+                                    std::ref(branches), start_offset, end_offset));
+
+      start_offset = end_offset;
+      end_offset += chunk_size;
+    }
+
+    //Join the threads with the main thread
+    for(auto &thread : threads){
+      thread.join();
+    }
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Assign Hilbert Index Time on the GPU = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Assign Hilbert Index Time on CPU = %.6fs", elapsed_time/1000.0f);
   return true;
 }
 
-std::vector<ui> Tree::GetLevelNodeCount(std::vector<node::Branch> &branches) {
+std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> &branches) {
   std::vector<ui> level_node_count;
 
   // in this case, previous level is real data not the leaf level

@@ -47,9 +47,11 @@ class Tree {
  //===--------------------------------------------------------------------===//
   std::vector<node::Branch> CreateBranches(std::shared_ptr<io::DataSet> input_data_set) ;
 
+  void Thread_Mapping(std::vector<node::Branch> &branches, ui start_offset, ui end_offset);
+
   bool AssignHilbertIndexToBranches(std::vector<node::Branch> &branches);
 
-  std::vector<ui> GetLevelNodeCount(std::vector<node::Branch> &branches);
+  std::vector<ui> GetLevelNodeCount(const std::vector<node::Branch> &branches);
 
   ui GetTotalNodeCount(void) const;
 
