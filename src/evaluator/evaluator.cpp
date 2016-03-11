@@ -226,10 +226,12 @@ void Evaluator::AddTrees(std::string _index_type) {
   // Make it lower case
   auto index_type = ToLowerCase(_index_type);
 
-  if( index_type == "hybrid" ) {
+  if( index_type == "hybrid" ||
+      index_type == "h") {
     auto tree = std::unique_ptr<tree::Tree>(new tree::Hybrid());
     trees.push_back(std::move(tree));
-  } else if ( index_type == "mphr" ) {
+  } else if ( index_type == "mphr" ||
+              index_type == "m") {
     auto tree = std::unique_ptr<tree::Tree>(new tree::MPHR());
     trees.push_back(std::move(tree));
   }
