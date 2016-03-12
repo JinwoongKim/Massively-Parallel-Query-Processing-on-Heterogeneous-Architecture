@@ -25,10 +25,6 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   total_node_count = GetTotalNodeCount();
   auto leaf_node_offset = total_node_count - level_node_count[0];
 
-  if(tree_type == TREE_TYPE_HYBRID) {
-    leaf_node_offset = leaf_node_offset;
-  }
-
   for(auto node_count : level_node_count) {
     LOG_INFO("Level : %u nodes", node_count);
   }

@@ -138,6 +138,7 @@ void Evaluator::PrintHelp(char **argv) const {
 }
 
 void Evaluator::PrintMemoryUsageOftheGPU() {
+  cudaDeviceSynchronize();
   size_t avail, total;
   cudaMemGetInfo( &avail, &total );
   size_t used = total-avail;
