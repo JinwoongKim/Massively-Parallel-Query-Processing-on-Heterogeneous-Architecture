@@ -179,21 +179,21 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
   node::Node_SOA* root = g_node_soa_ptr;
   node::Node_SOA* node_soa_ptr = root;
 
-  ul passed_hIndex = 0;
-  ul last_hIndex = root->GetLastIndex();
+  ull passed_leafIndex = 0;
+  ull last_leafIndex = root->GetLastIndex();
 
   MasterThreadOnly {
     root_visit_count[bid]++;
   }
   __syncthreads();
 
-  while( passed_hIndex < last_hIndex ) {
+  while( passed_leafIndex < last_leafIndex ) {
 
     //look over the left most child node before reaching leaf node level
     while( node_soa_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
 
       if( (tid < node_soa_ptr->GetBranchCount()) &&
-          (node_soa_ptr->GetIndex(tid) > passed_hIndex) &&
+          (node_soa_ptr->GetIndex(tid) > passed_leafIndex) &&
           (node_soa_ptr->IsOverlap(query, tid))) {
         childOverlap[tid] = tid;
       } else {
@@ -209,7 +209,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
       // none of the branches overlapped the query
       if( childOverlap[0] == ( GetNumberOfDegrees()+1)) {
 
-        passed_hIndex = node_soa_ptr->GetLastIndex();
+        passed_leafIndex = node_soa_ptr->GetLastIndex();
         node_soa_ptr = root;
         
         MasterThreadOnly {
@@ -239,10 +239,10 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
       }
       __syncthreads();
 
-      passed_hIndex = node_soa_ptr->GetLastIndex();
+      passed_leafIndex = node_soa_ptr->GetLastIndex();
 
       // current node is the last leaf node, terminate search function
-      if(node_soa_ptr->GetLastIndex() == last_hIndex ) {
+      if(node_soa_ptr->GetLastIndex() == last_leafIndex ) {
         break;
       } else if( isHit ) { // continue searching function by jumping next leaf node
         node_soa_ptr++;
