@@ -31,11 +31,6 @@ class Hybrid : public Tree {
   ull TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                             ull passed_hIndex, ui *node_visit_count);
 
-  //===--------------------------------------------------------------------===//
-  // Member
-  //===--------------------------------------------------------------------===//
-  ui leaf_node_offset;
-
 };
 
 //===--------------------------------------------------------------------===//

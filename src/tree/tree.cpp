@@ -142,7 +142,6 @@ bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
     auto chunk_size = branches.size()/number_of_threads;
     auto start_offset = 0 ;
     auto end_offset = start_offset + chunk_size + branches.size()%number_of_threads;
-    std::vector<int> vec[10];
 
     //Launch a group of threads
     for (ui range(thread_itr, 0, number_of_threads)) {
