@@ -132,7 +132,6 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
       total_node_visit_count += h_node_visit_count[i];
     }
   }
-  cudaThreadSynchronize();
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
