@@ -52,8 +52,9 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
  // Transform nodes into SOA fashion 
  //===--------------------------------------------------------------------===//
   // transform only leaf nodes
-  node_soa_ptr = transformer::Transformer::Transform(&node_ptr[total_node_count-level_node_count[0]], 
-                                                     level_node_count[0]);
+  auto leaf_node_offset = total_node_count-level_node_count[0];
+  node_soa_ptr = transformer::Transformer::Transform(&node_ptr[leaf_node_offset], 
+                                                      level_node_count[0]);
   assert(node_soa_ptr);
 
  //===--------------------------------------------------------------------===//
@@ -79,7 +80,8 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   Point* d_query;
   cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search);
   auto query = query_data_set->GetPoints();
-  cudaMemcpy(d_query, &query[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search, cudaMemcpyHostToDevice);
+  cudaMemcpy(d_query, &query[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search, 
+             cudaMemcpyHostToDevice);
 
   //===--------------------------------------------------------------------===//
   // Prepare Hit & Node Visit Variables for evaluations
@@ -104,9 +106,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui number_of_batch = 1;
 
   for(ui range(query_itr, 0, number_of_search)) {
-    ull passed_hIndex = 0;
+    ull visited_leafIndex = 0;
     ui node_visit_count = 0;
-    ui chunk_size = 512;
+    ui chunk_size = 512; // FIXME pass chunk size through command linux
     ui query_offset = query_itr*GetNumberOfDims()*2;
 
     while(1) {
@@ -114,10 +116,11 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
       auto start_node_hIndex = TraverseInternalNodes(node_ptr, &query[query_offset],
-                                                     passed_hIndex, &node_visit_count);
+                                                     visited_leafIndex, &node_visit_count);
       auto start_node_offset = start_node_hIndex/GetNumberOfDegrees(); 
       total_node_visit_count_cpu += node_visit_count;
 
+      // no more overlapping internal nodes, terminate current query
       if( start_node_hIndex == 0) {
         break;
       }
@@ -141,10 +144,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
         total_hit += h_hit[i];
         total_node_visit_count_gpu += h_node_visit_count[i];
       }
-      passed_hIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
+      visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
     }
   }
-  cudaThreadSynchronize();
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
@@ -157,17 +159,17 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 }
 
 ull Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
-                                  ull passed_hIndex, ui *node_visit_count) {
+                                  ull visited_leafIndex, ui *node_visit_count) {
   ull start_node_offset=0;
   (*node_visit_count)++;
 
   // internal nodes
   if(node_ptr->GetNodeType() == NODE_TYPE_INTERNAL) {
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
-      if( node_ptr->GetBranchIndex(branch_itr) > passed_hIndex && 
+      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
           node_ptr->IsOverlap(query, branch_itr)) {
             start_node_offset=TraverseInternalNodes(node_ptr+node_ptr->GetBranchChildOffset(branch_itr), 
-                                   query, passed_hIndex, node_visit_count);
+                                   query, visited_leafIndex, node_visit_count);
             if(start_node_offset > 0) {
               break;
             }
@@ -209,32 +211,29 @@ void global_ParallelScanning_Leafnodes(Point* _query, ull start_node_offset,
   node::Node_SOA* node_soa_ptr = first_leaf_node + start_node_offset;
   node::Node_SOA* last_node_soa_ptr = node_soa_ptr + chunk_size - 1;
 
-  ull passed_hIndex = 0;
-  ull last_hIndex = last_node_soa_ptr->GetLastIndex();
+  ull visited_leafIndex = 0; // FIXME?
+  ull last_leafIndex = last_node_soa_ptr->GetLastIndex();
   __syncthreads();
 
-  while( passed_hIndex < last_hIndex ) {
+  while( visited_leafIndex < last_leafIndex ) {
 
     MasterThreadOnly {
       node_visit_count[bid]++;
     }
 
     if(tid < node_soa_ptr->GetBranchCount() &&
-        node_soa_ptr->IsOverlap(query, tid)){
+        node_soa_ptr->IsOverlap(query, tid)) {
       t_hit[tid]++;
     }
     __syncthreads();
 
-    passed_hIndex = node_soa_ptr->GetLastIndex();
+    visited_leafIndex = node_soa_ptr->GetLastIndex();
 
-    // current node is the last leaf node, terminate search function
-    if(node_soa_ptr->GetLastIndex() == last_hIndex ) {
-      break;
-    } 
     node_soa_ptr++;
   }
   __syncthreads();
 
+  //FIXME Do parallel reduction only last time
   //===--------------------------------------------------------------------===//
   // Parallel Reduction 
   //===--------------------------------------------------------------------===//
