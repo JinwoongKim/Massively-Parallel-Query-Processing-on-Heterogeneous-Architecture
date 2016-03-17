@@ -23,8 +23,13 @@ int main(int argc, char *argv[]) {
 
   int nData = atoi(argv[1]); 
   int nDims = atoi(argv[2]); 
+  int offset = 0;
+  if( argc==4) {
+    offset = atoi(argv[3]); 
+    offset *= nDims;
+  }
 
-  char filename[20];
+  char filename[100];
   sprintf(filename, "synthetic_%dd_%d_data.bin", nDims, nData);
   FILE *fp = fopen(filename, "w");
 
@@ -43,6 +48,8 @@ int main(int argc, char *argv[]) {
   /* Set seed */ 
   CURAND_CALL(curandSetPseudoRandomGeneratorSeed(gen, 1234ULL)); 
 
+  CURAND_CALL(curandSetGeneratorOffset(gen, offset));
+
   /* Generate floats on device */ 
   CURAND_CALL(curandGenerateUniform(gen, devData, nData*nDims)); 
 
@@ -51,9 +58,9 @@ int main(int argc, char *argv[]) {
 
   /* Show result */ 
   for(int i=1; i<=nData*nDims; i++) { 
-    //printf("%1.4f ", hostData[i]); 
-    fwrite(&hostData[i], sizeof(float), 1, fp);
-    //if( i%nDims == 0 ) printf("\n");
+    printf("%1.4f ", hostData[i]); 
+    //fwrite(&hostData[i], sizeof(float), 1, fp);
+    if( i%nDims == 0 ) printf("\n");
   } 
   printf("\n"); 
 
