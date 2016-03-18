@@ -141,11 +141,29 @@ void Evaluator::PrintHelp(char **argv) const {
 
 void Evaluator::PrintMemoryUsageOftheGPU() {
   cudaDeviceSynchronize();
+  size_t used = GetUsedMem();
+  size_t total = GetTotalMem();
+  LOG_INFO(" Used Memory %lu(MB) / GPU Capacity %lu(MB) ( %.2f % )", 
+           used/1000000, total/1000000, ( (double)used/(double)total)*100);
+}
+
+size_t Evaluator::GetUsedMem(void) {
   size_t avail, total;
   cudaMemGetInfo( &avail, &total );
   size_t used = total-avail;
-  LOG_INFO(" Used Memory %lu(MB) / GPU Capacity %lu(MB) ( %.2f % )", 
-           used/1000000, total/1000000, ( (double)used/(double)total)*100);
+  return used;
+}
+
+size_t Evaluator::GetAvailMem(void) {
+  size_t avail, total;
+  cudaMemGetInfo( &avail, &total );
+  return avail;
+}
+
+size_t Evaluator::GetTotalMem(void) {
+  size_t avail, total;
+  cudaMemGetInfo( &avail, &total );
+  return total;
 }
 
 //TODO :: Boost.Program_options

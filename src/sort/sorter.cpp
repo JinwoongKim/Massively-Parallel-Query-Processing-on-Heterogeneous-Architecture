@@ -1,9 +1,9 @@
 #include "sort/sorter.h"
 
+#include "common/logger.h"
+#include "evaluator/evaluator.h"
 #include "sort/thrust_sorter.h"
 #include "sort/parallel_sorter.h"
-
-#include "common/logger.h"
 
 namespace ursus {
 namespace sort {
@@ -16,11 +16,10 @@ bool Sorter::Sort(std::vector<node::Branch> &branches) {
   auto size_for_branch = branches.size()*sizeof(node::Branch);
 
   // get the used and total size on GPU
-  size_t avail, total;
-  cudaMemGetInfo( &avail, &total );
-  size_t used = total-avail;
+  size_t used = evaluator::Evaluator::GetUsedMem();
+  size_t total = evaluator::Evaluator::GetTotalMem();
 
-  // if device memory size is not enough, sort on CPU
+  // if device doesn't have enough space, sort the data on CPU
   if( (used+size_for_branch)/(double)total > 0.5) {
     ret = Parallel_Sorter::Sort(branches);
   } else { 

@@ -42,6 +42,12 @@ class Evaluator{
   void PrintHelp(char **argv) const;
 
   void PrintMemoryUsageOftheGPU();
+
+  static size_t GetUsedMem(void);
+
+  static size_t GetAvailMem(void);
+
+  static size_t GetTotalMem(void);
  
   bool ParseArgs(int argc, char **argv);
 
@@ -77,7 +83,7 @@ class Evaluator{
 
   // # of gpus
   ui number_of_gpus = 1;
-  
+
   // Measure and record time and count  
   //Logger logger;
   
