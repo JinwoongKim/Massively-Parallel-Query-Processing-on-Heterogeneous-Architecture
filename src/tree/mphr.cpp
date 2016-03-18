@@ -3,7 +3,7 @@
 #include "common/macro.h"
 #include "common/logger.h"
 #include "evaluator/recorder.h"
-#include "sort/thrust_sort.h"
+#include "sort/sorter.h"
 #include "transformer/transformer.h"
 
 #include <cassert>
@@ -37,9 +37,9 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   assert(ret);
 
  //===--------------------------------------------------------------------===//
- // Sort the branches on the GPU
+ // Sort the branches either CPU or GPU depending on the size
  //===--------------------------------------------------------------------===//
-  ret = sort::Thrust_Sort::Sort(branches);
+  ret = sort::Sorter::Sort(branches);
   assert(ret);
 
  //===--------------------------------------------------------------------===//

@@ -8,6 +8,7 @@
 #include <cassert>
 #include <unistd.h>
 #include <locale> 
+#include <thread> 
 
 namespace ursus {
 namespace evaluator {
@@ -44,7 +45,8 @@ bool Evaluator::Initialize(int argc, char** argv){
 bool Evaluator::ReadDataSet(void){
   //TODO : hard coded now...
   input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-                       "/home/jwkim/dataFiles/input/real/NOAA0.bin",
+                       //"/home/jwkim/dataFiles/input/real/NOAA0.bin",
+                       "/home/jwkim/dataFiles/input/synthetic/synthetic_200m_3d_data.bin",
                        DATASET_TYPE_BINARY)); 
   return true;
 }
@@ -151,7 +153,7 @@ void Evaluator::PrintMemoryUsageOftheGPU() {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="d:D:q:Q:p:P:s:S:g:G:c:C:i:I:m:M:";
+  static const char *options="d:D:q:Q:p:P:s:S:g:G:i:I:m:M:";
   std::string number_of_data_str;
   int current_option;
 
@@ -174,8 +176,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'P': number_of_partitioned_tree = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
-      case 'c':
-      case 'C': number_of_cpu_core = atoi(optarg); break;
       case 'g':
       case 'G': number_of_gpus = atoi(optarg); break;
      default: break;
@@ -205,10 +205,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
  
-  if(number_of_cpu_core > 0) {
-    number_of_cpu_core = 
-      (number_of_partitioned_tree>1)?number_of_partitioned_tree:1;  
-  }
+  number_of_cpu_core = std::thread::hardware_concurrency();
 
 //  if( METHOD[7] == true)
 //    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;

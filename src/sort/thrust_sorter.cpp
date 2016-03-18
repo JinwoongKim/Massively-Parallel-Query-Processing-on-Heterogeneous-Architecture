@@ -1,4 +1,4 @@
-#include "sort/thrust_sort.h"
+#include "sort/thrust_sorter.h"
 
 #include "common/logger.h"
 #include "evaluator/recorder.h"
@@ -9,12 +9,13 @@
 namespace ursus {
 namespace sort {
 
-bool Thrust_Sort::Sort(std::vector<node::Branch> &branches) {
+bool Thrust_Sorter::Sort(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
-  LOG_INFO("Sort the data on the GPU");
 
   recorder.TimeRecordStart();
+
+  LOG_INFO("Sort the data on the GPU");
 
   // copy host to device
   thrust::device_vector<node::Branch> d_branches = branches;
@@ -31,7 +32,7 @@ bool Thrust_Sort::Sort(std::vector<node::Branch> &branches) {
 
   // print out sorting time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Sort Time on the GPU = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Sort Time = %.6fs", elapsed_time/1000.0f);
 
   return true;
 }

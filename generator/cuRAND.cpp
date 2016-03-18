@@ -58,9 +58,9 @@ int main(int argc, char *argv[]) {
 
   /* Show result */ 
   for(int i=1; i<=nData*nDims; i++) { 
-    printf("%1.4f ", hostData[i]); 
-    //fwrite(&hostData[i], sizeof(float), 1, fp);
-    if( i%nDims == 0 ) printf("\n");
+    //printf("%1.4f ", hostData[i]); 
+    fwrite(&hostData[i], sizeof(float), 1, fp);
+    //if( i%nDims == 0 ) printf("\n");
   } 
   printf("\n"); 
 
