@@ -205,6 +205,11 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   // if failed to set the device, terminate the program
   if(ret == -1){ exit(1); }
 
+  // Set default tree as a hybrid
+  if(trees.empty()){ 
+    AddTrees("hybrid");
+  }
+
   // set the number of data and query
   if(number_of_data_str.empty()){ return false; }
   size_t position = number_of_data_str.find("m");
