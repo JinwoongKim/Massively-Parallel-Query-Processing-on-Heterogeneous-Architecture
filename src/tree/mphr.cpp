@@ -79,7 +79,7 @@ bool MPHR::DumpFromFile(std::string index_name){
   return false;
 }
 
-bool MPHR::DumpToFile() {
+bool MPHR::DumpToFile(std::string index_name) {
   return false;
 }
 

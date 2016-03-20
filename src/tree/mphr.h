@@ -24,7 +24,7 @@ class MPHR : public Tree {
 
   bool DumpFromFile(std::string index_name);
 
-  bool DumpToFile();
+  bool DumpToFile(std::string index_name);
 
   /**
    * Search the data 

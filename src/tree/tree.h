@@ -22,14 +22,14 @@ class Tree {
  // Virtual Function
  //===--------------------------------------------------------------------===//
 
-  virtual bool DumpFromFile(std::string index_name)=0;
-
-  virtual bool DumpToFile()=0;
-
   /**
    * Build the indexing structure
    */
   virtual bool Build(std::shared_ptr<io::DataSet> input_data_set) = 0;
+
+  virtual bool DumpFromFile(std::string index_name)=0;
+
+  virtual bool DumpToFile(std::string index_name)=0;
 
   /**
    * Build the internal nodes
