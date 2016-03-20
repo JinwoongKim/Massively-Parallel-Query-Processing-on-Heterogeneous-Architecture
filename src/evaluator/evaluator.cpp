@@ -47,15 +47,16 @@ bool Evaluator::ReadDataSet(void){
   input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
                        //"/home/jwkim/dataFiles/input/real/NOAA0.bin",
                        "/home/jwkim/dataFiles/input/synthetic/synthetic_200m_3d_data.bin",
-                       DATASET_TYPE_BINARY)); 
+                       DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
   return true;
 }
 
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
   query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-                       "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."+selectivity+"s."+query_size,
-                       DATASET_TYPE_BINARY)); 
+                       "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
+                       +selectivity+"s."+query_size,
+                       DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
 
   return true;
 }
@@ -127,15 +128,14 @@ bool Evaluator::Search(void) {
 void Evaluator::PrintHelp(char **argv) const {
   std::cerr << "Usage:\n" << *argv << std::endl << 
   " -d number of data\n" 
-  " [ -q number of queries, default : 0 (debugging mode) ]\n" 
-  " [ -i index type, default : R-trees]\n"
-  " [ -m search algorithm type, 1: MPES, 2: MPTS, 3: MPHR, 4: MPHR2\n \
+  " [ -q number of queries, default : 0]\n" 
+  " [ -i index type, default : Hybrid-tree]\n"
+//  " [ -m search algorithm type, 1: MPES, 2: MPTS, 3: MPHR, 4: MPHR2\n \
   5: Short-Stack, 6: Parent-Link, 7: Skip-Pointer ]\n"
   " [ -p partitioned version, number of block ]\n" 
   " [ -s selection ratio(%), default : 1 (%) ]\n"
   " [ -g number of gpus, default : 1 ]\n" 
-  " [ -c number of cpu cores, default : 1 ]\n" 
-  "\n e.g:   ./cuda -d 1000000 -q 1000 -s 0.5 -c 4 -w 3\n" 
+  "\n e.g: ./bin/cuda -d 1000000 -q 1000 -s 0.5 -c 4 -w 3\n" 
   << std::endl;
 }
 
