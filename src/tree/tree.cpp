@@ -23,8 +23,15 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
   auto number_of_data = input_data_set->GetNumberOfData();
   auto dimensions = GetNumberOfDims();
   auto degrees = GetNumberOfDegrees();
+  std::string number_of_data_str = std::to_string(number_of_data);
 
-  std::string index_name = DataTypeToString(data_type)+"_DATA_"+std::to_string(dimensions)+"DIMS_"+std::to_string(number_of_data)+"_"+TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
+  if(number_of_data >= 1000000) {
+    number_of_data /= 1000000;
+    number_of_data_str=std::to_string(number_of_data)+"M";
+  }
+
+  std::string index_name = DataTypeToString(data_type)+"_DATA_"+std::to_string(dimensions)+"DIMS_"
+ +number_of_data_str+"_"+TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
 
   return index_name;
 }
