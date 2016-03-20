@@ -22,6 +22,10 @@ class Hybrid : public Tree {
    */
   bool Build(std::shared_ptr<io::DataSet> input_data_set);
 
+  bool DumpFromFile(std::string index_name);
+
+  bool DumpToFile(std::string index_name);
+
   /**
    * Search the data 
    */

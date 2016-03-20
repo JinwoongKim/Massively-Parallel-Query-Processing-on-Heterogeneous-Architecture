@@ -24,37 +24,45 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   LOG_INFO("Build Hybrid Tree");
   bool ret = false;
 
- //===--------------------------------------------------------------------===//
- // Create branches
- //===--------------------------------------------------------------------===//
-  std::vector<node::Branch> branches = CreateBranches(input_data_set);
+  // Load an index from file it exists
+  // otherwise, build an index and dump it to file
+  auto index_name = GetIndexName(input_data_set);
+  std::cout <<"index name : "<< index_name <<std::endl;
+  if(!DumpFromFile(index_name)) { 
+    //===--------------------------------------------------------------------===//
+    // Create branches
+    //===--------------------------------------------------------------------===//
+    std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
- //===--------------------------------------------------------------------===//
- // Assign Hilbert Ids to branches
- //===--------------------------------------------------------------------===//
-  // TODO  have to choose policy later
-  ret = AssignHilbertIndexToBranches(branches);
-  assert(ret);
+    //===--------------------------------------------------------------------===//
+    // Assign Hilbert Ids to branches
+    //===--------------------------------------------------------------------===//
+    // TODO  have to choose policy later
+    ret = AssignHilbertIndexToBranches(branches);
+    assert(ret);
 
- //===--------------------------------------------------------------------===//
- // Sort the branches either CPU or GPU depending on the size
- //===--------------------------------------------------------------------===//
-  ret = sort::Sorter::Sort(branches);
-  assert(ret);
+    //===--------------------------------------------------------------------===//
+    // Sort the branches either CPU or GPU depending on the size
+    //===--------------------------------------------------------------------===//
+    ret = sort::Sorter::Sort(branches);
+    assert(ret);
 
- //===--------------------------------------------------------------------===//
- // Build the internal nodes in a bottop-up fashion on the GPU
- //===--------------------------------------------------------------------===//
-  ret = Bottom_Up(branches); 
-  assert(ret);
+    //===--------------------------------------------------------------------===//
+    // Build the internal nodes in a bottop-up fashion on the GPU
+    //===--------------------------------------------------------------------===//
+    ret = Bottom_Up(branches); 
+    assert(ret);
 
- //===--------------------------------------------------------------------===//
- // Transform nodes into SOA fashion 
- //===--------------------------------------------------------------------===//
+    DumpToFile(index_name);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Transform nodes into SOA fashion 
+  //===--------------------------------------------------------------------===//
   // transform only leaf nodes
   auto leaf_node_offset = total_node_count-level_node_count[0];
   node_soa_ptr = transformer::Transformer::Transform(&node_ptr[leaf_node_offset], 
-                                                      level_node_count[0]);
+      level_node_count[0]);
   assert(node_soa_ptr);
 
  //===--------------------------------------------------------------------===//
@@ -67,6 +75,65 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   free(node_soa_ptr);
   node_soa_ptr = nullptr;
 
+  return true;
+}
+
+bool Hybrid::DumpFromFile(std::string index_name) {
+
+  FILE* index_file;
+  index_file = fopen(index_name.c_str(),"rb");
+
+  if(!index_file) {
+    LOG_INFO("Failed to load an index file (%s)", index_name.c_str());
+    return false;
+  }
+
+  LOG_INFO("Load an index file (%s)", index_name.c_str());
+
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+  size_t height;
+  fread(&height, sizeof(size_t), 1, index_file);
+  level_node_count.resize(height);
+
+  for(ui range(level_itr, 0, height)) {
+    fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
+  }
+  // read first 4 byte (total node count)
+  fread(&total_node_count, sizeof(ui), 1, index_file);
+
+  LOG_INFO("Number of nodes %u", total_node_count);
+  node_ptr = new node::Node[total_node_count];
+
+  fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
+  fclose(index_file);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Done, time = %.6fms", elapsed_time);
+
+  return true;
+}
+
+bool Hybrid::DumpToFile(std::string index_name) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+  LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
+
+  // NOTE :: Use fwrite since it is fast
+  FILE* index_file;
+  index_file = fopen(index_name.c_str(),"wb");
+
+  size_t height = level_node_count.size();
+  fwrite(&height, sizeof(size_t), 1, index_file);
+  for(ui range(level_itr, 0, height)) {
+    fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
+  }
+  fwrite(&total_node_count, sizeof(ui), 1, index_file);
+  fwrite(node_ptr, sizeof(node::Node), total_node_count, index_file);
+  fclose(index_file);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Done, time = %.6fms", elapsed_time);
   return true;
 }
 

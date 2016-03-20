@@ -38,6 +38,7 @@ DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
               sizeof(Point)*number_of_data*number_of_dimensions);
 
   std::cout << *this << std::endl;
+  input_stream.close();
 }
 
 
