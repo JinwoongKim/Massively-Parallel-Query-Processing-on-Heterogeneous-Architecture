@@ -17,7 +17,8 @@ class DataSet{
   DataSet(unsigned int number_of_dimensions,
           unsigned int number_of_data,
           std::string data_set_path,
-          DataSetType data_set_type);
+          DataSetType data_set_type,
+          DataType data_type);
 
   ~DataSet(){
   }
@@ -32,6 +33,8 @@ class DataSet{
   std::string GetDataSetPath(void) const;
 
   DataSetType GetDataSetType(void) const;
+
+  DataType GetDataType(void) const;
 
   std::vector<Point> GetPoints(void) const;
 
@@ -53,6 +56,9 @@ class DataSet{
 
   // data type
   DataSetType data_set_type = DATASET_TYPE_INVALID;
+
+  // DataSet path
+  DataType data_type;
 
   std::vector<Point> points;
 };

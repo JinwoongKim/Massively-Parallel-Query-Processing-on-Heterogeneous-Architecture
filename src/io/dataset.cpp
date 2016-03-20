@@ -8,9 +8,9 @@ namespace ursus {
 namespace io {
 
 DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
-                 std::string data_set_path, DataSetType data_set_type)
+                 std::string data_set_path, DataSetType data_set_type, DataType data_type)
   : number_of_dimensions(number_of_dimensions), number_of_data(number_of_data),
-    data_set_path(data_set_path), data_set_type(data_set_type) {
+    data_set_path(data_set_path), data_set_type(data_set_type), data_type(data_type) {
 
   // read data from data_set_path
   std::ifstream input_stream; 
@@ -55,6 +55,10 @@ std::string DataSet::GetDataSetPath(void) const{
 
 DataSetType DataSet::GetDataSetType(void) const{ 
   return data_set_type; 
+}
+
+DataType DataSet::GetDataType(void) const{ 
+  return data_type; 
 }
 
 std::vector<Point> DataSet::GetPoints(void) const{ 
