@@ -2,6 +2,7 @@
 
 #include "common/macro.h"
 #include "common/logger.h"
+#include "evaluator/evaluator.h"
 #include "evaluator/recorder.h"
 #include "mapper/hilbert_mapper.h"
 
@@ -15,6 +16,7 @@ namespace tree {
 
 bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
+  std::string device_type = "GPU";
 
  //===--------------------------------------------------------------------===//
  // Configure trees
@@ -29,33 +31,69 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
     LOG_INFO("Level : %u nodes", node_count);
   }
 
- //===--------------------------------------------------------------------===//
- // Copy the leaf nodes to the GPU
- //===--------------------------------------------------------------------===//
   node_ptr = new node::Node[total_node_count];
   // Copy the branches to nodes 
   auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
   assert(ret);
 
-  node::Node* d_node_ptr;
-  cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count);
-  cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice);
- //===--------------------------------------------------------------------===//
- // Construct the rest part of trees on the GPU
- //===--------------------------------------------------------------------===//
   recorder.TimeRecordStart();
-  ul current_offset = total_node_count;
-  for( ui range(level_itr, 0, tree_height)) {
-    current_offset -= level_node_count[level_itr];
-    ul parent_offset = (current_offset-level_node_count[level_itr+1]);
-    BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
+
+  // Calculate index size and get used and total device memory space
+  auto index_size = total_node_count*sizeof(node::Node);
+  auto total = evaluator::Evaluator::GetTotalMem();
+  auto used = evaluator::Evaluator::GetUsedMem();
+
+  // if an index is larger than device memory
+  if((index_size+used)/(double)total > 1.0) {
+    device_type = "CPU";
+    const size_t number_of_threads = std::thread::hardware_concurrency();
+
+    // parallel for loop using c++ std 11 
+    {
+      std::vector<std::thread> threads;
+      ul current_offset = total_node_count;
+
+      //Launch a group of threads
+      for( ui range(level_itr, 0, tree_height)) {
+        current_offset -= level_node_count[level_itr];
+        ul parent_offset = (current_offset-level_node_count[level_itr+1]);
+
+        for (ui range(thread_itr, 0, number_of_threads)) {
+          threads.push_back(std::thread(&Tree::BottomUpBuildonCPU, this, current_offset, 
+                parent_offset, level_node_count[level_itr], std::ref(node_ptr), thread_itr, 
+                number_of_threads));
+        }
+        //Join the threads with the main thread
+        for(auto &thread : threads){
+          thread.join();
+        }
+        threads.clear();
+      }
+   }
+  } else {
+    //===--------------------------------------------------------------------===//
+    // Copy the leaf nodes to the GPU
+    //===--------------------------------------------------------------------===//
+    node::Node* d_node_ptr;
+    cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count);
+    cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice);
+
+    //===--------------------------------------------------------------------===//
+    // Construct the rest part of trees on the GPU
+    //===--------------------------------------------------------------------===//
+    ul current_offset = total_node_count;
+    for( ui range(level_itr, 0, tree_height)) {
+      current_offset -= level_node_count[level_itr];
+      ul parent_offset = (current_offset-level_node_count[level_itr+1]);
+      BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
+    }
+    cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
+    cudaFree(d_node_ptr);
   }
+
   // print out construction time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Bottom-Up Construction Time on the GPU = %.6fs", elapsed_time/1000.0f);
-
-  cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
-  cudaFree(d_node_ptr);
+  LOG_INFO("Bottom-Up Construction Time on the %s = %.6fs", device_type.c_str(), elapsed_time/1000.0f);
 
   return true;
 }
@@ -231,6 +269,96 @@ bool Tree::MoveTreeToGPU(ui offset, ui count){
 
  return true;
 }
+
+void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset, 
+                              ui number_of_node, node::Node* root, ui tid, ui number_of_threads) {
+
+  node::Node* current_node;
+  node::Node* parent_node;
+
+  for(ui range(node_offset, tid, number_of_node, number_of_threads)) {
+    current_node = root+current_offset+node_offset;
+    parent_node = root+parent_offset+(ul)(node_offset/GetNumberOfDegrees());
+
+    // parent_node->SetBranchChildOffset(node_offset%GetNumberOfDegrees(), current_offset+node_offset);
+    // NOTE :: To get the offset from the root node, use the above line otherwise use the below line.
+    // With the below line, you will get the child offset from the current node
+    // TODO This is not the good code to see, it might be better to scrub the codes at some point.
+    parent_node->SetBranchChildOffset(node_offset%GetNumberOfDegrees(), 
+        (current_offset+node_offset)-(parent_offset+(ul)(node_offset/GetNumberOfDegrees())));
+
+    // store the parent node offset for MPHR-tree
+    if( current_node->GetNodeType() == NODE_TYPE_LEAF) {
+      current_node->SetBranchChildOffset(0, parent_offset+(ul)(node_offset/GetNumberOfDegrees()));
+    }
+
+    parent_node->SetBranchIndex(current_node->GetLastBranchIndex(), node_offset%GetNumberOfDegrees());
+
+    parent_node->SetLevel(current_node->GetLevel()-1);
+    parent_node->SetBranchCount(GetNumberOfDegrees());
+    parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
+
+    //Find out the min, max boundaries in this node and set up the parent rect.
+    for(ui range(dim, 0, GetNumberOfDims())) {
+      ui high_dim = dim+GetNumberOfDims();
+
+      float lower_boundary[GetNumberOfDegrees()];
+      float upper_boundary[GetNumberOfDegrees()];
+
+      for( ui range(thread, 0, GetNumberOfDegrees())) {
+        if( thread < current_node->GetBranchCount()){
+          lower_boundary[ thread ] = current_node->GetBranchPoint(thread, dim);
+          upper_boundary[ thread ] = current_node->GetBranchPoint(thread, high_dim);
+        } else {
+          lower_boundary[ thread ] = 1.0f;
+          upper_boundary[ thread ] = 0.0f;
+        }
+      }
+
+      //threads in half get lower boundary
+
+      int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
+      while(N > 1){
+        for( ui range(thread, 0, N)) {
+          if(lower_boundary[thread] > lower_boundary[thread+N])
+            lower_boundary[thread] = lower_boundary[thread+N];
+        }
+        N = N/2 + N%2;
+      }
+      if(N==1) {
+        if( lower_boundary[0] > lower_boundary[1])
+          lower_boundary[0] = lower_boundary[1];
+      }
+      //other half threads get upper boundary
+      N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
+      while(N > 1){
+        for( ui range(thread, 0, N )) {
+          if(upper_boundary[thread] < upper_boundary[thread+N])
+            upper_boundary[thread] = upper_boundary[thread+N];
+        }
+        N = N/2 + N%2;
+      }
+      if(N==1) {
+        if ( upper_boundary[0] < upper_boundary[1] )
+          upper_boundary[0] = upper_boundary[1];
+      }
+
+      parent_node->SetBranchPoint(lower_boundary[0], ( node_offset % GetNumberOfDegrees() ), dim);
+      parent_node->SetBranchPoint(upper_boundary[0], ( node_offset % GetNumberOfDegrees() ), high_dim);
+    }
+  }
+
+  //last node in each level
+  if(  number_of_node % GetNumberOfDegrees() ){
+    parent_node = root + current_offset - 1;
+    if( number_of_node < GetNumberOfDegrees() ) {
+      parent_node->SetBranchCount(number_of_node);
+    }else{
+      parent_node->SetBranchCount(number_of_node%GetNumberOfDegrees());
+    }
+  }
+}
+
 
 //===--------------------------------------------------------------------===//
 // Cuda Variable & Function 
