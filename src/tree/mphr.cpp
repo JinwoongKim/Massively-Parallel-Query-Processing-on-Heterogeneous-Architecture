@@ -75,6 +75,14 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   return true;
 }
 
+bool MPHR::DumpFromFile(std::string index_name){
+  return false;
+}
+
+bool MPHR::DumpToFile() {
+  return false;
+}
+
 int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search) {
   auto& recorder = evaluator::Recorder::GetInstance();

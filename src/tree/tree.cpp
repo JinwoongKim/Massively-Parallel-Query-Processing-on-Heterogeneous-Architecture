@@ -14,6 +14,21 @@
 namespace ursus {
 namespace tree {
 
+TreeType Tree::GetTreeType() const {
+  return tree_type;
+}
+
+std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
+  auto data_type = input_data_set->GetDataType();
+  auto number_of_data = input_data_set->GetNumberOfData();
+  auto dimensions = GetNumberOfDims();
+  auto degrees = GetNumberOfDegrees();
+
+  std::string index_name = DataTypeToString(data_type)+"_DATA_"+std::to_string(dimensions)+"DIMS_"+std::to_string(number_of_data)+"_"+TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
+
+  return index_name;
+}
+
 bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
   std::string device_type = "GPU";

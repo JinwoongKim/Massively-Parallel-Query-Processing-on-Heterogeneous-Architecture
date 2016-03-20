@@ -22,6 +22,10 @@ class Tree {
  // Virtual Function
  //===--------------------------------------------------------------------===//
 
+  virtual bool DumpFromFile(std::string index_name)=0;
+
+  virtual bool DumpToFile()=0;
+
   /**
    * Build the indexing structure
    */
@@ -41,6 +45,13 @@ class Tree {
   virtual void PrintTree(ui offset=0, ui count=0/*max*/);
 
   virtual void PrintTreeInSOA(ui offset=0, ui count=0/*max*/);
+
+ //===--------------------------------------------------------------------===//
+ // Accessor
+ //===--------------------------------------------------------------------===//
+  TreeType GetTreeType() const;
+
+  std::string GetIndexName(std::shared_ptr<io::DataSet> input_data_set);
 
  //===--------------------------------------------------------------------===//
  // Utility Function
