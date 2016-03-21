@@ -66,6 +66,13 @@ std::vector<Point> DataSet::GetPoints(void) const{
   return points; 
 }
 
+Point* DataSet::GetDeviceQuery(ui number_of_search) const{ 
+  Point* d_query;
+  cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search);
+  cudaMemcpy(d_query, &points[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search,             cudaMemcpyHostToDevice);
+  return d_query; 
+}
+
 // Get a string representation
 std::ostream &operator<<(std::ostream &os, const DataSet &dataset) {
   os << " DataSet : " << std::endl

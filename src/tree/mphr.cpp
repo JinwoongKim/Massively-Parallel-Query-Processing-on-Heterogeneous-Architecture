@@ -90,10 +90,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   // Read Query 
   //===--------------------------------------------------------------------===//
-  Point* d_query;
-  cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search);
-  auto query = query_data_set->GetPoints();
-  cudaMemcpy(d_query, &query[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search, cudaMemcpyHostToDevice);
+  auto d_query = query_data_set->GetDeviceQuery(number_of_search);
 
   //===--------------------------------------------------------------------===//
   // Prepare Hit & Node Visit Variables for evaluations

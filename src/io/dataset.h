@@ -38,6 +38,8 @@ class DataSet{
 
   std::vector<Point> GetPoints(void) const;
 
+  Point* GetDeviceQuery(ui number_of_search) const;
+
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const DataSet &dataset);
 
