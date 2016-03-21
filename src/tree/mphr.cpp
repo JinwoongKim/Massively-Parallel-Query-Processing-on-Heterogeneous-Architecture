@@ -194,8 +194,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
   while( visited_leafIndex < last_leafIndex ) {
 
     //look over the left most child node before reaching leaf node level
-    while( node_soa_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
-
+    while( node_soa_ptr->GetNodeType() != NODE_TYPE_LEAF ) { 
       if( (tid < node_soa_ptr->GetBranchCount()) &&
           (node_soa_ptr->GetIndex(tid) > visited_leafIndex) &&
           (node_soa_ptr->IsOverlap(query, tid))) {

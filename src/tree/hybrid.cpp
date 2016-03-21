@@ -53,17 +53,18 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     ret = Bottom_Up(branches); 
     assert(ret);
 
+    //===--------------------------------------------------------------------===//
+    // Transform nodes into SOA fashion 
+    //===--------------------------------------------------------------------===//
+    // transform only leaf nodes
+    auto leaf_node_offset = total_node_count-level_node_count[0];
+    node_soa_ptr = transformer::Transformer::Transform(&node_ptr[leaf_node_offset], 
+        level_node_count[0]);
+    assert(node_soa_ptr);
+
+    // Dump internal and leaf nodes into a file
     DumpToFile(index_name);
   }
-
-  //===--------------------------------------------------------------------===//
-  // Transform nodes into SOA fashion 
-  //===--------------------------------------------------------------------===//
-  // transform only leaf nodes
-  auto leaf_node_offset = total_node_count-level_node_count[0];
-  node_soa_ptr = transformer::Transformer::Transform(&node_ptr[leaf_node_offset], 
-      level_node_count[0]);
-  assert(node_soa_ptr);
 
  //===--------------------------------------------------------------------===//
  // Move Trees to the GPU
@@ -71,6 +72,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   // move only leaf nodes to the GPU
   ret = MoveTreeToGPU(0, level_node_count[0]);
   assert(ret);
+
+  //PrintTree(); 
 
   free(node_soa_ptr);
   node_soa_ptr = nullptr;
@@ -105,14 +108,19 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   fread(&total_node_count, sizeof(ui), 1, index_file);
 
   LOG_INFO("Number of nodes %u", total_node_count);
-  node_ptr = new node::Node[total_node_count];
 
-  // read an index 
-  fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
+  node_ptr = new node::Node[total_node_count-level_node_count[0]];
+  // read internal nodes
+  fread(node_ptr, sizeof(node::Node), total_node_count-level_node_count[0], index_file);
+
+  node_soa_ptr = new node::Node_SOA[level_node_count[0]];
+  // read leaf nodes
+  fread(node_soa_ptr, sizeof(node::Node_SOA), level_node_count[0], index_file);
+
   fclose(index_file);
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Done, time = %.6fms", elapsed_time);
+  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
 
   return true;
 }
@@ -135,12 +143,14 @@ bool Hybrid::DumpToFile(std::string index_name) {
   }
   // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
-  // write an index
-  fwrite(node_ptr, sizeof(node::Node), total_node_count, index_file);
+  // write internal nodes
+  fwrite(node_ptr, sizeof(node::Node), total_node_count-level_node_count[0], index_file);
+  // write leaf nodes
+  fwrite(node_soa_ptr, sizeof(node::Node_SOA), level_node_count[0], index_file);
   fclose(index_file);
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Done, time = %.6fms", elapsed_time);
+  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
   return true;
 }
 
@@ -155,7 +165,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   auto d_query = query_data_set->GetDeviceQuery(number_of_search);
 
   //===--------------------------------------------------------------------===//
-  // Prepare Hit & Node Visit Variables for evaluations
+  // Prepare Hit & Node Visit Variables for an evaluation
   //===--------------------------------------------------------------------===//
   ui h_hit[GetNumberOfBlocks()] = {0};
   ui h_node_visit_count[GetNumberOfBlocks()] = {0};
@@ -179,7 +189,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   for(ui range(query_itr, 0, number_of_search)) {
     ull visited_leafIndex = 0;
     ui node_visit_count = 0;
-    ui chunk_size = 512; // FIXME pass chunk size through command linux
+    ui chunk_size = 512; // FIXME pass chunk size through command tool
     ui query_offset = query_itr*GetNumberOfDims()*2;
 
     while(1) {
@@ -188,6 +198,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       //===--------------------------------------------------------------------===//
       auto start_node_hIndex = TraverseInternalNodes(node_ptr, &query[query_offset],
                                                      visited_leafIndex, &node_visit_count);
+
       auto start_node_offset = start_node_hIndex/GetNumberOfDegrees(); 
       total_node_visit_count_cpu += node_visit_count;
 
@@ -235,7 +246,7 @@ ull Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
   (*node_visit_count)++;
 
   // internal nodes
-  if(node_ptr->GetNodeType() == NODE_TYPE_INTERNAL) {
+  if(node_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
       if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
           node_ptr->IsOverlap(query, branch_itr)) {
@@ -246,13 +257,27 @@ ull Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
             }
       }
     }
-  }
-  // leaf nodes
+  } // extend leaf nodes
   else {
     // FIXME it returns hilbert index but if we use large scale data, we need
     // to rethink about this one again
-    return node_ptr->GetBranchIndex(0);
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
+          node_ptr->IsOverlap(query, branch_itr)) {
+
+        start_node_offset = node_ptr->GetBranchIndex(branch_itr);
+
+        if( start_node_offset%GetNumberOfDegrees() != 0) {
+          start_node_offset = start_node_offset%GetNumberOfDegrees();
+        } else {
+          start_node_offset = start_node_offset-GetNumberOfDegrees()+1;
+        }
+
+        return start_node_offset;
+      }
+    }
   }
+
   return start_node_offset;
 }
 

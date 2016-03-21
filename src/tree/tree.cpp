@@ -318,7 +318,13 @@ void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset,
 
     parent_node->SetLevel(current_node->GetLevel()-1);
     parent_node->SetBranchCount(GetNumberOfDegrees());
-    parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
+
+    // Set the node type
+    if(current_node->GetNodeType() == NODE_TYPE_LEAF) {
+      parent_node->SetNodeType(NODE_TYPE_EXTENDLEAF); 
+    } else {
+      parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
+    }
 
     //Find out the min, max boundaries in this node and set up the parent rect.
     for(ui range(dim, 0, GetNumberOfDims())) {
@@ -419,7 +425,15 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
 
     parent_node->SetLevel(current_node->GetLevel()-1);
     parent_node->SetBranchCount(GetNumberOfDegrees());
-    parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
+
+    // Set the node type
+    if(current_node->GetNodeType() == NODE_TYPE_LEAF) {
+      parent_node->SetNodeType(NODE_TYPE_EXTENDLEAF); 
+    } else {
+      parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
+    }
+
+
 
     //Find out the min, max boundaries in this node and set up the parent rect.
     for( ui range(dim, 0, GetNumberOfDims())) {
