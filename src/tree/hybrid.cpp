@@ -93,18 +93,21 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
   size_t height;
+
+  // read tree height
   fread(&height, sizeof(size_t), 1, index_file);
   level_node_count.resize(height);
-
   for(ui range(level_itr, 0, height)) {
+    // read node count for each tree level
     fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
   }
-  // read first 4 byte (total node count)
+  // read total node count
   fread(&total_node_count, sizeof(ui), 1, index_file);
 
   LOG_INFO("Number of nodes %u", total_node_count);
   node_ptr = new node::Node[total_node_count];
 
+  // read an index 
   fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
   fclose(index_file);
 
@@ -124,11 +127,15 @@ bool Hybrid::DumpToFile(std::string index_name) {
   index_file = fopen(index_name.c_str(),"wb");
 
   size_t height = level_node_count.size();
+  // write tree height
   fwrite(&height, sizeof(size_t), 1, index_file);
   for(ui range(level_itr, 0, height)) {
+    // write each tree node count
     fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
   }
+  // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
+  // write an index
   fwrite(node_ptr, sizeof(node::Node), total_node_count, index_file);
   fclose(index_file);
 
