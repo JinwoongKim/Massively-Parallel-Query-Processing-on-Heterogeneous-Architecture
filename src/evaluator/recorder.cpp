@@ -20,6 +20,7 @@ void Recorder::TimeRecordStart(){
 float Recorder::TimeRecordEnd(){
   cudaEventRecord(stop_event, 0) ;
   cudaEventSynchronize(stop_event) ;
+  // this value has a resolution of approximately one half microsecond.
   cudaEventElapsedTime(&elapsed_time, start_event, stop_event);
   return elapsed_time;
 }
