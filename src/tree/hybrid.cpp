@@ -27,7 +27,6 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   // Load an index from file it exists
   // otherwise, build an index and dump it to file
   auto index_name = GetIndexName(input_data_set);
-  std::cout <<"index name : "<< index_name <<std::endl;
   if(!DumpFromFile(index_name)) { 
     //===--------------------------------------------------------------------===//
     // Create branches
@@ -87,7 +86,7 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   index_file = fopen(index_name.c_str(),"rb");
 
   if(!index_file) {
-    LOG_INFO("Failed to load an index file (%s)", index_name.c_str());
+    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
     return false;
   }
 
