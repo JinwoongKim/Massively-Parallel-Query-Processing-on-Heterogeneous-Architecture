@@ -32,7 +32,7 @@ class Evaluator{
 
   bool ReadQuerySet(void);
  
-  int SetDevice(ui number_of_gpus);
+  int SetDevice();
 
   bool Build(void);
 

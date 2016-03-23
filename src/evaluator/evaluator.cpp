@@ -62,9 +62,19 @@ bool Evaluator::ReadQuerySet(void){
 }
 
 
-int Evaluator::SetDevice(ui number_of_gpus) {
+int Evaluator::SetDevice() {
+
+  int number_of_gpus;
+  cudaGetDeviceCount(&number_of_gpus);
 
   for(ui range(gpu_itr, 0, number_of_gpus)) {
+    cudaDeviceProp prop;
+
+    // NOTE :: There are many other fields in the cudaDeviceProp struct which
+    // describe the amounts of various types of memory, limits on thread block
+    // sizes, and many other characteristics of the GPU. 
+    cudaGetDeviceProperties(&prop, gpu_itr);
+
     // attempt to set the device
     cudaError_t error = cudaSetDevice(gpu_itr);
      // fail
@@ -78,13 +88,13 @@ int Evaluator::SetDevice(ui number_of_gpus) {
     // otherwise success to get the GPU
     if( avail > 0.1 ) {
       if((gpu_itr+1)%10==1) {
-        LOG_INFO("%ust GPU is selected", gpu_itr+1);
+        LOG_INFO("%ust GPU(%s) is selected", gpu_itr+1, prop.name);
       } else if((gpu_itr+1)%10==2) {
-        LOG_INFO("%und GPU is selected", gpu_itr+1);
+        LOG_INFO("%und GPU(%s) is selected", gpu_itr+1, prop.name);
       } else if((gpu_itr+1)%10==3) {
-        LOG_INFO("%urd GPU is selected", gpu_itr+1);
+        LOG_INFO("%urd GPU(%s) is selected", gpu_itr+1, prop.name);
       } else {
-        LOG_INFO("%uth GPU is selected", gpu_itr+1);
+        LOG_INFO("%uth GPU(%s) is selected", gpu_itr+1, prop.name);
       }
       return gpu_itr;
     }
@@ -171,7 +181,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="d:D:q:Q:p:P:s:S:g:G:i:I:m:M:";
+  static const char *options="i:I:d:D:q:Q:p:P:s:S:g:G:m:M:";
   std::string number_of_data_str;
   int current_option;
 
@@ -194,14 +204,14 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'P': number_of_partitioned_tree = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
-      case 'g':
-      case 'G': number_of_gpus = atoi(optarg); break;
+//      case 'g':
+//      case 'G': number_of_gpus = atoi(optarg); break;
      default: break;
     } // end of switch
   } // end of while
 
   // try to get the gpu
-  int ret = SetDevice(number_of_gpus);
+  int ret = SetDevice();
   // if failed to set the device, terminate the program
   if(ret == -1){ exit(1); }
 
