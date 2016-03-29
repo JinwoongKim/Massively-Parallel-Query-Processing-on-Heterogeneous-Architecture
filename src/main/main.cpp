@@ -6,7 +6,7 @@ int main(int argc, char** argv){
 
   // Initialize evaluator which will build the indexing structure and measure
   // the search performance
-  //TODO :: Setting dataset and indexing structure in parse argus function in evaluator class but not now XD
+  //TODO :: Setting dataset in parse argus function in evaluator class but not now XD
   if( !evaluator.Initialize(argc, argv))  {
     return -1;
   }

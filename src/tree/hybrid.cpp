@@ -183,12 +183,11 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   recorder.TimeRecordStart();
   // FIXME currently, we only use single CUDA block
-  ui number_of_batch = 1;
+  ui number_of_batch = GetNumberOfDegrees();
 
   for(ui range(query_itr, 0, number_of_search)) {
     ull visited_leafIndex = 0;
     ui node_visit_count = 0;
-    ui chunk_size = 512; // FIXME pass chunk size through command tool
     ui query_offset = query_itr*GetNumberOfDims()*2;
 
     while(1) {
@@ -237,6 +236,10 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Hit : %u", total_hit);
   LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
   LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
+}
+
+void Hybrid::SetChunkSize(ui _chunk_size){
+  chunk_size = _chunk_size;
 }
 
 ull Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
@@ -291,26 +294,22 @@ void global_ParallelScanning_Leafnodes(Point* _query, ull start_node_offset,
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
-  ui query_offset = bid*GetNumberOfDims()*2;
   __shared__ Point query[GetNumberOfDims()*2];
   __shared__ ui t_hit[GetNumberOfThreads()]; 
 
   if(tid < GetNumberOfDims()*2) {
-    query[tid] = _query[query_offset+tid];
+    query[tid] = _query[tid];
   }
 
   t_hit[tid] = 0;
   node_visit_count[bid] = 0;
 
   node::Node_SOA* first_leaf_node = g_node_soa_ptr;
-  node::Node_SOA* node_soa_ptr = first_leaf_node + start_node_offset;
-  node::Node_SOA* last_node_soa_ptr = node_soa_ptr + chunk_size - 1;
+  node::Node_SOA* node_soa_ptr = first_leaf_node + start_node_offset + bid;
 
-  ull visited_leafIndex = 0; // FIXME?
-  ull last_leafIndex = last_node_soa_ptr->GetLastIndex();
   __syncthreads();
 
-  while( visited_leafIndex < last_leafIndex ) {
+  for(ui range(node_itr, bid, chunk_size, GetNumberOfDegrees())) {
 
     MasterThreadOnly {
       node_visit_count[bid]++;
@@ -322,9 +321,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ull start_node_offset,
     }
     __syncthreads();
 
-    visited_leafIndex = node_soa_ptr->GetLastIndex();
-
-    node_soa_ptr++;
+    node_soa_ptr+=GetNumberOfDegrees();
   }
   __syncthreads();
 

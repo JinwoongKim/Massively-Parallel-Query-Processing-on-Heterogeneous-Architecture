@@ -111,8 +111,13 @@ int Evaluator::SetDevice() {
  */
 bool Evaluator::Build(void) {
   for(auto& tree : trees) {
-    if(!tree->Build(input_data_set)) {
-      return false;
+    switch(tree->GetTreeType()){
+      case TREE_TYPE_HYBRID:
+        tree->Build(input_data_set);
+        break;
+      case  TREE_TYPE_MPHR:
+        tree->Build(input_data_set);
+        break;
     }
   }
   return true;
@@ -126,8 +131,18 @@ bool Evaluator::Search(void) {
   if( number_of_search == 0 ) return false;
 
   for(auto& tree : trees) {
-    if(!tree->Search(query_data_set, number_of_search)) {
-      return false;
+    switch(tree->GetTreeType()){
+      case TREE_TYPE_HYBRID:
+        {
+          // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
+          std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
+          hybrid->SetChunkSize(chunk_size);
+          tree->Search(query_data_set, number_of_search);
+          break;
+        }
+      case TREE_TYPE_MPHR:
+        tree->Search(query_data_set, number_of_search);
+        break;
     }
   }
 
@@ -140,6 +155,7 @@ void Evaluator::PrintHelp(char **argv) const {
   " -d number of data\n" 
   " [ -q number of queries, default : 0]\n" 
   " [ -i index type, default : Hybrid-tree]\n"
+  " [ -c chunk size, default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
 //  " [ -m search algorithm type, 1: MPES, 2: MPTS, 3: MPHR, 4: MPHR2\n \
   5: Short-Stack, 6: Parent-Link, 7: Skip-Pointer ]\n"
   " [ -p partitioned version, number of block ]\n" 
@@ -181,7 +197,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="i:I:d:D:q:Q:p:P:s:S:g:G:m:M:";
+  static const char *options="i:I:c:C:d:D:q:Q:p:P:s:S:g:G:m:M:";
   std::string number_of_data_str;
   int current_option;
 
@@ -189,6 +205,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     switch (current_option) {
       case 'i':
       case 'I': AddTrees(std::string(optarg)); break;
+      case 'c':
+      case 'C': chunk_size = atoi(optarg); break;
 //      case 'm':
 //      case 'M': METHOD[atoi(optarg)-1] = true;
 //                optind--;
@@ -259,12 +277,14 @@ void Evaluator::AddTrees(std::string _index_type) {
 
   if( index_type == "hybrid" ||
       index_type == "h") {
-    auto tree = std::unique_ptr<tree::Tree>(new tree::Hybrid());
-    trees.push_back(std::move(tree));
+    std::shared_ptr<tree::Tree> tree (new tree::Hybrid());
+    trees.push_back(tree);
   } else if ( index_type == "mphr" ||
               index_type == "m") {
-    auto tree = std::unique_ptr<tree::Tree>(new tree::MPHR());
-    trees.push_back(std::move(tree));
+    //auto tree = std::shared_ptr<tree::Tree>(new tree::MPHR());
+    //auto tree = new tree::MPHR*();
+    std::shared_ptr<tree::Tree> tree (new tree::MPHR());
+    trees.push_back(tree);
   }
 }
 

@@ -32,9 +32,15 @@ class Hybrid : public Tree {
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
              ui number_of_search);
 
+  void SetChunkSize(ui chunk_size);
+
   ull TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                             ull passed_hIndex, ui *node_visit_count);
 
+  //===--------------------------------------------------------------------===//
+  // Members
+  //===--------------------------------------------------------------------===//
+  ui chunk_size;
 };
 
 //===--------------------------------------------------------------------===//

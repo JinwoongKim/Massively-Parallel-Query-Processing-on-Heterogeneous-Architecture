@@ -48,7 +48,7 @@ class Evaluator{
   static size_t GetAvailMem(void);
 
   static size_t GetTotalMem(void);
- 
+
   bool ParseArgs(int argc, char **argv);
 
   void AddTrees(std::string index_type);
@@ -81,8 +81,8 @@ class Evaluator{
   std::string selectivity="0.01";
   std::string query_size;
 
-  // # of gpus
-  ui number_of_gpus = 1;
+  // To control chunk_size in Hybrid indexing 
+  ui chunk_size = GetNumberOfDegrees();
 
   // Measure and record time and count  
   //Logger logger;
@@ -90,7 +90,7 @@ class Evaluator{
   std::shared_ptr<io::DataSet> input_data_set;
   std::shared_ptr<io::DataSet> query_data_set;
 
-  std::vector<std::unique_ptr<tree::Tree>> trees;
+  std::vector<std::shared_ptr<tree::Tree>> trees;
 };
 
 } // End of evaluator namespace
