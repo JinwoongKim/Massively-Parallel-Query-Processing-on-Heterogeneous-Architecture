@@ -156,7 +156,6 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -q number of queries, default : 0]\n" 
   " [ -i index type, default : Hybrid-tree]\n"
   " [ -c chunk size, default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
-//  " [ -m search algorithm type, 1: MPES, 2: MPTS, 3: MPHR, 4: MPHR2\n \
   5: Short-Stack, 6: Parent-Link, 7: Skip-Pointer ]\n"
   " [ -p partitioned version, number of block ]\n" 
   " [ -s selection ratio(%), default : 1 (%) ]\n"
@@ -207,13 +206,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'I': AddTrees(std::string(optarg)); break;
       case 'c':
       case 'C': chunk_size = atoi(optarg); break;
-//      case 'm':
-//      case 'M': METHOD[atoi(optarg)-1] = true;
-//                optind--;
-//                for( ;optind < argc && *argv[optind] != '-'; optind++) {
-//                  METHOD[atoi( argv[optind] )-1] = true;
-//                }
-//                break;
       case 'd':
       case 'D': number_of_data_str = std::string(optarg); break;
       case 'q':
@@ -222,8 +214,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'P': number_of_partitioned_tree = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
-//      case 'g':
-//      case 'G': number_of_gpus = atoi(optarg); break;
      default: break;
     } // end of switch
   } // end of while
@@ -258,15 +248,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
  
   number_of_cpu_core = std::thread::hardware_concurrency();
 
-//  if( METHOD[7] == true)
-//    METHOD[0] = METHOD[1] = METHOD[2] =  METHOD[3] = METHOD[4] = METHOD[5] = METHOD[6] = true;
-//
-//
-//  if( (METHOD[0] || METHOD[1] || METHOD[2] ||  METHOD[3] || METHOD[4] || METHOD[5] || METHOD[6]) && number_of_search == 0)
-//  {
-//    number_of_search = 1000;
-//  }
-
   std::cout << *this << std::endl;
   return true;
 }
@@ -281,8 +262,6 @@ void Evaluator::AddTrees(std::string _index_type) {
     trees.push_back(tree);
   } else if ( index_type == "mphr" ||
               index_type == "m") {
-    //auto tree = std::shared_ptr<tree::Tree>(new tree::MPHR());
-    //auto tree = new tree::MPHR*();
     std::shared_ptr<tree::Tree> tree (new tree::MPHR());
     trees.push_back(tree);
   }
