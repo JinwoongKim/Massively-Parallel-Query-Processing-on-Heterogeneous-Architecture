@@ -156,7 +156,6 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -q number of queries, default : 0]\n" 
   " [ -i index type, default : Hybrid-tree]\n"
   " [ -c chunk size, default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
-  5: Short-Stack, 6: Parent-Link, 7: Skip-Pointer ]\n"
   " [ -p partitioned version, number of block ]\n" 
   " [ -s selection ratio(%), default : 1 (%) ]\n"
   " [ -g number of gpus, default : 1 ]\n" 
