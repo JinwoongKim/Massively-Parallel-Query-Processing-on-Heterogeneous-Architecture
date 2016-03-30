@@ -24,40 +24,50 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   LOG_INFO("Build MPHR Tree");
   bool ret = false;
 
- //===--------------------------------------------------------------------===//
- // Create branches
- //===--------------------------------------------------------------------===//
-  std::vector<node::Branch> branches = CreateBranches(input_data_set);
+  // Load an index from file it exists
+  // otherwise, build an index and dump it to file
+  auto index_name = GetIndexName(input_data_set);
+  if(!DumpFromFile(index_name)) { 
+    //===--------------------------------------------------------------------===//
+    // Create branches
+    //===--------------------------------------------------------------------===//
+    std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
- //===--------------------------------------------------------------------===//
- // Assign Hilbert Ids to branches
- //===--------------------------------------------------------------------===//
-  // TODO  have to choose policy later
-  ret = AssignHilbertIndexToBranches(branches);
-  assert(ret);
+    //===--------------------------------------------------------------------===//
+    // Assign Hilbert Ids to branches
+    //===--------------------------------------------------------------------===//
+    // TODO  have to choose policy later
+    ret = AssignHilbertIndexToBranches(branches);
+    assert(ret);
 
- //===--------------------------------------------------------------------===//
- // Sort the branches either CPU or GPU depending on the size
- //===--------------------------------------------------------------------===//
-  ret = sort::Sorter::Sort(branches);
-  assert(ret);
+    //===--------------------------------------------------------------------===//
+    // Sort the branches either CPU or GPU depending on the size
+    //===--------------------------------------------------------------------===//
+    ret = sort::Sorter::Sort(branches);
+    assert(ret);
 
- //===--------------------------------------------------------------------===//
- // Build the internal nodes in a bottop-up fashion on the GPU
- //===--------------------------------------------------------------------===//
-  // TODO We may pass TREE_TYPE so that we can set the child offset to some useful data in leaf nodes 
-  ret = Bottom_Up(branches/*, tree_type*/);
-  assert(ret);
+    //===--------------------------------------------------------------------===//
+    // Build the internal nodes in a bottop-up fashion on the GPU
+    //===--------------------------------------------------------------------===//
+    // TODO We may pass TREE_TYPE so that we can set the child offset to some useful data in leaf nodes 
+    ret = Bottom_Up(branches/*, tree_type*/);
+    assert(ret);
 
- //===--------------------------------------------------------------------===//
- // Transform nodes into SOA fashion 
- //===--------------------------------------------------------------------===//
-  node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
-  assert(node_soa_ptr);
+    //===--------------------------------------------------------------------===//
+    // Transform nodes into SOA fashion 
+    //===--------------------------------------------------------------------===//
+    node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
+    assert(node_soa_ptr);
+    // deallocate node_ptr
+    free(node_ptr);
+    node_ptr = nullptr;
 
- //===--------------------------------------------------------------------===//
- // Move Trees to the GPU
- //===--------------------------------------------------------------------===//
+    DumpToFile(index_name);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Move Trees to the GPU
+  //===--------------------------------------------------------------------===//
   // copy the entire tree from the root node
   ret = MoveTreeToGPU();
   assert(ret);
@@ -66,21 +76,76 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   //PrintTree();
   //PrintTreeInSOA();
 
-  // TODO Use smart pointer?
-  free(node_ptr);
   free(node_soa_ptr);
-  node_ptr = nullptr;
   node_soa_ptr = nullptr;
 
   return true;
 }
 
 bool MPHR::DumpFromFile(std::string index_name){
-  return false;
+  FILE* index_file;
+  index_file = fopen(index_name.c_str(),"rb");
+
+  if(!index_file) {
+    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
+    return false;
+  }
+
+  LOG_INFO("Load an index file (%s)", index_name.c_str());
+
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+  size_t height;
+
+  // read tree height
+  fread(&height, sizeof(size_t), 1, index_file);
+  level_node_count.resize(height);
+  for(ui range(level_itr, 0, height)) {
+    // read node count for each tree level
+    fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
+  }
+  // read total node count
+  fread(&total_node_count, sizeof(ui), 1, index_file);
+
+  LOG_INFO("Number of nodes %u", total_node_count);
+
+  node_soa_ptr = new node::Node_SOA[total_node_count];
+  // read nodes
+  fread(node_soa_ptr, sizeof(node::Node_SOA), total_node_count, index_file);
+
+  fclose(index_file);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
+
+  return true;
 }
 
 bool MPHR::DumpToFile(std::string index_name) {
-  return false;
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+  LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
+
+  // NOTE :: Use fwrite since it is fast
+  FILE* index_file;
+  index_file = fopen(index_name.c_str(),"wb");
+
+  size_t height = level_node_count.size();
+  // write tree height
+  fwrite(&height, sizeof(size_t), 1, index_file);
+  for(ui range(level_itr, 0, height)) {
+    // write each tree node count
+    fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
+  }
+  // write total node count
+  fwrite(&total_node_count, sizeof(ui), 1, index_file);
+  // write nodes
+  fwrite(node_soa_ptr, sizeof(node::Node_SOA), total_node_count, index_file);
+  fclose(index_file);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
+  return true;
 }
 
 int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set, 
