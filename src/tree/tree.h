@@ -25,22 +25,24 @@ class Tree {
   /**
    * Build the indexing structure
    */
-  virtual bool Build(std::shared_ptr<io::DataSet> input_data_set) = 0;
+  virtual bool Build(std::shared_ptr<io::DataSet> input_data_set) =0;
 
-  virtual bool DumpFromFile(std::string index_name)=0;
+  virtual bool DumpFromFile(std::string index_name) =0;
 
-  virtual bool DumpToFile(std::string index_name)=0;
+  virtual bool DumpToFile(std::string index_name) =0;
 
   /**
    * Build the internal nodes
    */
-  virtual bool Bottom_Up(std::vector<node::Branch> &branches);
+  bool Bottom_Up(std::vector<node::Branch> &branches);
+
+  bool Top_Down(std::vector<node::Branch> &branches);
 
   /**
    * Search the data 
    */
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
-                     ui number_of_search) = 0;
+                     ui number_of_search) =0;
 
   virtual void PrintTree(ui offset=0, ui count=0/*max*/);
 
