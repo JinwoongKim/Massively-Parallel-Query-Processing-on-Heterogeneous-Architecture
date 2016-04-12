@@ -47,9 +47,9 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     assert(ret);
 
     //===--------------------------------------------------------------------===//
-    // Build the internal nodes in a bottop-up fashion on the GPU
+    // Build the internal nodes in a top-down fashion on the GPU
     //===--------------------------------------------------------------------===//
-    ret = Bottom_Up(branches); 
+    ret = Top_Down(branches); 
     assert(ret);
 
     //===--------------------------------------------------------------------===//
@@ -186,7 +186,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui number_of_batch = GetNumberOfDegrees();
 
   for(ui range(query_itr, 0, number_of_search)) {
-    ull visited_leafIndex = 0;
+    ll visited_leafIndex = 0;
     ui node_visit_count = 0;
     ui query_offset = query_itr*GetNumberOfDims()*2;
 
@@ -242,9 +242,9 @@ void Hybrid::SetChunkSize(ui _chunk_size){
   chunk_size = _chunk_size;
 }
 
-ull Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
-                                  ull visited_leafIndex, ui *node_visit_count) {
-  ull start_node_offset=0;
+ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
+                                 ll visited_leafIndex, ui *node_visit_count) {
+  ll start_node_offset=0;
   (*node_visit_count)++;
 
   // internal nodes
@@ -288,7 +288,7 @@ ull Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
 //===--------------------------------------------------------------------===//
 
 __global__ 
-void global_ParallelScanning_Leafnodes(Point* _query, ull start_node_offset, 
+void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
                                        ui chunk_size, ui* hit, ui* node_visit_count) {
 
   int bid = blockIdx.x;

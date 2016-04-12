@@ -28,17 +28,17 @@ Point Node::GetBranchPoint(ui branch_offset, ui point_offset) const{
 }
 
 __both__
-ull Node::GetBranchIndex(ui branch_offset) const{
+ll Node::GetBranchIndex(ui branch_offset) const{
   return branches[branch_offset].GetIndex();
 }
 
 __both__
-ull Node::GetLastBranchIndex(void) const{
+ll Node::GetLastBranchIndex(void) const{
   return branches[branch_count-1].GetIndex();
 }
 
 __both__
-ull Node::GetBranchChildOffset(ui branch_offset) const{
+ll Node::GetBranchChildOffset(ui branch_offset) const{
   return branches[branch_offset].GetChildOffset();
 }
 
@@ -70,12 +70,12 @@ void Node::SetBranchPoint(Point point,
 }
 
 __both__
-void Node::SetBranchIndex(ull index, ui branch_offset) {
+void Node::SetBranchIndex(ll index, ui branch_offset) {
   branches[branch_offset].SetIndex(index);
 }
 
 __both__
-void Node::SetBranchChildOffset(ui branch_offset, ull child_offset) {
+void Node::SetBranchChildOffset(ui branch_offset, ll child_offset) {
   branches[branch_offset].SetChildOffset(child_offset);
 }
 

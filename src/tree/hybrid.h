@@ -34,8 +34,8 @@ class Hybrid : public Tree {
 
   void SetChunkSize(ui chunk_size);
 
-  ull TraverseInternalNodes(node::Node *node_ptr, Point* query, 
-                            ull passed_hIndex, ui *node_visit_count);
+  ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
+                           ll passed_hIndex, ui *node_visit_count);
 
   //===--------------------------------------------------------------------===//
   // Members
@@ -47,7 +47,7 @@ class Hybrid : public Tree {
 // Cuda Function 
 //===--------------------------------------------------------------------===//
 __global__ 
-void global_ParallelScanning_Leafnodes(Point* _query, ull start_node_offset, 
+void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
                                        ui chunk_size, ui* hit, ui* node_visit_count);
  
 } // End of tree namespace

@@ -248,8 +248,8 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
   node::Node_SOA* root = g_node_soa_ptr;
   node::Node_SOA* node_soa_ptr = root;
 
-  ull visited_leafIndex = 0;
-  ull last_leafIndex = root->GetLastIndex();
+  ll visited_leafIndex = 0;
+  ll last_leafIndex = root->GetLastIndex();
 
   MasterThreadOnly {
     root_visit_count[bid]++;

@@ -9,19 +9,19 @@ namespace mapper {
 
 class Hilbert_Mapper {
  public:
- static ull MappingIntoSingle(ui number_of_dimensions,
+ static ll MappingIntoSingle(ui number_of_dimensions,
                               ui number_of_bits,
                               std::vector<Point> points);
 
  static std::vector<Point> MappingIntoMulti(ui number_of_dimensions,
                                             ui number_of_bits,
-                                            ull index);
+                                            ll index);
  private:
-  static ull bitTranspose(ui number_of_dimensions, 
+  static ll bitTranspose(ui number_of_dimensions, 
                           ui number_of_bits, 
-                          ull inCoords);
+                          ll inCoords);
 
-  static ull getIntBits(ui number_of_dimensions, 
+  static ll getIntBits(ui number_of_dimensions, 
                         ui number_of_bytes, 
                         char const* c, ui y);
 
@@ -35,7 +35,7 @@ class Hilbert_Mapper {
                               ui number_of_bits, 
                               ui max, ui y, 
                               char const* c1, char const* c2, 
-                              ui rotation, ull bits, ull index, 
+                              ui rotation, ll bits, ll index, 
                               BitReader getBits);
 };
 

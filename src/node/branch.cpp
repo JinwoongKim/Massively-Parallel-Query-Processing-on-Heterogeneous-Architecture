@@ -33,12 +33,12 @@ Point Branch::GetPoint(const ui position) const{
 }
 
 __both__ 
-unsigned long long Branch::GetIndex(void) const {
+ll Branch::GetIndex(void) const {
   return index;
 }
 
 __both__
-ull Branch::GetChildOffset(void) const {
+ll Branch::GetChildOffset(void) const {
   return child_offset;
 }
  
@@ -54,12 +54,12 @@ void Branch::SetPoint(Point point, const ui offset) {
 }
 
 __both__
-void Branch::SetIndex(const ull _index) {
+void Branch::SetIndex(const ll _index) {
   index = _index;
 }
 
 __both__
-void Branch::SetChildOffset(const ull _child_offset) {
+void Branch::SetChildOffset(const ll _child_offset) {
   child_offset = _child_offset;
 }
 

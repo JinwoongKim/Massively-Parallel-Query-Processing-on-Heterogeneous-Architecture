@@ -23,13 +23,13 @@ class Branch {
  //===--------------------------------------------------------------------===//
   std::vector<Point> GetPoints(void) const;
   __both__ Point GetPoint(const ui position) const;
-  __both__ ull GetIndex(void) const;
-  __both__ ull GetChildOffset(void) const;
+  __both__ ll GetIndex(void) const;
+  __both__ ll GetChildOffset(void) const;
 
   void SetRect(Point* point);
   __both__ void SetPoint(Point point, const ui offset);
-  __both__ void SetIndex(const ull index);
-  __both__ void SetChildOffset(const ull child_offset);
+  __both__ void SetIndex(const ll index);
+  __both__ void SetChildOffset(const ll child_offset);
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const Branch &branch);
@@ -44,10 +44,10 @@ class Branch {
   Point points[GetNumberOfDims()*2];
 
   //Index to avoid re-visiting 
-  ull index;
+  ll index;
 
   // child offset from current node
-  ull child_offset;
+  ll child_offset;
 };
 
 } // End of node namespace

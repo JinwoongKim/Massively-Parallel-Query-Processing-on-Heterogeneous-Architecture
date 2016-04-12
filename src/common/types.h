@@ -7,6 +7,7 @@ namespace ursus {
 typedef float Point;
 typedef unsigned int ui;
 typedef unsigned long ul;
+typedef long long ll;
 typedef unsigned long long ull;
 
 #define __both__ __host__ __device__
@@ -54,7 +55,7 @@ enum TreeType  {
  * Readers and writers of bits
  */
 
-typedef ull (*BitReader) (unsigned nDims, unsigned nBytes, char const* c, unsigned y);
+typedef ll (*BitReader) (unsigned nDims, unsigned nBytes, char const* c, unsigned y);
 typedef void (*BitWriter) (unsigned d, unsigned nBytes, char* c, unsigned y, int fold);
 
 //===--------------------------------------------------------------------===//
