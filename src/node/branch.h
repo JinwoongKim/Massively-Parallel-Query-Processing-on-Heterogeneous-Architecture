@@ -43,10 +43,10 @@ class Branch {
   // Minimum Bounding Box
   Point points[GetNumberOfDims()*2];
 
-  //Index to avoid re-visiting 
+  // Index to avoid re-visiting 
   ll index;
 
-  // child offset from current node
+  // Child offset from current node
   ll child_offset;
 };
 

@@ -6,10 +6,13 @@
 #include "evaluator/recorder.h"
 #include "mapper/hilbert_mapper.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cassert>
-#include <thread>
 #include <functional>
+#include <thread>
+#include <utility>
+#include <queue>
 
 namespace ursus {
 namespace tree {
@@ -34,6 +37,207 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
  +number_of_data_str+"_"+TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
 
   return index_name;
+}
+
+bool Tree::Top_Down(std::vector<node::Branch> &branches) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+  std::string device_type = "CPU";
+ 
+   recorder.TimeRecordStart();
+ 
+   // FIXME : 
+   node_ptr = CreateNode(branches, 0, branches.size()-1, 0);
+
+   // print out construction time on the GPU
+   auto elapsed_time = recorder.TimeRecordEnd();
+   LOG_INFO("Top-Down Construction Time on the %s = %.6fs", device_type.c_str(), elapsed_time/1000.0f);
+
+   return true;
+ }
+
+ui Tree::GetSplitOffset(std::vector<node::Branch> &branches,
+                        ui start_offset, ui end_offset) {
+
+
+  // Do not split when it has not enough child nodes
+  if( end_offset-start_offset < GetNumberOfDegrees()) {
+    return 0;
+  }
+
+  // Identical hilbert indices and split the range in the middle.
+  ll first_code = branches[start_offset].GetIndex();
+  ll last_code = branches[end_offset].GetIndex();
+
+  if (first_code >= last_code)  {
+    return 0;
+  }
+
+  LOG_INFO("start offset %u end_offset %u", start_offset, end_offset);
+
+  // Calculate the number of highest bits that are the same
+  // for all objects, using the count-leading-zeros intrinsic.
+  ui common_prefix = __builtin_clzl(first_code ^ last_code);
+
+  // Use binary search to find where the next bit differs.
+  // Specifically, we are looking for the highest object that
+  // shares more than commonPrefix bits with the start_offset one.
+  ui split_offset = start_offset; // initial guess
+  ui step = end_offset - start_offset;
+
+  do  {
+    step = (step + 1) >> 1; // exponential decrease
+    ui new_split_offset = split_offset + step; // proposed new position
+
+    if (new_split_offset < end_offset)  {
+      ll split_code = branches[new_split_offset].GetIndex();
+      ui split_prefix = __builtin_clzl(first_code ^ split_code);
+
+      if (split_prefix > common_prefix)
+        split_offset = new_split_offset; // accept proposal
+    }
+  }
+  while (step > 1);
+
+  return split_offset;
+}
+ 
+/*
+std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches, 
+                                       ui start_offset, ui end_offset) {
+
+  std::vector<ui> split_position;
+
+  auto number_of_data = end_offset-start_offset+1;
+  auto chunk_size = number_of_data/GetNumberOfDegrees();
+
+  // If the data is not enough to split,
+  // just return an empty split position vector
+  if(!chunk_size) {
+    return split_position;
+  }
+
+  // very simple way to split nodes
+  for(ui range(split_itr, 0, GetNumberOfDegrees())) {
+    split_positions.push_back(start_offset+split_itr*chunk_size);
+    LOG_INFO("split[%u] : %u \n", split_itr, split_positions[split_itr]);
+  }
+  split_positions.push_back(end_offset);
+
+  return split_positions;
+}
+*/
+
+std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches, 
+                                       ui start_offset, ui end_offset) {
+  LOG_INFO("start offset %u end_offset %u", start_offset, end_offset);
+  std::vector<ui> split_position;
+  std::queue<std::pair<ui,ui>> offset_queue;
+
+  // initialize queue with start/end offsets
+  offset_queue.emplace(std::make_pair(start_offset, end_offset));
+
+  // insert start/end offsets to split position list
+  split_position.emplace_back(start_offset);
+  split_position.emplace_back(end_offset);
+
+  // find split position as long as offset_queue isn't empty or 
+  // need more split positions
+  while( !offset_queue.empty() &&
+         split_position.size() < GetNumberOfDegrees()) {
+
+    // print queue for debugging
+    for(ui range(queue_itr, 0, offset_queue.size())) {
+      auto ele = offset_queue.front();
+      offset_queue.pop();
+      std::cout << ele.first << " : " << ele.second << "("<<(ele.second-ele.first)<<")"<< std::endl;
+      offset_queue.emplace(ele);
+    }
+
+    // dequeue the offset
+    auto offset = offset_queue.front();
+    offset_queue.pop();
+
+    // get the split offset 
+    auto split_offset = GetSplitOffset(branches, offset.first/*start_offset*/, offset.second/*end_offset*/);
+
+    // skip the current split offset if zero 
+    if( !split_offset )  {
+      LOG_INFO("Skip");
+      continue;
+    }
+
+    // store split position
+    split_position.emplace_back(split_offset);
+
+    // enqueue to split nodes
+    offset_queue.push(std::make_pair(offset.first, split_offset));
+    offset_queue.push(std::make_pair(split_offset+1, offset.second));
+  }
+
+  std::sort(split_position.begin(), split_position.end());
+  return split_position;
+}
+
+node::Node* Tree::CreateNode(std::vector<node::Branch> &branches, 
+                             ui start_offset, ui end_offset, int level) {
+  LOG_INFO("start offset %u end_offset %u level %d", start_offset, end_offset, level);
+
+  // FIXME : must deallocate somewhere
+  node::Node* node = new node::Node();
+
+  //===--------------------------------------------------------------------===//
+  // Create a leaf node
+  //===--------------------------------------------------------------------===//
+  auto number_of_data = (end_offset-start_offset)+1;
+  if( number_of_data <= GetNumberOfDegrees() )  {
+    LOG_INFO("Create Leaf Node");
+    for(ui range(branch_itr, 0, number_of_data)) {
+      auto offset = start_offset+branch_itr;
+      node->SetBranch(branches[offset], branch_itr);
+      node->SetBranchIndex(branch_itr, branches[offset].GetIndex());
+      node->SetBranchChildOffset(branch_itr, 0);
+    }
+    node->SetNodeType(NODE_TYPE_LEAF);
+    node->SetLevel(level);
+
+  } else {
+    LOG_INFO("Create Internal Node");
+    //===--------------------------------------------------------------------===//
+    // Create an internal node
+    //===--------------------------------------------------------------------===//
+    auto split_position = GetSplitPosition(branches, start_offset, end_offset);
+
+    std::cout << "split position : " ;
+    for(auto split : split_position) {
+      std::cout << split << ", ";
+    }
+    std::cout << std::endl;
+
+
+    for(ui range(child_itr, 0, split_position.size()-1)) {
+      auto child_node = CreateNode(branches, split_position[child_itr], split_position[child_itr+1]++, level+1);
+
+      // calculate child node's MBB and set it 
+      auto points = child_node->GetMBB();
+      for(ui range(dim, 0, GetNumberOfDims()*2)) {
+        node->SetBranchPoint(child_itr, points[dim], dim);
+      }
+      node->SetBranchIndex(child_itr, child_node->GetLastBranchIndex());
+
+      printf(" node %d : child_node %d\n", node, child_node);
+      std::cout << node << " : " << child_node << std::endl;
+      ll child_offset = child_node-node;
+      std::cout << "child offset : " << child_offset << std::endl;
+      std::cout << node << " : " << child_node+child_offset << std::endl;
+
+      node->SetBranchChildOffset(child_itr, child_offset);
+    }
+    node->SetBranchCount(split_position.size()-1);
+    node->SetNodeType(NODE_TYPE_INTERNAL);
+    node->SetLevel(level);
+  }
+
+  return node;
 }
 
 bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
@@ -122,6 +326,18 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
 
 void Tree::PrintTree(ui offset, ui count) {
   LOG_INFO("Print Tree");
+
+  if( offset > 0 ){
+    PrintNodeWithOffset(offset, count);
+  } else { 
+    PrintNodeWithChildOffset();
+  }
+}
+
+/**
+ *@brief : print nodes out when they are allocated sequencially
+ */
+void Tree::PrintNodeWithOffset(ui offset, ui count)  {
   LOG_INFO("Height %zu", level_node_count.size());
 
   ui node_itr=offset;
@@ -133,6 +349,32 @@ void Tree::PrintTree(ui offset, ui count) {
       std::cout << node_ptr[node_itr++] << std::endl;
 
       if(count){ if( node_itr>=count){ return; } }
+    }
+  }
+}
+
+/**
+ *@brief : print nodes out by following child offsets
+ */
+void Tree::PrintNodeWithChildOffset() {
+  std::queue<node::Node*> bfs_queue;
+
+  // push the root node
+  bfs_queue.emplace(node_ptr);
+
+  // if the queue is not empty,
+  while(!bfs_queue.empty())  {
+    // pop the first element and print it out
+    auto& node = bfs_queue.front();
+    bfs_queue.pop();
+    std::cout << *node << std::endl;
+
+    // if it is an internal node, push it's child nodes
+    if( node->GetNodeType() == NODE_TYPE_INTERNAL)  {
+      for(ui range(child_itr, 0, node->GetBranchCount())) {
+        auto child_node = node+node->GetBranchChildOffset(child_itr);
+        bfs_queue.emplace(child_node);
+      }
     }
   }
 }
@@ -314,7 +556,7 @@ void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset,
       current_node->SetBranchChildOffset(0, parent_offset+(ul)(node_offset/GetNumberOfDegrees()));
     }
 
-    parent_node->SetBranchIndex(current_node->GetLastBranchIndex(), node_offset%GetNumberOfDegrees());
+    parent_node->SetBranchIndex(node_offset%GetNumberOfDegrees(), current_node->GetLastBranchIndex());
 
     parent_node->SetLevel(current_node->GetLevel()-1);
     parent_node->SetBranchCount(GetNumberOfDegrees());
@@ -371,8 +613,8 @@ void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset,
           upper_boundary[0] = upper_boundary[1];
       }
 
-      parent_node->SetBranchPoint(lower_boundary[0], ( node_offset % GetNumberOfDegrees() ), dim);
-      parent_node->SetBranchPoint(upper_boundary[0], ( node_offset % GetNumberOfDegrees() ), high_dim);
+      parent_node->SetBranchPoint( (node_offset % GetNumberOfDegrees()), lower_boundary[0], dim);
+      parent_node->SetBranchPoint( (node_offset % GetNumberOfDegrees()), upper_boundary[0], high_dim);
     }
   }
 
@@ -421,7 +663,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
       current_node->SetBranchChildOffset(0, parent_offset+(ul)(block_offset/GetNumberOfDegrees()));
     }
 
-    parent_node->SetBranchIndex(current_node->GetLastBranchIndex(), block_offset%GetNumberOfDegrees());
+    parent_node->SetBranchIndex(block_offset%GetNumberOfDegrees(), current_node->GetLastBranchIndex());
 
     parent_node->SetLevel(current_node->GetLevel()-1);
     parent_node->SetBranchCount(GetNumberOfDegrees());
@@ -453,6 +695,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
       }
 
       //threads in half get lower boundary
+      // TODO :: Use macro parallel reduction
 
       int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
       while(N > 1){
@@ -487,8 +730,8 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
       }
 
       if( tid == 0 ){
-        parent_node->SetBranchPoint(lower_boundary[0], ( block_offset % GetNumberOfDegrees() ), dim);
-        parent_node->SetBranchPoint(upper_boundary[0], ( block_offset % GetNumberOfDegrees() ), high_dim);
+        parent_node->SetBranchPoint( (block_offset % GetNumberOfDegrees()), lower_boundary[0], dim);
+        parent_node->SetBranchPoint( (block_offset % GetNumberOfDegrees()), upper_boundary[0], high_dim);
       }
 
       __syncthreads();

@@ -11,6 +11,64 @@ namespace node {
 //===--------------------------------------------------------------------===//
 // Accessor
 //===--------------------------------------------------------------------===//
+
+/**
+ *@brief : return current node's minimum bounding rectangle
+ */
+__both__  
+std::vector<Point> Node::GetMBB() const {
+  std::vector<Point> mbb(GetNumberOfDims()*2);
+
+  for(ui range(dim, 0, GetNumberOfDims())) {
+    ui high_dim = dim+GetNumberOfDims();
+
+    float lower_boundary[GetNumberOfDegrees()];
+    float upper_boundary[GetNumberOfDegrees()];
+
+    for( ui range(thread, 0, GetNumberOfDegrees())) {
+      if( thread < branch_count){
+        lower_boundary[ thread ] = branches[thread].GetPoint(dim);
+        upper_boundary[ thread ] = branches[thread].GetPoint(high_dim);
+      } else {
+        lower_boundary[ thread ] = 1.0f;
+        upper_boundary[ thread ] = 0.0f;
+      }
+    }
+
+    //threads in half get lower boundary
+
+    int N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
+    while(N > 1){
+      for( ui range(thread, 0, N)) {
+        if(lower_boundary[thread] > lower_boundary[thread+N])
+          lower_boundary[thread] = lower_boundary[thread+N];
+      }
+      N = N/2 + N%2;
+    }
+    if(N==1) {
+      if( lower_boundary[0] > lower_boundary[1])
+        lower_boundary[0] = lower_boundary[1];
+    }
+    //other half threads get upper boundary
+    N = GetNumberOfDegrees()/2 + GetNumberOfDegrees()%2;
+    while(N > 1){
+      for( ui range(thread, 0, N )) {
+        if(upper_boundary[thread] < upper_boundary[thread+N])
+          upper_boundary[thread] = upper_boundary[thread+N];
+      }
+      N = N/2 + N%2;
+    }
+    if(N==1) {
+      if ( upper_boundary[0] < upper_boundary[1] )
+          upper_boundary[0] = upper_boundary[1];
+    }
+
+    mbb[dim] = lower_boundary[0];
+    mbb[high_dim] = upper_boundary[0];
+  }
+  return mbb;
+}
+
 __both__
 Branch Node::GetBranch(ui offset) const {
   assert(offset < branch_count);
@@ -64,13 +122,13 @@ void Node::SetBranchCount(ui _branch_count) {
 }
 
 __both__
-void Node::SetBranchPoint(Point point, 
-                          ui branch_offset, ui point_offset) {
+void Node::SetBranchPoint(ui branch_offset, Point point, 
+                          ui point_offset) {
   branches[branch_offset].SetPoint(point, point_offset);
 }
 
 __both__
-void Node::SetBranchIndex(ll index, ui branch_offset) {
+void Node::SetBranchIndex(ui branch_offset, ll index) {
   branches[branch_offset].SetIndex(index);
 }
 

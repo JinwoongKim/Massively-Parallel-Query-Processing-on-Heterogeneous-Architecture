@@ -34,7 +34,7 @@ ll Node_SOA::GetLastIndex(void) const {
 }
 
 __both__
-ul Node_SOA::GetChildOffset(ui offset) const {
+ll Node_SOA::GetChildOffset(ui offset) const {
   assert(offset < branch_count);
   return child_offset[offset];
 }
@@ -49,7 +49,7 @@ void Node_SOA::SetIndex(ui offset, ll _index) {
   index[offset] = _index;
 }
 
-void Node_SOA::SetChildOffset(ui offset, ul _child_offset) {
+void Node_SOA::SetChildOffset(ui offset, ll _child_offset) {
   assert(offset < GetNumberOfDegrees());
   child_offset[offset] = _child_offset;
 }

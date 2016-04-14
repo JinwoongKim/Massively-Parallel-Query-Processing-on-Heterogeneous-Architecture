@@ -34,9 +34,9 @@ class Tree {
   /**
    * Build the internal nodes
    */
-  bool Bottom_Up(std::vector<node::Branch> &branches);
-
   bool Top_Down(std::vector<node::Branch> &branches);
+
+  bool Bottom_Up(std::vector<node::Branch> &branches);
 
   /**
    * Search the data 
@@ -47,6 +47,10 @@ class Tree {
   virtual void PrintTree(ui offset=0, ui count=0/*max*/);
 
   virtual void PrintTreeInSOA(ui offset=0, ui count=0/*max*/);
+
+  void PrintNodeWithOffset(ui offset, ui count);
+
+  void PrintNodeWithChildOffset();
 
  //===--------------------------------------------------------------------===//
  // Accessor
@@ -59,6 +63,15 @@ class Tree {
  // Utility Function
  //===--------------------------------------------------------------------===//
   std::vector<node::Branch> CreateBranches(std::shared_ptr<io::DataSet> input_data_set) ;
+
+  node::Node* CreateNode(std::vector<node::Branch> &branches, 
+                         ui start_offset, ui end_offset, int level);
+
+  ui GetSplitOffset(std::vector<node::Branch> &branches,
+                    ui start_offset, ui end_offset);
+
+  std::vector<ui> GetSplitPosition(std::vector<node::Branch> &branches, 
+                                   ui start_offset, ui end_offset);
 
   void Thread_Mapping(std::vector<node::Branch> &branches, ui start_offset, ui end_offset);
 
