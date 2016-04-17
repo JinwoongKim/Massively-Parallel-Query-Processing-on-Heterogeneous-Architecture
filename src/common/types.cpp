@@ -78,6 +78,8 @@ std::string NodeTypeToString(NodeType type) {
       return "INVALID";
     case (NODE_TYPE_INTERNAL):
       return "INTERNAL";
+    case (NODE_TYPE_EXTENDLEAF):
+      return "EXTENDLEAF";
     case (NODE_TYPE_LEAF):
       return "LEAF";
     default: {
@@ -94,6 +96,8 @@ NodeType StringToNodeType(std::string str) {
     return NODE_TYPE_INVALID;
   } else if (str == "INTERNAL") {
     return NODE_TYPE_INTERNAL;
+  } else if (str == "EXTENDLEAF") {
+    return NODE_TYPE_EXTENDLEAF;
   } else if (str == "LEAF") {
     return NODE_TYPE_LEAF;
   }
