@@ -14,11 +14,6 @@ namespace tree {
 class Tree {
  public:
  //===--------------------------------------------------------------------===//
- // Consteructor/Destructor
- //===--------------------------------------------------------------------===//
-  Tree(){}
-
- //===--------------------------------------------------------------------===//
  // Virtual Function
  //===--------------------------------------------------------------------===//
 
@@ -98,13 +93,14 @@ class Tree {
  // Members
  //===--------------------------------------------------------------------===//
  protected:
-  node::Node* node_ptr;
+  node::Node* node_ptr = nullptr;
 
-  node::Node_SOA* node_soa_ptr;
+  node::Node_SOA* node_soa_ptr = nullptr;
 
   TreeType tree_type = TREE_TYPE_INVALID;
 
-  // number of nodes in each level(start from leaf)
+  // number of nodes in each level(start from leaf in bottom-up construction,
+  // start from root in top-down fashion)
   std::vector<ui> level_node_count;
 
   // total node count 
