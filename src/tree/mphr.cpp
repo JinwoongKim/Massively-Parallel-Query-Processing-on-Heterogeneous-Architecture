@@ -15,6 +15,15 @@ MPHR::MPHR() {
   tree_type = TREE_TYPE_MPHR;
 }
 
+MPHR::~MPHR() {
+  if( node_ptr != nullptr) {
+    delete node_ptr;
+  }
+  if( node_soa_ptr != nullptr) {
+    delete node_soa_ptr;
+  }
+}
+
 /**
  * @brief build trees on the GPU
  * @param input_data_set 
@@ -36,7 +45,6 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     //===--------------------------------------------------------------------===//
     // Assign Hilbert Ids to branches
     //===--------------------------------------------------------------------===//
-    // TODO  have to choose policy later
     ret = AssignHilbertIndexToBranches(branches);
     assert(ret);
 
@@ -53,16 +61,21 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = Bottom_Up(branches/*, tree_type*/);
     assert(ret);
 
+    // TODO :
+    PrintTree();
+
     //===--------------------------------------------------------------------===//
     // Transform nodes into SOA fashion 
     //===--------------------------------------------------------------------===//
     node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
     assert(node_soa_ptr);
-    // deallocate node_ptr
-    free(node_ptr);
+
+    // free the node_ptr
+    delete node_ptr;
     node_ptr = nullptr;
 
-    DumpToFile(index_name);
+    // TODO : Disabled for now
+    //DumpToFile(index_name);
   }
 
   //===--------------------------------------------------------------------===//
@@ -72,11 +85,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   ret = MoveTreeToGPU();
   assert(ret);
 
-  // FIXME :: REMOVE now it's only For debugging
-  //PrintTree();
-  //PrintTreeInSOA();
-
-  free(node_soa_ptr);
+  delete node_soa_ptr;
   node_soa_ptr = nullptr;
 
   return true;
