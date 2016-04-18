@@ -48,18 +48,17 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
 bool Tree::Top_Down(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
   std::string device_type = "CPU";
- 
-   recorder.TimeRecordStart();
- 
-   node_ptr = CreateNode(branches, 0, branches.size()-1, 0);
 
-   // print out construction time on the GPU
-   auto elapsed_time = recorder.TimeRecordEnd();
-   LOG_INFO("Top-Down Construction Time on the %s = %.6fs", device_type.c_str(), elapsed_time/1000.0f);
+  recorder.TimeRecordStart();
 
-   return true;
- }
+  node_ptr = CreateNode(branches, 0, branches.size()-1, 0);
 
+  // print out construction time on the GPU
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Top-Down Construction Time on the %s = %.6fs", device_type.c_str(), elapsed_time/1000.0f);
+
+  return true;
+}
 
 /**
  * @brief : find the split position between start/end offsets base on the
@@ -161,6 +160,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
 
   // increase node counts
   total_node_count++;
+
   if( level_node_count.size() <= level ) {
     level_node_count.emplace_back(1);
   } else {
@@ -170,6 +170,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
   //===--------------------------------------------------------------------===//
   // Create a leaf node
   //===--------------------------------------------------------------------===//
+  // TODO : delete creating leaf nodes part to reduce memory usage.
   auto number_of_data = (end_offset-start_offset)+1;
   if( number_of_data <= GetNumberOfDegrees() )  {
     for(ui range(branch_itr, 0, number_of_data)) {
@@ -197,7 +198,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
       }
       node->SetBranchIndex(child_itr, child_node->GetLastBranchIndex());
 
-      ll child_offset = child_node-node;
+      ll child_offset = (ll)child_node-(ll)node;
       node->SetBranchChildOffset(child_itr, child_offset);
     }
     node->SetBranchCount(split_position.size()-1);
@@ -219,7 +220,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   level_node_count = GetLevelNodeCount(branches);
   auto tree_height = level_node_count.size()-1;
   total_node_count = GetTotalNodeCount();
-  auto leaf_node_offset = total_node_count - level_node_count[0];
+  auto leaf_node_offset = total_node_count - level_node_count.back();
 
   for(auto node_count : level_node_count) {
     LOG_INFO("Level : %u nodes", node_count);
@@ -248,9 +249,9 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
       ul current_offset = total_node_count;
 
       //Launch a group of threads
-      for( ui range(level_itr, 0, tree_height)) {
+      for( ui level_itr=tree_height; level_itr >0; level_itr--) {
         current_offset -= level_node_count[level_itr];
-        ul parent_offset = (current_offset-level_node_count[level_itr+1]);
+        ul parent_offset = (current_offset-level_node_count[level_itr-1]);
 
         for (ui range(thread_itr, 0, number_of_threads)) {
           threads.push_back(std::thread(&Tree::BottomUpBuildonCPU, this, current_offset, 
@@ -276,9 +277,9 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
     // Construct the rest part of trees on the GPU
     //===--------------------------------------------------------------------===//
     ul current_offset = total_node_count;
-    for( ui range(level_itr, 0, tree_height)) {
+      for( ui level_itr=tree_height; level_itr>0; level_itr--) {
       current_offset -= level_node_count[level_itr];
-      ul parent_offset = (current_offset-level_node_count[level_itr+1]);
+      ul parent_offset = (current_offset-level_node_count[level_itr-1]);
       BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
     }
     cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
@@ -321,11 +322,13 @@ void Tree::PrintTree(ui offset, ui count) {
     // if it is an internal node, push it's child nodes
     if( node->GetNodeType() != NODE_TYPE_LEAF)  {
       for(ui range(child_itr, 0, node->GetBranchCount())) {
-        auto child_node = node+node->GetBranchChildOffset(child_itr);
+        auto child_node = (node::Node*)((char*)node+node->GetBranchChildOffset(child_itr));
         bfs_queue.emplace(child_node);
       }
     }
-    if( node_count == count ) break;
+
+    // if count is not zero, then print node out only as much as count
+    if( count && node_count == count ) break;
   }
 }
 
@@ -427,7 +430,7 @@ std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> &branche
   while(current_level_nodes > 1) {
     current_level_nodes = ((current_level_nodes%GetNumberOfDegrees())?1:0) 
                           + current_level_nodes/GetNumberOfDegrees();
-    level_node_count.push_back(current_level_nodes);
+    level_node_count.emplace(level_node_count.begin(), current_level_nodes);
   }
   return level_node_count;
 }
@@ -441,25 +444,69 @@ ui Tree::GetTotalNodeCount(void) const{
 }
 
 bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, 
-                            NodeType node_type,int level, ui offset) {
+                            NodeType node_type,int level, ui node_offset) {
   ui branch_itr=0;
 
   while(branch_itr < branches.size()) {
-    node_ptr[offset].SetBranch(branches[branch_itr++], branch_itr%GetNumberOfDegrees());
+    node_ptr[node_offset].SetBranch(branches[branch_itr++], branch_itr%GetNumberOfDegrees());
 
     // increase the node offset 
     if(!(branch_itr%GetNumberOfDegrees())){
-      node_ptr[offset].SetNodeType(node_type);
-      node_ptr[offset].SetLevel(level);
-      offset++;
+      node_ptr[node_offset].SetNodeType(node_type);
+      node_ptr[node_offset].SetLevel(level);
+      node_offset++;
     }
   }
 
-  node_ptr[offset].SetNodeType(node_type);
-  node_ptr[offset].SetLevel(level);
+  node_ptr[node_offset].SetNodeType(node_type);
+  node_ptr[node_offset].SetLevel(level);
 
   return true;
 }
+
+bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
+                               NodeType node_type, int level, ui node_offset) {
+
+  for(ui range(branch_itr, 0, branches.size())) {
+    auto points = branches[branch_itr].GetPoints();
+    auto index = branches[branch_itr].GetIndex();
+    auto child_offset = branches[branch_itr].GetChildOffset();
+
+    // range from 0 to (degrees-1) 
+    auto branch_offset = branch_itr%GetNumberOfDegrees();
+
+    // set points in Node_SOA
+    for(ui range(dim_itr, 0, GetNumberOfDims()*2)) {
+      auto offset = dim_itr*GetNumberOfDegrees()+branch_offset;
+      node_soa_ptr[node_offset].SetPoint(offset, points[dim_itr]);
+    }
+
+    // set the index and child offset
+    node_soa_ptr[node_offset].SetIndex(branch_offset, index);
+    node_soa_ptr[node_offset].SetChildOffset(branch_offset, child_offset);
+
+    // set the node type and level
+    if(!branch_offset) { 
+      node_soa_ptr[node_offset].SetNodeType(node_type);
+      node_soa_ptr[node_offset].SetLevel(level);
+    }
+
+    // increase the node offset 
+    if((branch_offset+1)==GetNumberOfDegrees()) { 
+      // also branch count
+      node_soa_ptr[node_offset].SetBranchCount(GetNumberOfDegrees());
+      node_offset++;
+    }
+  }
+
+  if(branches.size()%GetNumberOfDegrees()) { 
+    node_soa_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
+  }
+
+  return true;
+}
+
+
 
 void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
                              ui number_of_node, node::Node* root) {
@@ -497,16 +544,12 @@ void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset,
     current_node = root+current_offset+node_offset;
     parent_node = root+parent_offset+(ul)(node_offset/GetNumberOfDegrees());
 
-    // parent_node->SetBranchChildOffset(node_offset%GetNumberOfDegrees(), current_offset+node_offset);
-    // NOTE :: To get the offset from the root node, use the above line otherwise use the below line.
-    // With the below line, you will get the child offset from the current node
-    // TODO This is not the good code to see, it might be better to scrub the codes at some point.
     parent_node->SetBranchChildOffset(node_offset%GetNumberOfDegrees(), 
-        (current_offset+node_offset)-(parent_offset+(ul)(node_offset/GetNumberOfDegrees())));
+                                      (ll)current_node-(ll)parent_node);
 
     // store the parent node offset for MPHR-tree
     if( current_node->GetNodeType() == NODE_TYPE_LEAF) {
-      current_node->SetBranchChildOffset(0, parent_offset+(ul)(node_offset/GetNumberOfDegrees()));
+      current_node->SetBranchChildOffset(0, (ll)parent_node-(ll)current_node);
     }
 
     parent_node->SetBranchIndex(node_offset%GetNumberOfDegrees(), current_node->GetLastBranchIndex());
@@ -604,17 +647,13 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     current_node = root+current_offset+block_offset;
     parent_node = root+parent_offset+(ul)(block_offset/GetNumberOfDegrees());
 
-    // parent_node->SetBranchChildOffset(block_offset%GetNumberOfDegrees(), current_offset+block_offset);
-    // NOTE :: To get the offset from the root node, use the above line otherwise use the below line.
-    // With the below line, you will get the child offset from the current node
-    // TODO This is not the good code to see, it might be better to scrub the codes at some point.
     parent_node->SetBranchChildOffset(block_offset%GetNumberOfDegrees(), 
-                                     (current_offset+block_offset)-(parent_offset+(ul)(block_offset/GetNumberOfDegrees())));
+                                     (ll)current_node-(ll)parent_node);
 
     MasterThreadOnly{
       // keep the parent node offset in order to go back to the parent node 
       if( current_node->GetNodeType() == NODE_TYPE_LEAF) {
-        current_node->SetBranchChildOffset(0, parent_offset+(ul)(block_offset/GetNumberOfDegrees()));
+        current_node->SetBranchChildOffset(0, (ll)parent_node-(ll)current_node);
         parent_node->SetNodeType(NODE_TYPE_EXTENDLEAF); 
       } else {
         parent_node->SetNodeType(NODE_TYPE_INTERNAL); 

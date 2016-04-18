@@ -43,10 +43,6 @@ class Tree {
 
   virtual void PrintTreeInSOA(ui offset=0, ui count=0/*max*/);
 
-  void PrintNodeWithOffset(ui offset, ui count);
-
-  void PrintNodeWithChildOffset();
-
  //===--------------------------------------------------------------------===//
  // Accessor
  //===--------------------------------------------------------------------===//
@@ -77,9 +73,12 @@ class Tree {
   ui GetTotalNodeCount(void) const;
 
   bool CopyBranchToNode(std::vector<node::Branch> &branches,
-                        NodeType node_type, int level, ui offset);
+                        NodeType node_type, int level, ui node_offset);
 
-  /**
+  bool CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
+                           NodeType node_type,int level, ui node_offset);
+
+    /**
    * wrapper function for Cuda 
    */
   void BottomUpBuild_ILP(ul offset, ul parent_offset, ui number_of_node, node::Node* root);
@@ -99,12 +98,11 @@ class Tree {
 
   TreeType tree_type = TREE_TYPE_INVALID;
 
-  // number of nodes in each level(start from leaf in bottom-up construction,
-  // start from root in top-down fashion)
+  // number of nodes in each level(start from root level)
   std::vector<ui> level_node_count;
 
   // total node count 
-  ui total_node_count;
+  ui total_node_count = 0;
 };
 
 //===--------------------------------------------------------------------===//
