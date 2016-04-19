@@ -21,6 +21,7 @@ class Node {
  __both__ ll GetBranchIndex(ui branch_offset) const;
  __both__ ll GetLastBranchIndex(void) const;
  __both__ ll GetBranchChildOffset(ui branch_offset) const;
+ __both__ Node* GetBranchChildNode(ui branch_offset) const;
  __both__ NodeType GetNodeType(void) const;
  __both__ int GetLevel(void) const;
 

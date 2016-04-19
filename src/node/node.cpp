@@ -101,6 +101,11 @@ ll Node::GetBranchChildOffset(ui branch_offset) const{
 }
 
 __both__
+Node* Node::GetBranchChildNode(ui branch_offset) const{
+  return (Node*)((char*)this+branches[branch_offset].GetChildOffset());
+}
+
+__both__
 NodeType Node::GetNodeType(void) const {
   return node_type;
 }

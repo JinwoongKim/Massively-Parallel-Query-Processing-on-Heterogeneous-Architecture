@@ -39,6 +39,11 @@ ll Node_SOA::GetChildOffset(ui offset) const {
   return child_offset[offset];
 }
 
+Node_SOA* Node_SOA::GetChildNode(ui offset) const {
+  assert(offset < branch_count);
+  return (Node_SOA*)((char*)this+child_offset[offset]);
+}
+
 void Node_SOA::SetPoint(ui offset, Point point) {
   assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
   points[offset] = point;

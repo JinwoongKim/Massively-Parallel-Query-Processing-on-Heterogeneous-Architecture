@@ -20,6 +20,7 @@ class Node_SOA{
  __both__ ll GetIndex(ui offset) const;
  __both__ ll GetLastIndex() const;
  __both__ ll GetChildOffset(ui offset) const;
+ __both__ Node_SOA* GetChildNode(ui offset) const;
 
  void SetPoint(ui offset, Point point);
  void SetIndex(ui offset, ll index);
