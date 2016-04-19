@@ -218,7 +218,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
  //===--------------------------------------------------------------------===//
   // Get node count for each level
   level_node_count = GetLevelNodeCount(branches);
-  auto tree_height = level_node_count.size()-1;
+  auto tree_height = level_node_count.size();
   total_node_count = GetTotalNodeCount();
   auto leaf_node_offset = total_node_count - level_node_count.back();
 
@@ -228,7 +228,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
 
   node_ptr = new node::Node[total_node_count];
   // Copy the branches to nodes 
-  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height, leaf_node_offset);
+  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height-1, leaf_node_offset);
   assert(ret);
 
   recorder.TimeRecordStart();
@@ -249,7 +249,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
       ul current_offset = total_node_count;
 
       //Launch a group of threads
-      for( ui level_itr=tree_height; level_itr >0; level_itr--) {
+      for( ui level_itr=tree_height-1; level_itr >0; level_itr--) {
         current_offset -= level_node_count[level_itr];
         ul parent_offset = (current_offset-level_node_count[level_itr-1]);
 
@@ -277,7 +277,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
     // Construct the rest part of trees on the GPU
     //===--------------------------------------------------------------------===//
     ul current_offset = total_node_count;
-      for( ui level_itr=tree_height; level_itr>0; level_itr--) {
+      for( ui level_itr=tree_height-1; level_itr>0; level_itr--) {
       current_offset -= level_node_count[level_itr];
       ul parent_offset = (current_offset-level_node_count[level_itr-1]);
       BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
@@ -322,7 +322,7 @@ void Tree::PrintTree(ui offset, ui count) {
     // if it is an internal node, push it's child nodes
     if( node->GetNodeType() != NODE_TYPE_LEAF)  {
       for(ui range(child_itr, 0, node->GetBranchCount())) {
-        auto child_node = (node::Node*)((char*)node+node->GetBranchChildOffset(child_itr));
+        auto child_node = node->GetBranchChildNode(child_itr);
         bfs_queue.emplace(child_node);
       }
     }

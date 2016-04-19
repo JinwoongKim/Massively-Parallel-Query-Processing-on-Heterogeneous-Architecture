@@ -61,8 +61,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = Bottom_Up(branches/*, tree_type*/);
     assert(ret);
 
-    // TODO :
-    PrintTree();
+    //PrintTree();
 
     //===--------------------------------------------------------------------===//
     // Transform nodes into SOA fashion 
@@ -74,8 +73,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     delete node_ptr;
     node_ptr = nullptr;
 
-    // TODO : Disabled for now
-    //DumpToFile(index_name);
+    DumpToFile(index_name);
   }
 
   //===--------------------------------------------------------------------===//
@@ -199,8 +197,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
     }
 
     global_RestartScanning_and_ParentCheck<<<number_of_batch,GetNumberOfThreads()>>>
-           (&d_query[query_itr*GetNumberOfDims()*2], 
-           d_hit, d_root_visit_count, d_node_visit_count);
+           (&d_query[query_itr*GetNumberOfDims()*2], d_hit, d_root_visit_count, d_node_visit_count);
     cudaMemcpy(h_hit, d_hit, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
     cudaMemcpy(h_root_visit_count, d_root_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
     cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
@@ -296,7 +293,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
       }
       // there exists some overlapped node
       else{
-        node_soa_ptr = node_soa_ptr+node_soa_ptr->GetChildOffset(childOverlap[0]);
+        node_soa_ptr = node_soa_ptr->GetChildNode(childOverlap[0]);
         MasterThreadOnly {
           node_visit_count[bid]++;
         }
@@ -330,9 +327,9 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
         __syncthreads();
       } else { 
         // go back to the parent node to check wthether other child nodes are overlapped with given query
-        // Since ChildOffset of leaf node is pointing its parent node,
-        // we can use it to go back to the parent node
-        node_soa_ptr = root+node_soa_ptr->GetChildOffset(0);
+        // Since the first child offset of a leaf node is pointing its parent node,
+        // we can use it for back-tracking  
+        node_soa_ptr = node_soa_ptr->GetChildNode(0);
 
         MasterThreadOnly {
           if( node_soa_ptr == root){

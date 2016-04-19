@@ -36,7 +36,6 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     //===--------------------------------------------------------------------===//
     // Assign Hilbert Ids to branches
     //===--------------------------------------------------------------------===//
-    // TODO  have to choose policy later
     ret = AssignHilbertIndexToBranches(branches);
     assert(ret);
 
@@ -56,9 +55,10 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     // Transform nodes into SOA fashion 
     //===--------------------------------------------------------------------===//
     // transform only leaf nodes
-    auto leaf_node_offset = total_node_count-level_node_count[0];
-    node_soa_ptr = transformer::Transformer::Transform(&node_ptr[leaf_node_offset], 
-        level_node_count[0]);
+    auto leaf_node_count = level_node_count.back();
+    auto leaf_node_offset = total_node_count-leaf_node_count;
+    node_soa_ptr = new node::Node_SOA[leaf_node_count];
+    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, /*FIXME*/ -1, 0);
     assert(node_soa_ptr);
 
     // Dump internal and leaf nodes into a file
@@ -69,13 +69,14 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
  // Move Trees to the GPU
  //===--------------------------------------------------------------------===//
   // move only leaf nodes to the GPU
-  ret = MoveTreeToGPU(0, level_node_count[0]);
+  // FIXME : use stream..
+  ret = MoveTreeToGPU(0, level_node_count.back());
   assert(ret);
 
-  //PrintTree(); 
-
-  free(node_soa_ptr);
+  delete (node_soa_ptr);
   node_soa_ptr = nullptr;
+
+  //PrintTree(0,1); 
 
   return true;
 }
@@ -108,13 +109,13 @@ bool Hybrid::DumpFromFile(std::string index_name) {
 
   LOG_INFO("Number of nodes %u", total_node_count);
 
-  node_ptr = new node::Node[total_node_count-level_node_count[0]];
+  node_ptr = new node::Node[total_node_count-level_node_count.back()];
   // read internal nodes
-  fread(node_ptr, sizeof(node::Node), total_node_count-level_node_count[0], index_file);
+  fread(node_ptr, sizeof(node::Node), total_node_count-level_node_count.back(), index_file);
 
-  node_soa_ptr = new node::Node_SOA[level_node_count[0]];
+  node_soa_ptr = new node::Node_SOA[level_node_count.back()];
   // read leaf nodes
-  fread(node_soa_ptr, sizeof(node::Node_SOA), level_node_count[0], index_file);
+  fread(node_soa_ptr, sizeof(node::Node_SOA), level_node_count.back(), index_file);
 
   fclose(index_file);
 
@@ -143,9 +144,9 @@ bool Hybrid::DumpToFile(std::string index_name) {
   // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
   // write internal nodes
-  fwrite(node_ptr, sizeof(node::Node), total_node_count-level_node_count[0], index_file);
+  fwrite(node_ptr, sizeof(node::Node), total_node_count-level_node_count.back(), index_file);
   // write leaf nodes
-  fwrite(node_soa_ptr, sizeof(node::Node_SOA), level_node_count[0], index_file);
+  fwrite(node_soa_ptr, sizeof(node::Node_SOA), level_node_count.back(), index_file);
   fclose(index_file);
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -194,21 +195,21 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       //===--------------------------------------------------------------------===//
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
-      auto start_node_hIndex = TraverseInternalNodes(node_ptr, &query[query_offset],
-                                                     visited_leafIndex, &node_visit_count);
+      auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
+                                                    visited_leafIndex, &node_visit_count);
 
-      auto start_node_offset = start_node_hIndex/GetNumberOfDegrees(); 
+      auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
       total_node_visit_count_cpu += node_visit_count;
 
       // no more overlapping internal nodes, terminate current query
-      if( start_node_hIndex == 0) {
+      if( start_node_index == 0) {
         break;
       }
 
       // resize chunk_size if the sum of start node offset and chunk size is
       // larger than number of leaf nodes
-      if(start_node_offset+chunk_size > level_node_count[0]) {
-        chunk_size = level_node_count[0] - start_node_offset;
+      if(start_node_offset+chunk_size > level_node_count.back()) {
+        chunk_size = level_node_count.back() - start_node_offset;
       }
 
       //===--------------------------------------------------------------------===//
@@ -244,7 +245,8 @@ void Hybrid::SetChunkSize(ui _chunk_size){
 
 ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                                  ll visited_leafIndex, ui *node_visit_count) {
-  ll start_node_offset=0;
+
+  ll start_node_index=0;
   (*node_visit_count)++;
 
   // internal nodes
@@ -252,11 +254,13 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
       if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
           node_ptr->IsOverlap(query, branch_itr)) {
-            start_node_offset=TraverseInternalNodes(node_ptr+node_ptr->GetBranchChildOffset(branch_itr), 
-                                   query, visited_leafIndex, node_visit_count);
-            if(start_node_offset > 0) {
-              break;
-            }
+
+        start_node_index=TraverseInternalNodes(node_ptr->GetBranchChildNode(branch_itr), 
+                                            query, visited_leafIndex, node_visit_count);
+
+        if(start_node_index > 0) {
+          break;
+        }
       }
     }
   } // extend leaf nodes
@@ -267,20 +271,13 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
       if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
           node_ptr->IsOverlap(query, branch_itr)) {
 
-        start_node_offset = node_ptr->GetBranchIndex(branch_itr);
-
-        if( start_node_offset%GetNumberOfDegrees() != 0) {
-          start_node_offset = start_node_offset%GetNumberOfDegrees();
-        } else {
-          start_node_offset = start_node_offset-GetNumberOfDegrees()+1;
-        }
-
-        return start_node_offset;
+        start_node_index = node_ptr->GetBranchIndex(branch_itr);
+        break;
       }
     }
   }
 
-  return start_node_offset;
+  return start_node_index;
 }
 
 //===--------------------------------------------------------------------===//
