@@ -7,6 +7,7 @@
 #include "transformer/transformer.h"
 
 #include <cassert>
+#include <queue>
 
 namespace ursus {
 namespace tree {
@@ -62,8 +63,11 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     assert(node_soa_ptr);
 
     // Dump internal and leaf nodes into a file
-    DumpToFile(index_name);
+    // FIXME : segmentaion fault
+    //DumpToFile(index_name);
   }
+
+  //PrintTree(); 
 
  //===--------------------------------------------------------------------===//
  // Move Trees to the GPU
@@ -76,7 +80,6 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   delete (node_soa_ptr);
   node_soa_ptr = nullptr;
 
-  //PrintTree(0,1); 
 
   return true;
 }
@@ -143,8 +146,59 @@ bool Hybrid::DumpToFile(std::string index_name) {
   }
   // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
+
+  // Unlike dump function in MPHR class, we use the queue structure to dump the
+  // tree onto an index file since the nodes are allocated here and there in a
+  // Top-Down fashion
+
   // write internal nodes
-  fwrite(node_ptr, sizeof(node::Node), total_node_count-level_node_count.back(), index_file);
+  std::queue<node::Node*> bfs_queue;
+  std::vector<ll> child_offset_backup;
+
+  // push the root node
+  bfs_queue.emplace(node_ptr);
+ 
+  // if the queue is not empty,
+  while(!bfs_queue.empty()) {
+    // pop the first element and print it out
+    auto& node = bfs_queue.front();
+    bfs_queue.pop();
+    LOG_INFO("Pop the element");
+
+    // NOTE : Backup the child offsets in order to recover node's child offset later
+    // I believe accessing memory is faster than accesing disk,
+    // I don't use another fwrite for this job.
+
+    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
+      for(ui range(child_itr, 0, node->GetBranchCount())) {
+        auto child_node = node->GetBranchChildNode(child_itr);
+        bfs_queue.emplace(child_node);
+
+        // backup current child offset
+        child_offset_backup.emplace_back(node->GetBranchChildOffset(child_itr));
+
+        // reassign child offset
+        auto child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+        node->SetBranchChildOffset(child_itr, child_offset);
+      }
+      LOG_INFO("Push the child node");
+    }
+
+    // write an internal node on disk
+    fwrite(node, sizeof(node::Node), 1, index_file);
+    LOG_INFO("Write the node");
+
+    // Recover child offset
+    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
+      for(ui range(child_itr, 0, node->GetBranchCount())) {
+        // reassign child offset
+        node->SetBranchChildOffset(child_itr, child_offset_backup[child_itr]);
+      }
+    }
+    LOG_INFO("Recover the child offset");
+    child_offset_backup.clear();
+  }
+
   // write leaf nodes
   fwrite(node_soa_ptr, sizeof(node::Node_SOA), level_node_count.back(), index_file);
   fclose(index_file);
@@ -179,6 +233,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui* d_node_visit_count;
   cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks());
 
+  // initialize hit and node visit variables to zero
+  global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
+
   //===--------------------------------------------------------------------===//
   // Execute Search Function
   //===--------------------------------------------------------------------===//
@@ -198,13 +255,13 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
                                                     visited_leafIndex, &node_visit_count);
 
-      auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-      total_node_visit_count_cpu += node_visit_count;
-
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
         break;
       }
+
+      auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
+      total_node_visit_count_cpu += node_visit_count;
 
       // resize chunk_size if the sum of start node offset and chunk size is
       // larger than number of leaf nodes
@@ -216,18 +273,21 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
       global_ParallelScanning_Leafnodes<<<number_of_batch,GetNumberOfThreads()>>>
-        (&d_query[query_offset], start_node_offset, chunk_size, d_hit, d_node_visit_count);
+                         (&d_query[query_offset], start_node_offset, chunk_size);
 
-      cudaMemcpy(h_hit, d_hit, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
-      cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
-
-      for(ui range(i, 0, number_of_batch)) {
-        total_hit += h_hit[i];
-        total_node_visit_count_gpu += h_node_visit_count[i];
-      }
-      visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
+     visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
     }
   }
+
+  global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
+  cudaMemcpy(h_hit, d_hit, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
+
+  for(ui range(i, 0, GetNumberOfBlocks())) {
+    total_hit += h_hit[i];
+    total_node_visit_count_gpu += h_node_visit_count[i];
+  }
+
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
@@ -254,39 +314,48 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
       if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
           node_ptr->IsOverlap(query, branch_itr)) {
-
         start_node_index=TraverseInternalNodes(node_ptr->GetBranchChildNode(branch_itr), 
                                             query, visited_leafIndex, node_visit_count);
 
-        if(start_node_index > 0) {
-          break;
-        }
+        if(start_node_index > 0) break;
       }
     }
-  } // extend leaf nodes
+  } // leaf nodes
   else {
     // FIXME it returns hilbert index but if we use large scale data, we need
     // to rethink about this one again
-    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
-      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex && 
-          node_ptr->IsOverlap(query, branch_itr)) {
-
-        start_node_index = node_ptr->GetBranchIndex(branch_itr);
-        break;
-      }
-    }
+    start_node_index = node_ptr->GetBranchIndex(0);
   }
 
   return start_node_index;
 }
 
 //===--------------------------------------------------------------------===//
-// Cuda Function 
+// Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
+
+__device__ ui g_hit[GetNumberOfBlocks()]; 
+__device__ ui g_node_visit_count[GetNumberOfBlocks()]; 
+
+__global__
+void global_SetHitCount(ui init_value) {
+  int tid = threadIdx.x;
+
+  g_hit[tid] = init_value;
+  g_node_visit_count[tid] = init_value;
+}
+
+__global__
+void global_GetHitCount(ui* hit, ui* node_visit_count) {
+  int tid = threadIdx.x;
+
+  hit[tid] = g_hit[tid];
+  node_visit_count[tid] = g_node_visit_count[tid];
+}
 
 __global__ 
 void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
-                                       ui chunk_size, ui* hit, ui* node_visit_count) {
+                                       ui chunk_size) {
 
   int bid = blockIdx.x;
   int tid = threadIdx.x;
@@ -299,7 +368,6 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
   }
 
   t_hit[tid] = 0;
-  node_visit_count[bid] = 0;
 
   node::Node_SOA* first_leaf_node = g_node_soa_ptr;
   node::Node_SOA* node_soa_ptr = first_leaf_node + start_node_offset + bid;
@@ -309,7 +377,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
   for(ui range(node_itr, bid, chunk_size, GetNumberOfDegrees())) {
 
     MasterThreadOnly {
-      node_visit_count[bid]++;
+      g_node_visit_count[bid]++;
     }
 
     if(tid < node_soa_ptr->GetBranchCount() &&
@@ -330,9 +398,9 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
 
   MasterThreadOnly {
     if(N==1) {
-      hit[bid] = t_hit[0] + t_hit[1];
+      g_hit[bid] += t_hit[0] + t_hit[1];
     } else {
-      hit[bid] = t_hit[0];
+      g_hit[bid] += t_hit[0];
     }
   }
 }

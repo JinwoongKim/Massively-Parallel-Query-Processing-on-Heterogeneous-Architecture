@@ -44,11 +44,21 @@ class Hybrid : public Tree {
 };
 
 //===--------------------------------------------------------------------===//
-// Cuda Function 
+// Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
+
+extern __device__ ui g_hit[GetNumberOfBlocks()]; 
+extern __device__ ui g_node_visit_count[GetNumberOfBlocks()]; 
+
+__global__
+void global_SetHitCount(ui init_value);
+
+__global__
+void global_GetHitCount(ui* hit, ui* node_visit_count);
+
 __global__ 
 void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
-                                       ui chunk_size, ui* hit, ui* node_visit_count);
+                                       ui chunk_size);
  
 } // End of tree namespace
 } // End of ursus namespace
