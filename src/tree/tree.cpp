@@ -53,6 +53,10 @@ bool Tree::Top_Down(std::vector<node::Branch> &branches) {
 
   node_ptr = CreateNode(branches, 0, branches.size()-1, 0);
 
+  for(ui range( level_itr, 0, level_node_count.size() )) {
+    LOG_INFO("Level %zd", level_node_count[level_itr]);
+  }
+
   // print out construction time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Top-Down Construction Time on the %s = %.6fs", device_type.c_str(), elapsed_time/1000.0f);
@@ -222,8 +226,8 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   total_node_count = GetTotalNodeCount();
   auto leaf_node_offset = total_node_count - level_node_count.back();
 
-  for(auto node_count : level_node_count) {
-    LOG_INFO("Level : %u nodes", node_count);
+  for(ui range( level_itr, 0, level_node_count.size() )) {
+    LOG_INFO("Level %zd", level_node_count[level_itr]);
   }
 
   node_ptr = new node::Node[total_node_count];
@@ -352,6 +356,14 @@ void Tree::PrintTreeInSOA(ui offset, ui count) {
   }
 }
 
+void Tree::Thread_SetRect(std::vector<node::Branch> &branches, std::vector<Point>& points, 
+                                                         ui start_offset, ui end_offset) {
+
+  for(ui range(offset, start_offset, end_offset)) {
+    branches[offset].SetRect(&points[offset*GetNumberOfDims()]);
+  }
+}
+
 /**
  *@brief creating branches
  */
@@ -365,8 +377,29 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   // create branches
   std::vector<node::Branch> branches(number_of_data);
 
-  for( int range(i, 0, number_of_data)) {
-    branches[i].SetRect(&points[i*GetNumberOfDims()]);
+  const size_t number_of_threads = std::thread::hardware_concurrency();
+
+  // parallel for loop using c++ std 11 
+  {
+    std::vector<std::thread> threads;
+
+    auto chunk_size = branches.size()/number_of_threads;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + branches.size()%number_of_threads;
+
+    //Launch a group of threads
+    for (ui range(thread_itr, 0, number_of_threads)) {
+      threads.push_back(std::thread(&Tree::Thread_SetRect, this, 
+                                    std::ref(branches), std::ref(points), start_offset, end_offset));
+
+      start_offset = end_offset;
+      end_offset += chunk_size;
+    }
+
+    //Join the threads with the main thread
+    for(auto &thread : threads){
+      thread.join();
+    }
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -443,8 +476,11 @@ ui Tree::GetTotalNodeCount(void) const{
   return total_node_count;
 }
 
+// TODO Parallel
 bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, 
                             NodeType node_type,int level, ui node_offset) {
+
+  auto& recorder = evaluator::Recorder::GetInstance();
   ui branch_itr=0;
 
   while(branch_itr < branches.size()) {
@@ -461,11 +497,17 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
   node_ptr[node_offset].SetNodeType(node_type);
   node_ptr[node_offset].SetLevel(level);
 
+  // print out construction time on the GPU
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Copy Branch To Node Time on the CPU = %.6fs", elapsed_time/1000.0f);
+
   return true;
 }
 
+// TODO Parallel
 bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
                                NodeType node_type, int level, ui node_offset) {
+  auto& recorder = evaluator::Recorder::GetInstance();
 
   for(ui range(branch_itr, 0, branches.size())) {
     auto points = branches[branch_itr].GetPoints();
@@ -502,6 +544,10 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
   if(branches.size()%GetNumberOfDegrees()) { 
     node_soa_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
   }
+
+  // print out construction time on the GPU
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Copy Branch To NodeSOA Time on the CPU = %.6fs", elapsed_time/1000.0f);
 
   return true;
 }

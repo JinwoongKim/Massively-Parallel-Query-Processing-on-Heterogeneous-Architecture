@@ -64,6 +64,10 @@ class Tree {
   std::vector<ui> GetSplitPosition(std::vector<node::Branch> &branches, 
                                    ui start_offset, ui end_offset);
 
+  void Thread_SetRect(std::vector<node::Branch> &branches, std::vector<Point>& points, 
+                      ui start_offset, ui end_offset);
+
+
   void Thread_Mapping(std::vector<node::Branch> &branches, ui start_offset, ui end_offset);
 
   bool AssignHilbertIndexToBranches(std::vector<node::Branch> &branches);
