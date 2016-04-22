@@ -224,6 +224,8 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   level_node_count = GetLevelNodeCount(branches);
   auto tree_height = level_node_count.size();
   total_node_count = GetTotalNodeCount();
+  // set the leaf node count
+  leaf_node_count = level_node_count.back();
   auto leaf_node_offset = total_node_count - leaf_node_count;
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
@@ -486,11 +488,11 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
   auto& recorder = evaluator::Recorder::GetInstance();
   ui branch_itr=0;
 
-  while(branch_itr < branches.size()) {
-    node_ptr[node_offset].SetBranch(branches[branch_itr++], branch_itr%GetNumberOfDegrees());
+  for(ui range(branch_itr,0, branches.size())) {
+    node_ptr[node_offset].SetBranch(branches[branch_itr], branch_itr%GetNumberOfDegrees());
 
     // increase the node offset 
-    if(!(branch_itr%GetNumberOfDegrees())){
+    if(((branch_itr+1)%GetNumberOfDegrees())==0){
       node_ptr[node_offset].SetNodeType(node_type);
       node_ptr[node_offset].SetLevel(level);
       node_offset++;
