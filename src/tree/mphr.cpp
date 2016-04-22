@@ -69,6 +69,8 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
     assert(node_soa_ptr);
 
+    //PrintTreeInSOA();
+
     // free the node_ptr
     delete node_ptr;
     node_ptr = nullptr;
@@ -114,7 +116,9 @@ bool MPHR::DumpFromFile(std::string index_name){
   // read total node count
   fread(&total_node_count, sizeof(ui), 1, index_file);
 
-  LOG_INFO("Number of nodes %u", total_node_count);
+  for(ui range( level_itr, 0, level_node_count.size() )) {
+    LOG_INFO("Level %zd", level_node_count[level_itr]);
+  }
 
   node_soa_ptr = new node::Node_SOA[total_node_count];
   // read nodes
