@@ -82,7 +82,7 @@ node::Node_SOA* Transformer::Transform(node::Node* node,
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Transform Time on the CPU = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Transform Time on the CPU (%zu threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
 
   return node_soa;
 }
