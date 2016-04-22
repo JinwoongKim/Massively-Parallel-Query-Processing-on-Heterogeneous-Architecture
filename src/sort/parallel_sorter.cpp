@@ -6,6 +6,7 @@
 #include <algorithm>  
 #include <thread>
 #include <functional>
+#include "tbb/parallel_sort.h"
 
 namespace ursus {
 namespace sort {
@@ -19,16 +20,13 @@ void Thread_Assign(std::vector<node::Branch> &branches,
 }
 
 bool Parallel_Sorter::Sort(std::vector<node::Branch> &branches) {
-  auto& recorder = evaluator::Recorder::GetInstance();
 
+  auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  LOG_INFO("Sort the data on CPU");
-
-  std::sort(branches.begin(), branches.end());
+  tbb::parallel_sort(branches.begin(), branches.end());
 
   const size_t number_of_threads = std::thread::hardware_concurrency();
-  LOG_INFO("Create %zu threads for assigning leaf node index in parallel", number_of_threads);
 
   // parallel for loop using c++ std 11 
   {
@@ -47,7 +45,7 @@ bool Parallel_Sorter::Sort(std::vector<node::Branch> &branches) {
 
   // print out sorting time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Sort Time = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Sort Time on CPU (%zu threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
 
   return true;
 }

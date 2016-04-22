@@ -11,11 +11,7 @@ namespace sort {
 
 bool Thrust_Sorter::Sort(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
-
-
   recorder.TimeRecordStart();
-
-  LOG_INFO("Sort the data on the GPU");
 
   // copy host to device
   thrust::device_vector<node::Branch> d_branches = branches;
@@ -32,7 +28,7 @@ bool Thrust_Sorter::Sort(std::vector<node::Branch> &branches) {
 
   // print out sorting time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Sort Time = %.6fs", elapsed_time/1000.0f);
+  LOG_INFO("Sort Time on GPU = %.6fs", elapsed_time/1000.0f);
 
   return true;
 }

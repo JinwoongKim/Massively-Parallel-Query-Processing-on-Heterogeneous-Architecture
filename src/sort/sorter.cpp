@@ -9,7 +9,6 @@ namespace ursus {
 namespace sort {
 
 bool Sorter::Sort(std::vector<node::Branch> &branches) {
-
   bool ret;
 
   // calculate size(MB) of branch
