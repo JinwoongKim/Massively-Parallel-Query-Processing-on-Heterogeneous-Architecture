@@ -103,6 +103,7 @@ bool MPHR::DumpFromFile(std::string index_name){
   LOG_INFO("Load an index file (%s)", index_name.c_str());
 
   auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
 
   size_t height;
 
@@ -134,6 +135,7 @@ bool MPHR::DumpFromFile(std::string index_name){
 
 bool MPHR::DumpToFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
 
   LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
 
