@@ -76,6 +76,8 @@ class Tree {
 
   ui GetTotalNodeCount(void) const;
 
+  ui GetLeafNodeCount(void) const;
+
   bool CopyBranchToNode(std::vector<node::Branch> &branches,
                         NodeType node_type, int level, ui node_offset);
 
@@ -107,6 +109,9 @@ class Tree {
 
   // total node count 
   ui total_node_count = 0;
+
+  // leaf node count 
+  ui leaf_node_count = 0;
 };
 
 //===--------------------------------------------------------------------===//
