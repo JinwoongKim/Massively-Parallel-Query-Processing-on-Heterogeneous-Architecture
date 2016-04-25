@@ -8,6 +8,8 @@
 
 #include <cassert>
 #include <queue>
+#include <thread>
+#include <algorithm>
 
 namespace ursus {
 namespace tree {
@@ -56,15 +58,14 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     // Transform nodes into SOA fashion 
     //===--------------------------------------------------------------------===//
     // transform only leaf nodes
-    auto leaf_node_count = level_node_count.back();
     auto leaf_node_offset = total_node_count-leaf_node_count;
     node_soa_ptr = new node::Node_SOA[leaf_node_count];
-    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, /*FIXME*/ -1, 0);
+    LOG_INFO("leaf node count %u", leaf_node_count);
     assert(node_soa_ptr);
+    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, /*FIXME*/ -1, 0);
 
     // Dump internal and leaf nodes into a file
-    // FIXME : segmentaion fault
-    //DumpToFile(index_name);
+    DumpToFile(index_name);
   }
 
   //PrintTree(); 
@@ -74,12 +75,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
  //===--------------------------------------------------------------------===//
   // move only leaf nodes to the GPU
   // FIXME : use stream..
-  ret = MoveTreeToGPU(0, level_node_count.back());
+  ret = MoveTreeToGPU(0, leaf_node_count);
   assert(ret);
-
-  delete (node_soa_ptr);
-  node_soa_ptr = nullptr;
-
 
   return true;
 }
@@ -97,6 +94,7 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   LOG_INFO("Load an index file (%s)", index_name.c_str());
 
   auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
 
   size_t height;
 
@@ -110,15 +108,22 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   // read total node count
   fread(&total_node_count, sizeof(ui), 1, index_file);
 
+  // read leaf node count
+  fread(&leaf_node_count, sizeof(ui), 1, index_file);
+
   LOG_INFO("Number of nodes %u", total_node_count);
 
-  node_ptr = new node::Node[total_node_count-level_node_count.back()];
-  // read internal nodes
-  fread(node_ptr, sizeof(node::Node), total_node_count-level_node_count.back(), index_file);
+  LOG_INFO("Number of leaf nodes %u", leaf_node_count);
 
-  node_soa_ptr = new node::Node_SOA[level_node_count.back()];
+  node_ptr = new node::Node[total_node_count];
+  // read the entire nodes
+  // FIXME read internal nodes
+  fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
+
+  node_soa_ptr = new node::Node_SOA[leaf_node_count];
+
   // read leaf nodes
-  fread(node_soa_ptr, sizeof(node::Node_SOA), level_node_count.back(), index_file);
+  fread(node_soa_ptr, sizeof(node::Node_SOA), leaf_node_count, index_file);
 
   fclose(index_file);
 
@@ -133,6 +138,7 @@ bool Hybrid::DumpToFile(std::string index_name) {
 
   LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
 
+  recorder.TimeRecordStart();
   // NOTE :: Use fwrite since it is fast
   FILE* index_file;
   index_file = fopen(index_name.c_str(),"wb");
@@ -144,63 +150,60 @@ bool Hybrid::DumpToFile(std::string index_name) {
     // write each tree node count
     fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
   }
+
   // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
+
+  // write leaf node count
+  fwrite(&leaf_node_count, sizeof(ui), 1, index_file);
 
   // Unlike dump function in MPHR class, we use the queue structure to dump the
   // tree onto an index file since the nodes are allocated here and there in a
   // Top-Down fashion
-
-  // write internal nodes
   std::queue<node::Node*> bfs_queue;
-  std::vector<ll> child_offset_backup;
+  std::vector<ll> child_offset; // for backup
 
   // push the root node
   bfs_queue.emplace(node_ptr);
  
   // if the queue is not empty,
   while(!bfs_queue.empty()) {
-    // pop the first element and print it out
+    // pop the first element 
     auto& node = bfs_queue.front();
     bfs_queue.pop();
-    LOG_INFO("Pop the element");
 
     // NOTE : Backup the child offsets in order to recover node's child offset later
     // I believe accessing memory is faster than accesing disk,
     // I don't use another fwrite for this job.
-
     if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
       for(ui range(child_itr, 0, node->GetBranchCount())) {
         auto child_node = node->GetBranchChildNode(child_itr);
         bfs_queue.emplace(child_node);
 
         // backup current child offset
-        child_offset_backup.emplace_back(node->GetBranchChildOffset(child_itr));
+        child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
 
         // reassign child offset
         auto child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
         node->SetBranchChildOffset(child_itr, child_offset);
       }
-      LOG_INFO("Push the child node");
     }
 
     // write an internal node on disk
     fwrite(node, sizeof(node::Node), 1, index_file);
-    LOG_INFO("Write the node");
 
     // Recover child offset
     if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
       for(ui range(child_itr, 0, node->GetBranchCount())) {
         // reassign child offset
-        node->SetBranchChildOffset(child_itr, child_offset_backup[child_itr]);
+        node->SetBranchChildOffset(child_itr, child_offset[child_itr]);
       }
     }
-    LOG_INFO("Recover the child offset");
-    child_offset_backup.clear();
+    child_offset.clear();
   }
 
   // write leaf nodes
-  fwrite(node_soa_ptr, sizeof(node::Node_SOA), level_node_count.back(), index_file);
+  fwrite(node_soa_ptr, sizeof(node::Node_SOA), leaf_node_count, index_file);
   fclose(index_file);
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -240,13 +243,14 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   // Execute Search Function
   //===--------------------------------------------------------------------===//
   recorder.TimeRecordStart();
-  // FIXME currently, we only use single CUDA block
-  ui number_of_batch = GetNumberOfDegrees();
+  ui number_of_batch = GetNumberOfBlocks();
 
+  float total_jump_count = 0;
   for(ui range(query_itr, 0, number_of_search)) {
     ll visited_leafIndex = 0;
     ui node_visit_count = 0;
     ui query_offset = query_itr*GetNumberOfDims()*2;
+    ui jump_count = 0;
 
     while(1) {
       //===--------------------------------------------------------------------===//
@@ -254,6 +258,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       //===--------------------------------------------------------------------===//
       auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
                                                     visited_leafIndex, &node_visit_count);
+      total_node_visit_count_cpu += node_visit_count;
 
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
@@ -261,27 +266,36 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       }
 
       auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-      total_node_visit_count_cpu += node_visit_count;
+
+      // XXX to pretend MPES
+      //chunk_size = leaf_node_count;
 
       // resize chunk_size if the sum of start node offset and chunk size is
       // larger than number of leaf nodes
-      if(start_node_offset+chunk_size > level_node_count.back()) {
-        chunk_size = level_node_count.back() - start_node_offset;
+      if(start_node_offset+chunk_size > leaf_node_count) {
+        chunk_size = leaf_node_count - start_node_offset;
       }
 
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
       global_ParallelScanning_Leafnodes<<<number_of_batch,GetNumberOfThreads()>>>
-                         (&d_query[query_offset], start_node_offset, chunk_size);
+                             (&d_query[query_offset], start_node_offset, chunk_size);
+      //cudaDeviceSynchronize();
 
-     visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
+      visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
+      jump_count++;
     }
+    total_jump_count += jump_count;
+
+    //BruteForceSearchOnCPU(&query[query_offset]);
   }
+  LOG_INFO("Avg. Jump Count %f", total_jump_count/number_of_search);
 
   global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
   cudaMemcpy(h_hit, d_hit, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
+  cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*GetNumberOfBlocks(), 
+                                                             cudaMemcpyDeviceToHost);
 
   for(ui range(i, 0, GetNumberOfBlocks())) {
     total_hit += h_hit[i];
@@ -324,10 +338,82 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
   else {
     // FIXME it returns hilbert index but if we use large scale data, we need
     // to rethink about this one again
-    start_node_index = node_ptr->GetBranchIndex(0);
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex ) {
+        start_node_index = node_ptr->GetBranchIndex(branch_itr);
+        break;
+      }
+    }
   }
 
   return start_node_index;
+}
+
+bool Hybrid::BruteForceSearchOnCPU(Point* query) {
+
+  auto& recorder = evaluator::Recorder::GetInstance();
+  const size_t number_of_threads = std::thread::hardware_concurrency();
+
+  std::vector<ll> start_node_offset;
+  ui hit=0;
+
+  // parallel for loop using c++ std 11 
+  {
+    std::vector<std::thread> threads;
+    std::vector<ll> thread_start_node_offset[number_of_threads];
+    ui thread_hit[number_of_threads];
+
+    auto chunk_size = leaf_node_count/number_of_threads;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + leaf_node_count%number_of_threads;
+
+    //Launch a group of threads
+    for (ui range(thread_itr, 0, number_of_threads)) {
+      threads.push_back(std::thread(&Hybrid::Thread_BruteForce, this, 
+                        query, std::ref(thread_start_node_offset[thread_itr]), std::ref(thread_hit[thread_itr]),
+                        start_offset, end_offset));
+
+      start_offset = end_offset;
+      end_offset += chunk_size;
+    }
+
+    //Join the threads with the main thread
+    for(auto &thread : threads){
+      thread.join();
+    }
+
+    for(ui range(thread_itr, 0, number_of_threads)) {
+      start_node_offset.insert( start_node_offset.end(), 
+                                thread_start_node_offset[thread_itr].begin(), 
+                                thread_start_node_offset[thread_itr].end()); 
+      hit += thread_hit[thread_itr];
+    }
+  }
+
+  std::sort(start_node_offset.begin(), start_node_offset.end());
+
+  //for( auto offset : start_node_offset) {
+  //  LOG_INFO("start node offset %lu", offset);
+  //}
+  LOG_INFO("Hit on CPU : %u", hit);
+
+  // print out construction time on the GPU
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
+
+  return true;
+}
+
+void Hybrid::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
+                               ui &hit, ui start_offset, ui end_offset) {
+  for(ui range(node_itr, start_offset, end_offset)) {
+    for(ui range(child_itr, 0, node_soa_ptr[node_itr].GetBranchCount())) {
+      if( node_soa_ptr[node_itr].IsOverlap(query, child_itr) ) {
+        start_node_offset.emplace_back(node_itr);
+        hit++;
+      }
+    }
+  }
 }
 
 //===--------------------------------------------------------------------===//
@@ -374,7 +460,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
 
   __syncthreads();
 
-  for(ui range(node_itr, bid, chunk_size, GetNumberOfDegrees())) {
+  for(ui range(node_itr, bid, chunk_size, GetNumberOfBlocks())) {
 
     MasterThreadOnly {
       g_node_visit_count[bid]++;
@@ -386,7 +472,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
     }
     __syncthreads();
 
-    node_soa_ptr+=GetNumberOfDegrees();
+    node_soa_ptr+=GetNumberOfBlocks();
   }
   __syncthreads();
 

@@ -37,6 +37,11 @@ class Hybrid : public Tree {
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count);
 
+  bool BruteForceSearchOnCPU(Point* query);
+
+  void Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset, 
+                         ui& hit, ui start_offset, ui end_offset);
+
   //===--------------------------------------------------------------------===//
   // Members
   //===--------------------------------------------------------------------===//
