@@ -117,7 +117,6 @@ bool Hybrid::DumpFromFile(std::string index_name) {
 
   node_ptr = new node::Node[total_node_count];
   // read the entire nodes
-  // FIXME read internal nodes
   fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
 
   node_soa_ptr = new node::Node_SOA[leaf_node_count];
@@ -336,8 +335,6 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     }
   } // leaf nodes
   else {
-    // FIXME it returns hilbert index but if we use large scale data, we need
-    // to rethink about this one again
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
       if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex ) {
         start_node_index = node_ptr->GetBranchIndex(branch_itr);
@@ -476,7 +473,6 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
   }
   __syncthreads();
 
-  //FIXME Do parallel reduction only last time
   //===--------------------------------------------------------------------===//
   // Parallel Reduction 
   //===--------------------------------------------------------------------===//
