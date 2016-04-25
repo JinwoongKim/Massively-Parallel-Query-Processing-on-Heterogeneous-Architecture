@@ -78,6 +78,14 @@ class Tree {
 
   ui GetLeafNodeCount(void) const;
 
+  void Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
+                               NodeType node_type,int level, ui node_offset, 
+                               ui start_offset, ui end_offset);
+
+  void Thread_CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
+                               NodeType node_type,int level, ui node_offset, 
+                               ui start_offset, ui end_offset);
+
   bool CopyBranchToNode(std::vector<node::Branch> &branches,
                         NodeType node_type, int level, ui node_offset);
 
