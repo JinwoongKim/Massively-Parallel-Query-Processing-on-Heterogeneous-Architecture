@@ -43,7 +43,7 @@ bool Parallel_Sorter::Sort(std::vector<node::Branch> &branches) {
     }
   }
 
-  // print out sorting time on the GPU
+  // print out sorting time on the CPU
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Sort Time on CPU (%zu threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
 

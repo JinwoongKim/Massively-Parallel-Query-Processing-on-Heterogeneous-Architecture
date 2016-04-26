@@ -55,7 +55,6 @@ bool Tree::Top_Down(std::vector<node::Branch> &branches) {
     LOG_INFO("Level %zd", level_node_count[level_itr]);
   }
 
-  // print out construction time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Top-Down Construction Time on the CPU = %.6fs", elapsed_time/1000.0f);
 
@@ -214,6 +213,8 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
 
 bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
   std::string device_type = "GPU";
 
  //===--------------------------------------------------------------------===//
@@ -235,8 +236,6 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   // Copy the branches to nodes 
   auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height-1, leaf_node_offset);
   assert(ret);
-
-  recorder.TimeRecordStart();
 
   // Calculate index size and get used and total device memory space
   auto index_size = total_node_count*sizeof(node::Node);
@@ -275,8 +274,8 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
     // Copy the leaf nodes to the GPU
     //===--------------------------------------------------------------------===//
     node::Node* d_node_ptr;
-    cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count);
-    cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice);
+    cudaErrCheck(cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count));
+    cudaErrCheck(cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice));
 
     //===--------------------------------------------------------------------===//
     // Construct the rest part of trees on the GPU
@@ -287,11 +286,11 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
       ul parent_offset = (current_offset-level_node_count[level_itr-1]);
       BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
     }
-    cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost);
-    cudaFree(d_node_ptr);
+    cudaErrCheck(cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost));
+    cudaErrCheck(cudaFree(d_node_ptr));
   }
   
-  // print out construction time on the GPU
+  // print out bottom up construction time
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Bottom-Up Construction Time on the %s = %.6fs", device_type.c_str(), elapsed_time/1000.0f);
 
@@ -505,6 +504,8 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
                             NodeType node_type,int level, ui node_offset) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
   const size_t number_of_threads = std::thread::hardware_concurrency();
 
   // parallel for loop using c++ std 11 
@@ -531,7 +532,6 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
     }
   }
 
-  // print out construction time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Copy Branch To Node Time on the CPU = %.6fs", elapsed_time/1000.0f);
 
@@ -585,6 +585,8 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
                                NodeType node_type, int level, ui node_offset) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
   const size_t number_of_threads = std::thread::hardware_concurrency();
 
   // parallel for loop using c++ std 11 
@@ -611,7 +613,6 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
     }
   }
 
-  // print out construction time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Copy Branch To NodeSOA Time on the CPU = %.6fs", elapsed_time/1000.0f);
 
@@ -632,18 +633,24 @@ void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset,
  */ 
 bool Tree::MoveTreeToGPU(ui offset, ui count){
 
- if( count == 0 ) {
-   count = total_node_count;
- }
+  if( count == 0 ) {
+    count = total_node_count;
+  }
 
- node::Node_SOA* d_node_soa_ptr;
- cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*count);
- cudaMemcpy(d_node_soa_ptr, &node_soa_ptr[offset], sizeof(node::Node_SOA)*count, 
-            cudaMemcpyHostToDevice);
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
 
- global_MoveTreeToGPU<<<1,1>>>(d_node_soa_ptr, count);
+  node::Node_SOA* d_node_soa_ptr;
+  cudaErrCheck(cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*count));
+  cudaErrCheck(cudaMemcpy(d_node_soa_ptr, &node_soa_ptr[offset], sizeof(node::Node_SOA)*count, 
+               cudaMemcpyHostToDevice));
+  global_MoveTreeToGPU<<<1,1>>>(d_node_soa_ptr, count);
+  cudaDeviceSynchronize();
 
- return true;
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Copy NodeSOA to the GPU = %.6fs", elapsed_time/1000.0f);
+
+  return true;
 }
 
 void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset, 

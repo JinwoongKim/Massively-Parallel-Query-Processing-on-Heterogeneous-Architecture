@@ -154,7 +154,7 @@ bool Hybrid::DumpToFile(std::string index_name) {
   // tree onto an index file since the nodes are allocated here and there in a
   // Top-Down fashion
   std::queue<node::Node*> bfs_queue;
-  std::vector<ll> child_offset; // for backup
+  std::vector<ll> original_child_offset; // for backup
 
   // push the root node
   bfs_queue.emplace(node_ptr);
@@ -170,14 +170,14 @@ bool Hybrid::DumpToFile(std::string index_name) {
     // I don't use another fwrite for this job.
     if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
       for(ui range(child_itr, 0, node->GetBranchCount())) {
-        auto child_node = node->GetBranchChildNode(child_itr);
+        node::Node* child_node = node->GetBranchChildNode(child_itr);
         bfs_queue.emplace(child_node);
 
         // backup current child offset
-        child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
+        original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
 
         // reassign child offset
-        auto child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+        ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
         node->SetBranchChildOffset(child_itr, child_offset);
       }
     }
@@ -189,10 +189,10 @@ bool Hybrid::DumpToFile(std::string index_name) {
     if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
       for(ui range(child_itr, 0, node->GetBranchCount())) {
         // reassign child offset
-        node->SetBranchChildOffset(child_itr, child_offset[child_itr]);
+        node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
       }
     }
-    child_offset.clear();
+    original_child_offset.clear();
   }
 
   // write leaf nodes
@@ -225,9 +225,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui total_node_visit_count_gpu = 0;
 
   ui* d_hit;
-  cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks());
+  cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
   ui* d_node_visit_count;
-  cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks());
+  cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
 
   // initialize hit and node visit variables to zero
   global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
@@ -268,6 +268,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       if(start_node_offset+chunk_size > leaf_node_count) {
         chunk_size = leaf_node_count - start_node_offset;
       }
+
+      // XXX
+      //start_node_offset = 0;
 
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
@@ -383,12 +386,11 @@ bool Hybrid::BruteForceSearchOnCPU(Point* query) {
 
   std::sort(start_node_offset.begin(), start_node_offset.end());
 
-  //for( auto offset : start_node_offset) {
-  //  LOG_INFO("start node offset %lu", offset);
-  //}
-  LOG_INFO("Hit on CPU : %u", hit);
+  for( auto offset : start_node_offset) {
+    LOG_INFO("start node offset %lu", offset);
+  }
+  //LOG_INFO("Hit on CPU : %u", hit);
 
-  // print out construction time on the GPU
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
 
@@ -433,7 +435,6 @@ void global_GetHitCount(ui* hit, ui* node_visit_count) {
 __global__ 
 void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
                                        ui chunk_size) {
-
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 

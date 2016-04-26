@@ -182,11 +182,11 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui total_node_visit_count = 0;
 
   ui* d_hit;
-  cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks());
+  cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
   ui* d_root_visit_count;
-  cudaMalloc((void**) &d_root_visit_count, sizeof(ui)*GetNumberOfBlocks());
+  cudaErrCheck(cudaMalloc((void**) &d_root_visit_count, sizeof(ui)*GetNumberOfBlocks()));
   ui* d_node_visit_count;
-  cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks());
+  cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
 
   //===--------------------------------------------------------------------===//
   // Execute Search Function

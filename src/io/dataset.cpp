@@ -68,8 +68,9 @@ std::vector<Point> DataSet::GetPoints(void) const{
 
 Point* DataSet::GetDeviceQuery(ui number_of_search) const{ 
   Point* d_query;
-  cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search);
-  cudaMemcpy(d_query, &points[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search,             cudaMemcpyHostToDevice);
+  cudaErrCheck(cudaMalloc((void**) &d_query, sizeof(Point)*GetNumberOfDims()*2*number_of_search));
+  cudaErrCheck(cudaMemcpy(d_query, &points[0], sizeof(Point)*GetNumberOfDims()*2*number_of_search,
+               cudaMemcpyHostToDevice));
   return d_query; 
 }
 
