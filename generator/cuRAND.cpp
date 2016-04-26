@@ -73,3 +73,38 @@ int main(int argc, char *argv[]) {
 
   return EXIT_SUCCESS; 
 } 
+
+/*
+
+NOTE : Distribution Guide
+
+The curandGenerateUniform() function is used to generate uniformly distributed floating point values between 0.0 and 1.0, where 0.0 is excluded and 1.0 is included.
+
+curandStatus_t 
+curandGenerateNormal( curandGenerator_t generator, float *outputPtr, size_t n, float mean, float stddev)
+The curandGenerateNormal() function is used to generate normally distributed floating point values with the given mean and standard deviation.
+
+curandStatus_t 
+curandGenerateLogNormal( curandGenerator_t generator, float *outputPtr, size_t n, float mean, float stddev)
+The curandGenerateLogNormal() function is used to generate log-normally distributed floating point values based on a normal distribution with the given mean and standard deviation.
+
+curandStatus_t 
+curandGeneratePoisson( curandGenerator_t generator, unsigned int *outputPtr, size_t n, double lambda)
+The curandGeneratePoisson() function is used to generate Poisson-distributed integer values based on a Poisson distribution with the given lambda.
+
+curandStatus_t
+curandGenerateUniformDouble( curandGenerator_t generator, double *outputPtr, size_t num)
+The curandGenerateUniformDouble() function generates uniformly distributed random numbers in double precision.
+
+curandStatus_t
+curandGenerateNormalDouble( curandGenerator_t generator, double *outputPtr, size_t n, double mean, double stddev)
+curandGenerateNormalDouble() generates normally distributed results in double precision with the given mean and standard deviation. Double precision results can only be generated on devices of compute capability 1.3 or above, and the host.
+
+curandStatus_t
+curandGenerateLogNormalDouble( curandGenerator_t generator, double *outputPtr, size_t n, double mean, double stddev)
+curandGenerateLogNormalDouble() generates log-normally distributed results in double precision, based on a normal distribution with the given mean and standard deviation.
+
+Read more at: http://docs.nvidia.com/cuda/curand/index.html#ixzz46p7V1uPc 
+Follow us: @GPUComputing on Twitter | NVIDIA on Facebook
+
+ */
