@@ -92,7 +92,6 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   }
 
   LOG_INFO("Load an index file (%s)", index_name.c_str());
-
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
@@ -111,17 +110,12 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   // read leaf node count
   fread(&leaf_node_count, sizeof(ui), 1, index_file);
 
-  LOG_INFO("Number of nodes %u", total_node_count);
-
-  LOG_INFO("Number of leaf nodes %u", leaf_node_count);
-
-  node_ptr = new node::Node[total_node_count];
   // read the entire nodes
+  node_ptr = new node::Node[total_node_count];
   fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
 
-  node_soa_ptr = new node::Node_SOA[leaf_node_count];
-
   // read leaf nodes
+  node_soa_ptr = new node::Node_SOA[leaf_node_count];
   fread(node_soa_ptr, sizeof(node::Node_SOA), leaf_node_count, index_file);
 
   fclose(index_file);
@@ -164,11 +158,11 @@ bool Hybrid::DumpToFile(std::string index_name) {
 
   // push the root node
   bfs_queue.emplace(node_ptr);
- 
+
   // if the queue is not empty,
   while(!bfs_queue.empty()) {
     // pop the first element 
-    auto& node = bfs_queue.front();
+    node::Node* node = bfs_queue.front();
     bfs_queue.pop();
 
     // NOTE : Backup the child offsets in order to recover node's child offset later

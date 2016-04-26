@@ -159,7 +159,6 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
                              ui start_offset, ui end_offset, int level) {
 
   node::Node* node = new node::Node();
-
   // increase node counts
   total_node_count++;
 
@@ -172,7 +171,6 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
   //===--------------------------------------------------------------------===//
   // Create a leaf node
   //===--------------------------------------------------------------------===//
-  // TODO : delete creating leaf nodes part to reduce memory usage.
   auto number_of_data = (end_offset-start_offset)+1;
   if( number_of_data <= GetNumberOfDegrees() )  {
     for(ui range(branch_itr, 0, number_of_data)) {
@@ -193,7 +191,8 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
     auto split_position = GetSplitPosition(branches, start_offset, end_offset);
 
     for(ui range(child_itr, 0, split_position.size()-1)) {
-      auto child_node = CreateNode(branches, split_position[child_itr], split_position[child_itr+1]++, level+1);
+      auto child_node = CreateNode(branches, split_position[child_itr], split_position[child_itr+1], level+1);
+      split_position[child_itr+1] += 1;
 
       // calculate child node's MBB and set it 
       auto points = child_node->GetMBB();
@@ -360,7 +359,6 @@ void Tree::PrintTreeInSOA(ui offset, ui count) {
 
 void Tree::Thread_SetRect(std::vector<node::Branch> &branches, std::vector<Point>& points, 
                                                          ui start_offset, ui end_offset) {
-
   for(ui range(offset, start_offset, end_offset)) {
     branches[offset].SetRect(&points[offset*GetNumberOfDims()]);
   }
@@ -587,7 +585,6 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
                                NodeType node_type, int level, ui node_offset) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
-  //TODO make it function like GetThreadNumber...
   const size_t number_of_threads = std::thread::hardware_concurrency();
 
   // parallel for loop using c++ std 11 
