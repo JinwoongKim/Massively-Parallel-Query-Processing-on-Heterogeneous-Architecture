@@ -24,6 +24,9 @@ Hybrid::Hybrid() {
  * @return true if success to build otherwise false
  */
 bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
+
+  SetNumberOfNodeSOA(input_data_set->GetNumberOfData());
+
   LOG_INFO("Build Hybrid Tree");
   bool ret = false;
 
@@ -55,12 +58,10 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     assert(ret);
 
     //===--------------------------------------------------------------------===//
-    // Transform nodes into SOA fashion 
+    // Copy branches into SOA fashion 
     //===--------------------------------------------------------------------===//
-    // transform only leaf nodes
-    auto leaf_node_offset = total_node_count-leaf_node_count;
-    node_soa_ptr = new node::Node_SOA[leaf_node_count];
-    LOG_INFO("leaf node count %u", leaf_node_count);
+    node_soa_ptr = new node::Node_SOA[GetNumberOfNodeSOA()];
+    LOG_INFO("leaf node count %u", GetNumberOfNodeSOA());
     assert(node_soa_ptr);
     ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, /*FIXME*/ -1, 0);
 
@@ -68,14 +69,12 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     DumpToFile(index_name);
   }
 
-  //PrintTree(); 
-
  //===--------------------------------------------------------------------===//
  // Move Trees to the GPU
  //===--------------------------------------------------------------------===//
   // move only leaf nodes to the GPU
   // FIXME : use stream..
-  ret = MoveTreeToGPU(0, leaf_node_count);
+  ret = MoveTreeToGPU(0, GetNumberOfNodeSOA());
   assert(ret);
 
   return true;
@@ -204,6 +203,16 @@ bool Hybrid::DumpToFile(std::string index_name) {
   return true;
 }
 
+void Hybrid::SetNumberOfNodeSOA(ui number_of_data) {
+  node_soa_count = ((number_of_data%GetNumberOfDegrees())?1:0) 
+                   + number_of_data/GetNumberOfDegrees();
+}
+
+ui Hybrid::GetNumberOfNodeSOA() const {
+  assert(node_soa_count);
+  return node_soa_count;
+}
+
 int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search){
   auto& recorder = evaluator::Recorder::GetInstance();
@@ -277,7 +286,6 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       //===--------------------------------------------------------------------===//
       global_ParallelScanning_Leafnodes<<<number_of_batch,GetNumberOfThreads()>>>
                              (&d_query[query_offset], start_node_offset, chunk_size);
-      //cudaDeviceSynchronize();
 
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
       jump_count++;

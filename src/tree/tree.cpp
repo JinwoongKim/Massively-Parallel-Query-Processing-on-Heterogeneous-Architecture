@@ -452,7 +452,8 @@ bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
   return true;
 }
 
-std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> &branches) {
+// only works for bottom-up construction
+std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> branches) {
   std::vector<ui> level_node_count;
 
   // in this case, previous level is real data not the leaf level

@@ -26,6 +26,10 @@ class Hybrid : public Tree {
 
   bool DumpToFile(std::string index_name);
 
+  void SetNumberOfNodeSOA(ui number_of_data);
+
+  ui GetNumberOfNodeSOA() const;
+
   /**
    * Search the data 
    */
@@ -46,6 +50,7 @@ class Hybrid : public Tree {
   // Members
   //===--------------------------------------------------------------------===//
   ui chunk_size;
+  ui node_soa_count = 0;
 };
 
 //===--------------------------------------------------------------------===//
