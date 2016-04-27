@@ -542,7 +542,6 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
 void Tree::Thread_CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
                             NodeType node_type,int level, ui node_offset, 
                             ui start_offset, ui end_offset) {
-  ui branch_itr=0;
   node_offset += start_offset/GetNumberOfDegrees();
 
   for(ui range(branch_itr, start_offset, end_offset)) {
@@ -578,7 +577,8 @@ void Tree::Thread_CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
   }
 
   if(branches.size()%GetNumberOfDegrees()) { 
-    node_soa_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
+    auto last_node_offset = branches.size()/GetNumberOfDegrees();
+    node_soa_ptr[last_node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
   }
 }
 
@@ -770,7 +770,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     parent_node->SetBranchChildOffset(block_offset%GetNumberOfDegrees(), 
                                      (ll)current_node-(ll)parent_node);
 
-    MasterThreadOnly{
+    MasterThreadOnly {
       // keep the parent node offset in order to go back to the parent node 
       if( current_node->GetNodeType() == NODE_TYPE_LEAF) {
         current_node->SetBranchChildOffset(0, (ll)parent_node-(ll)current_node);
@@ -815,7 +815,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
         N = N/2 + N%2;
         __syncthreads();
       }
-      MasterThreadOnly{
+      MasterThreadOnly {
         if(N==1) {
           if( lower_boundary[0] > lower_boundary[1])
             lower_boundary[0] = lower_boundary[1];
@@ -831,7 +831,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
         N = N/2 + N%2;
         __syncthreads();
       }
-      MasterThreadOnly{
+      MasterThreadOnly {
         if(N==1) {
           if ( upper_boundary[0] < upper_boundary[1] )
             upper_boundary[0] = upper_boundary[1];

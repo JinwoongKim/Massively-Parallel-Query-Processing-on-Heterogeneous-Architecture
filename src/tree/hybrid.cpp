@@ -109,13 +109,16 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   // read leaf node count
   fread(&leaf_node_count, sizeof(ui), 1, index_file);
 
+  // read node soa count
+  fread(&node_soa_count, sizeof(ui), 1, index_file);
+
   // read the entire nodes
   node_ptr = new node::Node[total_node_count];
   fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
 
   // read leaf nodes
-  node_soa_ptr = new node::Node_SOA[leaf_node_count];
-  fread(node_soa_ptr, sizeof(node::Node_SOA), leaf_node_count, index_file);
+  node_soa_ptr = new node::Node_SOA[node_soa_count];
+  fread(node_soa_ptr, sizeof(node::Node_SOA), node_soa_count, index_file);
 
   fclose(index_file);
 
@@ -148,6 +151,9 @@ bool Hybrid::DumpToFile(std::string index_name) {
 
   // write leaf node count
   fwrite(&leaf_node_count, sizeof(ui), 1, index_file);
+
+  // write node soa count 
+  fwrite(&node_soa_count, sizeof(ui), 1, index_file);
 
   // Unlike dump function in MPHR class, we use the queue structure to dump the
   // tree onto an index file since the nodes are allocated here and there in a
@@ -195,7 +201,7 @@ bool Hybrid::DumpToFile(std::string index_name) {
   }
 
   // write leaf nodes
-  fwrite(node_soa_ptr, sizeof(node::Node_SOA), leaf_node_count, index_file);
+  fwrite(node_soa_ptr, sizeof(node::Node_SOA), node_soa_count, index_file);
   fclose(index_file);
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -206,6 +212,7 @@ bool Hybrid::DumpToFile(std::string index_name) {
 void Hybrid::SetNumberOfNodeSOA(ui number_of_data) {
   node_soa_count = ((number_of_data%GetNumberOfDegrees())?1:0) 
                    + number_of_data/GetNumberOfDegrees();
+  LOG_INFO("Node SOA Count : %u", node_soa_count);
 }
 
 ui Hybrid::GetNumberOfNodeSOA() const {
@@ -215,6 +222,7 @@ ui Hybrid::GetNumberOfNodeSOA() const {
 
 int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search){
+
   auto& recorder = evaluator::Recorder::GetInstance();
 
   //===--------------------------------------------------------------------===//
@@ -259,7 +267,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
       auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
-                                                    visited_leafIndex, &node_visit_count);
+                                              visited_leafIndex, &node_visit_count);
       total_node_visit_count_cpu += node_visit_count;
 
       // no more overlapping internal nodes, terminate current query
@@ -269,31 +277,25 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
       auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
 
-      // XXX to pretend MPES
-      //chunk_size = leaf_node_count;
-
       // resize chunk_size if the sum of start node offset and chunk size is
       // larger than number of leaf nodes
-      if(start_node_offset+chunk_size > leaf_node_count) {
-        chunk_size = leaf_node_count - start_node_offset;
+      if(start_node_offset+chunk_size > node_soa_count) {
+        chunk_size = node_soa_count - start_node_offset;
       }
-
-      // XXX
-      //start_node_offset = 0;
 
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
       global_ParallelScanning_Leafnodes<<<number_of_batch,GetNumberOfThreads()>>>
                              (&d_query[query_offset], start_node_offset, chunk_size);
+      //cudaDeviceSynchronize();
 
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
       jump_count++;
     }
     total_jump_count += jump_count;
-
-    //BruteForceSearchOnCPU(&query[query_offset]);
   }
+
   LOG_INFO("Avg. Jump Count %f", total_jump_count/number_of_search);
 
   global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
@@ -351,7 +353,7 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
   return start_node_index;
 }
 
-bool Hybrid::BruteForceSearchOnCPU(Point* query) {
+ui Hybrid::BruteForceSearchOnCPU(Point* query) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
   const size_t number_of_threads = std::thread::hardware_concurrency();
@@ -365,9 +367,9 @@ bool Hybrid::BruteForceSearchOnCPU(Point* query) {
     std::vector<ll> thread_start_node_offset[number_of_threads];
     ui thread_hit[number_of_threads];
 
-    auto chunk_size = leaf_node_count/number_of_threads;
+    auto chunk_size = node_soa_count/number_of_threads;
     auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + leaf_node_count%number_of_threads;
+    auto end_offset = start_offset + chunk_size + node_soa_count%number_of_threads;
 
     //Launch a group of threads
     for (ui range(thread_itr, 0, number_of_threads)) {
@@ -394,19 +396,20 @@ bool Hybrid::BruteForceSearchOnCPU(Point* query) {
 
   std::sort(start_node_offset.begin(), start_node_offset.end());
 
-  for( auto offset : start_node_offset) {
-    LOG_INFO("start node offset %lu", offset);
-  }
-  //LOG_INFO("Hit on CPU : %u", hit);
+  //for( auto offset : start_node_offset) {
+  //  LOG_INFO("start node offset %lu", offset);
+  //}
+  LOG_INFO("Hit on CPU : %u", hit);
 
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
 
-  return true;
+  return hit;
 }
 
 void Hybrid::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
                                ui &hit, ui start_offset, ui end_offset) {
+  hit = 0;
   for(ui range(node_itr, start_offset, end_offset)) {
     for(ui range(child_itr, 0, node_soa_ptr[node_itr].GetBranchCount())) {
       if( node_soa_ptr[node_itr].IsOverlap(query, child_itr) ) {
