@@ -45,7 +45,6 @@ bool Evaluator::Initialize(int argc, char** argv){
 bool Evaluator::ReadDataSet(void){
   //TODO : hard coded now...
   input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-                       //"/home/jwkim/dataFiles/input/real/NOAA0.bin",
                        "/home/jwkim/dataFiles/input/synthetic/synthetic_200m_3d_data.bin",
                        DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
   return true;
@@ -54,9 +53,8 @@ bool Evaluator::ReadDataSet(void){
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
   query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-                       "/home/jwkim/dataFiles/query/synthetic/test_query.bin",
-                       //"/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
-                       //+selectivity+"s."+query_size,
+                       "/home/jwkim/dataFiles/query/synthetic/synthetic_dim_query.3.bin."
+                       +selectivity+"s",
                        DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
 
   return true;
