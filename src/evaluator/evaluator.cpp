@@ -54,8 +54,9 @@ bool Evaluator::ReadDataSet(void){
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
   query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-                       "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
-                       +selectivity+"s."+query_size,
+                       "/home/jwkim/dataFiles/query/synthetic/test_query.bin",
+                       //"/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
+                       //+selectivity+"s."+query_size,
                        DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
 
   return true;
