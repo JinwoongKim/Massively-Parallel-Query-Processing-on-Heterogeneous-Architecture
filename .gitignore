@@ -6,7 +6,7 @@
 *.swp
 *.bak
 core
-out
+out*
 
 ## -------------------------------
 ## Index files
