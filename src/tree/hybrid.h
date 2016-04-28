@@ -42,6 +42,8 @@ class Hybrid : public Tree {
 
   void SetChunkSize(ui chunk_size);
 
+  void SetBatchSize(ui batch_size);
+
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count);
 
@@ -54,6 +56,7 @@ class Hybrid : public Tree {
   // Members
   //===--------------------------------------------------------------------===//
   ui chunk_size;
+  ui batch_size;
   ui node_soa_count = 0;
 };
 

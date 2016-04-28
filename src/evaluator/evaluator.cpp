@@ -136,6 +136,7 @@ bool Evaluator::Search(void) {
           // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
           hybrid->SetChunkSize(chunk_size);
+          hybrid->SetBatchSize(batch_size);
           tree->Search(query_data_set, number_of_search);
           break;
         }
@@ -194,10 +195,11 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="i:I:c:C:d:D:q:Q:p:P:s:S:g:G:m:M:";
+  static const char *options="i:I:c:C:d:D:q:Q:b:B:s:S:g:G:m:M:";
   std::string number_of_data_str;
   int current_option;
 
+ 
   while ((current_option = getopt(argc, argv, options)) != -1) {
     switch (current_option) {
       case 'i':
@@ -208,8 +210,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'D': number_of_data_str = std::string(optarg); break;
       case 'q':
       case 'Q': number_of_search = atoi(optarg); break;
-      case 'p':
-      case 'P': number_of_partitioned_tree = atoi(optarg); break;
+      case 'b':
+      case 'B': batch_size = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
      default: break;
@@ -243,8 +245,13 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   } else  {
     query_size = std::to_string(number_of_data/1000000)+std::string("m");
   } 
- 
+
   number_of_cpu_core = std::thread::hardware_concurrency();
+
+  // set the default batch size for hybrid indexing to number of cpu core
+  if( !batch_size ) {
+    batch_size = number_of_cpu_core;
+  }
 
   std::cout << *this << std::endl;
   return true;
@@ -282,8 +289,8 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of thread blocks = " << GetNumberOfBlocks() << std::endl
      << " number of threads = " << GetNumberOfThreads() << std::endl
      << " number of searches = " << evaluator.number_of_search << std::endl
-     << " number of partitioned trees = " << evaluator.number_of_partitioned_tree << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
+     << " number of batch size = " << evaluator.batch_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
 

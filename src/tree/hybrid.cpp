@@ -253,8 +253,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   // Prepare Multi-thread Query Processing
   //===--------------------------------------------------------------------===//
-  const size_t number_of_threads = std::thread::hardware_concurrency();
-  LOG_INFO("%zu threads processing queries concurrently", number_of_threads);
+  const size_t number_of_threads = batch_size;
   ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_threads;
 
   std::vector<std::thread> threads;
@@ -309,6 +308,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("%zu threads processing queries concurrently", number_of_threads);
   LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
   //===--------------------------------------------------------------------===//
@@ -365,6 +365,10 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
 
 void Hybrid::SetChunkSize(ui _chunk_size){
   chunk_size = _chunk_size;
+}
+
+void Hybrid::SetBatchSize(ui _batch_size){
+  batch_size = _batch_size;
 }
 
 ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
