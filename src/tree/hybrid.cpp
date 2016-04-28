@@ -238,6 +238,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui h_node_visit_count[GetNumberOfBlocks()] = {0};
 
   ui total_hit = 0;
+  ui total_jump_count = 0;
   ui total_node_visit_count_cpu = 0;
   ui total_node_visit_count_gpu = 0;
 
@@ -250,53 +251,52 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
 
   //===--------------------------------------------------------------------===//
+  // Prepare Multi-thread Query Processing
+  //===--------------------------------------------------------------------===//
+  const size_t number_of_threads = std::thread::hardware_concurrency();
+  LOG_INFO("%zu threads processing queries concurrently", number_of_threads);
+  ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_threads;
+
+  std::vector<std::thread> threads;
+  ui thread_jump_count[number_of_threads];
+  ui thread_node_visit_count_cpu[number_of_threads];
+
+  //===--------------------------------------------------------------------===//
   // Execute Search Function
   //===--------------------------------------------------------------------===//
   recorder.TimeRecordStart();
-  ui number_of_batch = GetNumberOfBlocks();
 
-  float total_jump_count = 0;
-  for(ui range(query_itr, 0, number_of_search)) {
-    ll visited_leafIndex = 0;
-    ui node_visit_count = 0;
-    ui query_offset = query_itr*GetNumberOfDims()*2;
-    ui jump_count = 0;
+  // parallel for loop using c++ std 11 
+  {
+    auto chunk_size = number_of_search/number_of_threads;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + number_of_search%number_of_threads;
 
-    while(1) {
-      //===--------------------------------------------------------------------===//
-      // Traversal Internal Nodes on CPU
-      //===--------------------------------------------------------------------===//
-      auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
-                                              visited_leafIndex, &node_visit_count);
-      total_node_visit_count_cpu += node_visit_count;
+    for (ui range(thread_itr, 0, number_of_threads)) {
+      threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
+                        std::ref(query), d_query, thread_itr*number_of_blocks_per_cpu, number_of_blocks_per_cpu, 
+                        std::ref(thread_jump_count[thread_itr]), 
+                        std::ref(thread_node_visit_count_cpu[thread_itr]),
+                        start_offset, end_offset));
 
-      // no more overlapping internal nodes, terminate current query
-      if( start_node_index == 0) {
-        break;
-      }
-
-      auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-
-      // resize chunk_size if the sum of start node offset and chunk size is
-      // larger than number of leaf nodes
-      if(start_node_offset+chunk_size > node_soa_count) {
-        chunk_size = node_soa_count - start_node_offset;
-      }
-
-      //===--------------------------------------------------------------------===//
-      // Parallel Scanning Leaf Nodes on the GPU 
-      //===--------------------------------------------------------------------===//
-      global_ParallelScanning_Leafnodes<<<number_of_batch,GetNumberOfThreads()>>>
-                             (&d_query[query_offset], start_node_offset, chunk_size);
-      //cudaDeviceSynchronize();
-
-      visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
-      jump_count++;
+      start_offset = end_offset;
+      end_offset += chunk_size;
     }
-    total_jump_count += jump_count;
+
+    //Join the threads with the main thread
+    for(auto &thread : threads){
+      thread.join();
+    }
+
+    for(ui range(thread_itr, 0, number_of_threads)) {
+      total_jump_count += thread_jump_count[thread_itr];
+      total_node_visit_count_cpu += thread_node_visit_count_cpu[thread_itr];
+    }
   }
 
-  LOG_INFO("Avg. Jump Count %f", total_jump_count/number_of_search);
+  LOG_INFO("Avg. Jump Count %f", total_jump_count/(float)number_of_search);
+
+  cudaDeviceSynchronize();
 
   global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
   cudaMemcpy(h_hit, d_hit, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
@@ -317,6 +317,50 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Hit : %u", total_hit);
   LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
   LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
+}
+
+void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_offset,
+                           ui number_of_blocks_per_cpu, ui& jump_count, ui& node_visit_count,
+                           ui start_offset, ui end_offset) {
+
+  jump_count = 0;
+  node_visit_count = 0;
+
+  for(ui range(query_itr, start_offset, end_offset)) {
+    ui query_offset = query_itr*GetNumberOfDims()*2;
+    ll visited_leafIndex = 0;
+
+    while(1) {
+      //===--------------------------------------------------------------------===//
+      // Traversal Internal Nodes on CPU
+      //===--------------------------------------------------------------------===//
+      auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
+                                              visited_leafIndex, &node_visit_count);
+
+      // no more overlapping internal nodes, terminate current query
+      if( start_node_index == 0) {
+        break;
+      }
+
+      auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
+
+      // resize chunk_size if the sum of start node offset and chunk size is
+      // larger than number of leaf nodes
+      if(start_node_offset+chunk_size > node_soa_count) {
+        chunk_size = node_soa_count - start_node_offset;
+      }
+
+      //===--------------------------------------------------------------------===//
+      // Parallel Scanning Leaf Nodes on the GPU 
+      //===--------------------------------------------------------------------===//
+      global_ParallelScanning_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
+                             (&d_query[query_offset], start_node_offset, chunk_size,
+                             bid_offset, number_of_blocks_per_cpu );
+
+      visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
+      jump_count++;
+    }
+  }
 }
 
 void Hybrid::SetChunkSize(ui _chunk_size){
@@ -445,7 +489,8 @@ void global_GetHitCount(ui* hit, ui* node_visit_count) {
 
 __global__ 
 void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
-                                       ui chunk_size) {
+                                       ui chunk_size, ui bid_offset, 
+                                       ui number_of_blocks_per_cpu) {
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
@@ -463,10 +508,10 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
 
   __syncthreads();
 
-  for(ui range(node_itr, bid, chunk_size, GetNumberOfBlocks())) {
+  for(ui range(node_itr, bid, chunk_size, number_of_blocks_per_cpu)) {
 
     MasterThreadOnly {
-      g_node_visit_count[bid]++;
+      g_node_visit_count[bid+bid_offset]++;
     }
 
     if(tid < node_soa_ptr->GetBranchCount() &&
@@ -475,7 +520,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
     }
     __syncthreads();
 
-    node_soa_ptr+=GetNumberOfBlocks();
+    node_soa_ptr+=number_of_blocks_per_cpu;
   }
   __syncthreads();
 
@@ -486,9 +531,9 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
 
   MasterThreadOnly {
     if(N==1) {
-      g_hit[bid] += t_hit[0] + t_hit[1];
+      g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
     } else {
-      g_hit[bid] += t_hit[0];
+      g_hit[bid+bid_offset] += t_hit[0];
     }
   }
 }

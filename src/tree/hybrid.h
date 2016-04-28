@@ -36,6 +36,10 @@ class Hybrid : public Tree {
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
              ui number_of_search);
 
+  void Thread_Search(std::vector<Point>&query, Point* d_query, ui bid_offset,
+                     ui number_of_blocks_per_cpu, ui& jump_count, ui& node_visit_count, 
+                     ui start_offset, ui end_offset) ;
+
   void SetChunkSize(ui chunk_size);
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
@@ -68,7 +72,8 @@ void global_GetHitCount(ui* hit, ui* node_visit_count);
 
 __global__ 
 void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
-                                       ui chunk_size);
+                                       ui chunk_size, ui bid_offset,
+                                       ui number_of_blocks_per_cpu);
  
 } // End of tree namespace
 } // End of ursus namespace
