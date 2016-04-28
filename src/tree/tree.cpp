@@ -39,7 +39,7 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
     number_of_data_str=std::to_string(number_of_data)+"M";
   }
 
-  std::string index_name = DataTypeToString(data_type)+"_DATA_"+std::to_string(dimensions)+"DIMS_"
+  std::string index_name = "./index_files/"+DataTypeToString(data_type)+"_DATA_"+std::to_string(dimensions)+"DIMS_"
        +number_of_data_str+"_"+TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
 
   return index_name;
