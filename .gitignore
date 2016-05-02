@@ -7,6 +7,8 @@
 *.bak
 core
 out*
+config*
+exp*
 
 ## -------------------------------
 ## Index files
