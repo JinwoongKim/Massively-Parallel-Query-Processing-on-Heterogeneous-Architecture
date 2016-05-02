@@ -273,7 +273,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
     for (ui range(thread_itr, 0, number_of_threads)) {
       threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
-                        std::ref(query), d_query, thread_itr*number_of_blocks_per_cpu, number_of_blocks_per_cpu, 
+                        std::ref(query), d_query, thread_itr, number_of_blocks_per_cpu, 
                         std::ref(thread_jump_count[thread_itr]), 
                         std::ref(thread_node_visit_count_cpu[thread_itr]),
                         start_offset, end_offset));
@@ -319,9 +319,11 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
 }
 
-void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_offset,
-                           ui number_of_blocks_per_cpu, ui& jump_count, ui& node_visit_count,
-                           ui start_offset, ui end_offset) {
+void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
+                           ui number_of_blocks_per_cpu, ui& jump_count, 
+                           ui& node_visit_count, ui start_offset, ui end_offset) {
+
+  ui bid_offset = tid * number_of_blocks_per_cpu;
 
   jump_count = 0;
   node_visit_count = 0;
@@ -507,8 +509,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
 
   t_hit[tid] = 0;
 
-  node::Node_SOA* first_leaf_node = g_node_soa_ptr;
-  node::Node_SOA* node_soa_ptr = first_leaf_node + start_node_offset + bid;
+  node::Node_SOA* node_soa_ptr = g_node_soa_ptr/*first leaf node*/ + start_node_offset + bid;
 
   __syncthreads();
 
