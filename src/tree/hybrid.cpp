@@ -536,11 +536,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
   ParallelReduction(t_hit, GetNumberOfThreads());
 
   MasterThreadOnly {
-    if(N==1) {
-      g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
-    } else {
-      g_hit[bid+bid_offset] += t_hit[0];
-    }
+    g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
   }
 
 }
