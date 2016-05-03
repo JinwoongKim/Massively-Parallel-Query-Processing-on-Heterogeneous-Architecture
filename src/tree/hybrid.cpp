@@ -311,10 +311,6 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
   LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
-  for(ui range(thread_itr, 0, number_of_cpu_threads)) {
-    LOG_INFO("tid %u hit %u", thread_itr, h_hit[thread_itr]);
-  }
-
   //===--------------------------------------------------------------------===//
   // Show Results
   //===--------------------------------------------------------------------===//
