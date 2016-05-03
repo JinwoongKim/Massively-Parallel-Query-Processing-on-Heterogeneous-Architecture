@@ -220,6 +220,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     } // end of switch
   } // end of while
 
+  assert(number_of_cuda_blocks <= GetNumberOfMAXBlocks());
+
   // try to get the gpu
   int ret = SetDevice();
   // if failed to set the device, terminate the program

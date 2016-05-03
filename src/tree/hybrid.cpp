@@ -249,7 +249,8 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
 
   // initialize hit and node visit variables to zero
-  global_SetHitCount<<<1,GetNumberOfBlocks()>>>(GetNumberOfBlocks(), 0);
+  global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
+  cudaDeviceSynchronize();
 
   //===--------------------------------------------------------------------===//
   // Prepare Multi-thread Query Processing
@@ -273,7 +274,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
     for (ui range(thread_itr, 0, number_of_cpu_threads)) {
       threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
-                        std::ref(query), d_query, thread_itr, number_of_blocks_per_cpu, 
+                        std::ref(query), d_query, 
+                        thread_itr*number_of_blocks_per_cpu, 
+                        number_of_blocks_per_cpu, 
                         std::ref(thread_jump_count[thread_itr]), 
                         std::ref(thread_node_visit_count_cpu[thread_itr]),
                         start_offset, end_offset));
@@ -319,11 +322,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
 }
 
-void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
+void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_offset,
                            ui number_of_blocks_per_cpu, ui& jump_count, 
                            ui& node_visit_count, ui start_offset, ui end_offset) {
-
-  ui bid_offset = tid * number_of_blocks_per_cpu;
 
   jump_count = 0;
   node_visit_count = 0;
@@ -474,18 +475,12 @@ void Hybrid::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
 
-__device__ ui *g_hit; 
-__device__ ui *g_node_visit_count; 
+__device__ ui g_hit[GetNumberOfMAXBlocks()]; 
+__device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 
 
 __global__
-void global_SetHitCount(ui number_of_cuda_blocks, ui init_value) {
+void global_SetHitCount(ui init_value) {
   int tid = threadIdx.x;
-
-  MasterThreadOnly {
-    g_hit = (ui*)malloc(sizeof(ui)*number_of_cuda_blocks);
-    g_node_visit_count = (ui*)malloc(sizeof(ui)*number_of_cuda_blocks);
-  }
-  __syncthreads();
 
   g_hit[tid] = init_value;
   g_node_visit_count[tid] = init_value;
@@ -547,6 +542,7 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
       g_hit[bid+bid_offset] += t_hit[0];
     }
   }
+
 }
 
 } // End of tree namespace

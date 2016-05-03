@@ -6,4 +6,6 @@ namespace ursus {
   __host__ __device__ constexpr unsigned int GetNumberOfDegrees() { return 128; }
 
   __host__ __device__ constexpr unsigned int GetNumberOfThreads() { return 128; }
+
+  __host__ __device__ constexpr unsigned int GetNumberOfMAXBlocks() { return 256; }
 } // End of ursus namespace

@@ -37,9 +37,9 @@ class Hybrid : public Tree {
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
              ui number_of_search);
 
-  void Thread_Search(std::vector<Point>&query, Point* d_query, ui tid,
-                     ui number_of_blocks_per_cpu, ui& jump_count, 
-                     ui& node_visit_count, 
+  void Thread_Search(std::vector<Point>&query, Point* d_query, 
+                     ui bid_offset, ui number_of_blocks_per_cpu, 
+                     ui& jump_count, ui& node_visit_count, 
                      ui start_offset, ui end_offset) ;
 
   void SetChunkSize(ui chunk_size);
@@ -66,11 +66,11 @@ class Hybrid : public Tree {
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
 
-extern __device__ ui *g_hit; 
-extern __device__ ui *g_node_visit_count; 
+extern __device__ ui g_hit[GetNumberOfMAXBlocks()]; 
+extern __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 
 
 __global__
-void global_SetHitCount(ui number_of_cuda_blocks, ui init_value);
+void global_SetHitCount(ui init_value);
 
 __global__
 void global_GetHitCount(ui* hit, ui* node_visit_count);
