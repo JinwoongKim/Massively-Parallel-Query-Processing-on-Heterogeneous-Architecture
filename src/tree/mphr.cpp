@@ -11,7 +11,8 @@
 namespace ursus {
 namespace tree {
 
-MPHR::MPHR() {
+MPHR::MPHR(ui _number_of_cuda_blocks) {
+  number_of_cuda_blocks = _number_of_cuda_blocks;
   tree_type = TREE_TYPE_MPHR;
 }
 
@@ -173,9 +174,9 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   // Prepare Hit & Node Visit Variables for evaluations
   //===--------------------------------------------------------------------===//
-  ui h_hit[GetNumberOfBlocks()] = {0};
-  ui h_root_visit_count[GetNumberOfBlocks()] = {0};
-  ui h_node_visit_count[GetNumberOfBlocks()] = {0};
+  ui h_hit[GetNumberOfBlocks()];
+  ui h_root_visit_count[GetNumberOfBlocks()];
+  ui h_node_visit_count[GetNumberOfBlocks()];
 
   ui total_hit = 0;
   ui total_root_visit_count = 0;

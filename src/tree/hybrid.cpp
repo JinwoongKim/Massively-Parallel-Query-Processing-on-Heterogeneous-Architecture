@@ -14,7 +14,8 @@
 namespace ursus {
 namespace tree {
 
-Hybrid::Hybrid() {
+Hybrid::Hybrid(ui _number_of_cuda_blocks) { 
+  number_of_cuda_blocks = _number_of_cuda_blocks;
   tree_type = TREE_TYPE_HYBRID;
 }
 
@@ -234,8 +235,8 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   // Prepare Hit & Node Visit Variables for an evaluation
   //===--------------------------------------------------------------------===//
-  ui h_hit[GetNumberOfBlocks()] = {0};
-  ui h_node_visit_count[GetNumberOfBlocks()] = {0};
+  ui h_hit[GetNumberOfBlocks()];
+  ui h_node_visit_count[GetNumberOfBlocks()];
 
   ui total_hit = 0;
   ui total_jump_count = 0;
@@ -248,17 +249,16 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
 
   // initialize hit and node visit variables to zero
-  global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
+  global_SetHitCount<<<1,GetNumberOfBlocks()>>>(GetNumberOfBlocks(), 0);
 
   //===--------------------------------------------------------------------===//
   // Prepare Multi-thread Query Processing
   //===--------------------------------------------------------------------===//
-  const size_t number_of_threads = batch_size;
-  ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_threads;
+  ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_cpu_threads;
 
   std::vector<std::thread> threads;
-  ui thread_jump_count[number_of_threads];
-  ui thread_node_visit_count_cpu[number_of_threads];
+  ui thread_jump_count[number_of_cpu_threads];
+  ui thread_node_visit_count_cpu[number_of_cpu_threads];
 
   //===--------------------------------------------------------------------===//
   // Execute Search Function
@@ -267,11 +267,11 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
   // parallel for loop using c++ std 11 
   {
-    auto chunk_size = number_of_search/number_of_threads;
+    auto chunk_size = number_of_search/number_of_cpu_threads;
     auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + number_of_search%number_of_threads;
+    auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
 
-    for (ui range(thread_itr, 0, number_of_threads)) {
+    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
       threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
                         std::ref(query), d_query, thread_itr, number_of_blocks_per_cpu, 
                         std::ref(thread_jump_count[thread_itr]), 
@@ -287,7 +287,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       thread.join();
     }
 
-    for(ui range(thread_itr, 0, number_of_threads)) {
+    for(ui range(thread_itr, 0, number_of_cpu_threads)) {
       total_jump_count += thread_jump_count[thread_itr];
       total_node_visit_count_cpu += thread_node_visit_count_cpu[thread_itr];
     }
@@ -308,8 +308,12 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("%zu threads processing queries concurrently", number_of_threads);
+  LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
   LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
+
+  for(ui range(thread_itr, 0, number_of_cpu_threads)) {
+    LOG_INFO("tid %u hit %u", thread_itr, h_hit[thread_itr]);
+  }
 
   //===--------------------------------------------------------------------===//
   // Show Results
@@ -369,8 +373,8 @@ void Hybrid::SetChunkSize(ui _chunk_size){
   chunk_size = _chunk_size;
 }
 
-void Hybrid::SetBatchSize(ui _batch_size){
-  batch_size = _batch_size;
+void Hybrid::SetNumberOfCPUThreads(ui _number_of_cpu_threads){
+  number_of_cpu_threads = _number_of_cpu_threads;
 }
 
 ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
@@ -406,7 +410,7 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
 ui Hybrid::BruteForceSearchOnCPU(Point* query) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
-  const size_t number_of_threads = std::thread::hardware_concurrency();
+  const size_t number_of_cpu_threads = std::thread::hardware_concurrency();
 
   std::vector<ll> start_node_offset;
   ui hit=0;
@@ -414,15 +418,15 @@ ui Hybrid::BruteForceSearchOnCPU(Point* query) {
   // parallel for loop using c++ std 11 
   {
     std::vector<std::thread> threads;
-    std::vector<ll> thread_start_node_offset[number_of_threads];
-    ui thread_hit[number_of_threads];
+    std::vector<ll> thread_start_node_offset[number_of_cpu_threads];
+    ui thread_hit[number_of_cpu_threads];
 
-    auto chunk_size = node_soa_count/number_of_threads;
+    auto chunk_size = node_soa_count/number_of_cpu_threads;
     auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + node_soa_count%number_of_threads;
+    auto end_offset = start_offset + chunk_size + node_soa_count%number_of_cpu_threads;
 
     //Launch a group of threads
-    for (ui range(thread_itr, 0, number_of_threads)) {
+    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
       threads.push_back(std::thread(&Hybrid::Thread_BruteForce, this, 
                         query, std::ref(thread_start_node_offset[thread_itr]), std::ref(thread_hit[thread_itr]),
                         start_offset, end_offset));
@@ -436,7 +440,7 @@ ui Hybrid::BruteForceSearchOnCPU(Point* query) {
       thread.join();
     }
 
-    for(ui range(thread_itr, 0, number_of_threads)) {
+    for(ui range(thread_itr, 0, number_of_cpu_threads)) {
       start_node_offset.insert( start_node_offset.end(), 
                                 thread_start_node_offset[thread_itr].begin(), 
                                 thread_start_node_offset[thread_itr].end()); 
@@ -452,7 +456,7 @@ ui Hybrid::BruteForceSearchOnCPU(Point* query) {
   LOG_INFO("Hit on CPU : %u", hit);
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_threads, elapsed_time/1000.0f);
+  LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_cpu_threads, elapsed_time/1000.0f);
 
   return hit;
 }
@@ -474,12 +478,18 @@ void Hybrid::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
 
-__device__ ui g_hit[GetNumberOfBlocks()]; 
-__device__ ui g_node_visit_count[GetNumberOfBlocks()]; 
+__device__ ui *g_hit; 
+__device__ ui *g_node_visit_count; 
 
 __global__
-void global_SetHitCount(ui init_value) {
+void global_SetHitCount(ui number_of_cuda_blocks, ui init_value) {
   int tid = threadIdx.x;
+
+  MasterThreadOnly {
+    g_hit = (ui*)malloc(sizeof(ui)*number_of_cuda_blocks);
+    g_node_visit_count = (ui*)malloc(sizeof(ui)*number_of_cuda_blocks);
+  }
+  __syncthreads();
 
   g_hit[tid] = init_value;
   g_node_visit_count[tid] = init_value;

@@ -14,8 +14,8 @@ class DataSet{
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
-  DataSet(unsigned int number_of_dimensions,
-          unsigned int number_of_data,
+  DataSet(ui number_of_dimensions,
+          ui number_of_data,
           std::string data_set_path,
           DataSetType data_set_type,
           DataType data_type);

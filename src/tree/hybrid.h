@@ -8,10 +8,11 @@ namespace tree {
 
 class Hybrid : public Tree {
  public:
- //===--------------------------------------------------------------------===//
- // Consteructor/Destructor
- //===--------------------------------------------------------------------===//
-  Hybrid();
+  //===--------------------------------------------------------------------===//
+  // Consteructor/Destructor
+  //===--------------------------------------------------------------------===//
+    Hybrid() = delete;
+    Hybrid(ui number_of_cuda_blocks);
 
  //===--------------------------------------------------------------------===//
  // Main Function
@@ -43,7 +44,7 @@ class Hybrid : public Tree {
 
   void SetChunkSize(ui chunk_size);
 
-  void SetBatchSize(ui batch_size);
+  void SetNumberOfCPUThreads(ui number_of_cpu_threads);
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count);
@@ -57,7 +58,7 @@ class Hybrid : public Tree {
   // Members
   //===--------------------------------------------------------------------===//
   ui chunk_size;
-  ui batch_size;
+  ui number_of_cpu_threads;
   ui node_soa_count = 0;
 };
 
@@ -65,11 +66,11 @@ class Hybrid : public Tree {
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
 
-extern __device__ ui g_hit[GetNumberOfBlocks()]; 
-extern __device__ ui g_node_visit_count[GetNumberOfBlocks()]; 
+extern __device__ ui *g_hit; 
+extern __device__ ui *g_node_visit_count; 
 
 __global__
-void global_SetHitCount(ui init_value);
+void global_SetHitCount(ui number_of_cuda_blocks, ui init_value);
 
 __global__
 void global_GetHitCount(ui* hit, ui* node_visit_count);

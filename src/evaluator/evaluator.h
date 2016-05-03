@@ -73,8 +73,11 @@ class Evaluator{
   // # of cpu cores to be used for evaluation
   ui number_of_cpu_core = 0;
 
-  // batch size to process query concurrently 
-  ui batch_size = 0;
+  // # of CUDA blocks
+  ui number_of_cuda_blocks = 128;
+
+  // # of cpu threads to process query concurrently 
+  ui number_of_cpu_threads = 0;
   
   std::string selectivity="0.01";
   std::string query_size;

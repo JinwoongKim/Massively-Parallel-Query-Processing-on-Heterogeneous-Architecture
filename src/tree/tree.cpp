@@ -17,6 +17,10 @@
 namespace ursus {
 namespace tree {
 
+//===--------------------------------------------------------------------===//
+// Constructor/Destructor
+//===--------------------------------------------------------------------===//
+
 TreeType Tree::GetTreeType() const {
   return tree_type;
 }
@@ -479,6 +483,10 @@ ui Tree::GetLeafNodeCount(void) const{
   return leaf_node_count;
 }
 
+ui Tree::GetNumberOfBlocks(void) const{
+  return number_of_cuda_blocks;
+}
+
 void Tree::Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
                             NodeType node_type,int level, ui node_offset, 
                             ui start_offset, ui end_offset) {
@@ -625,7 +633,8 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
 void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
                              ui number_of_node, node::Node* root) {
   global_BottomUpBuild_ILP<<<GetNumberOfBlocks(), GetNumberOfThreads()>>>
-                          (current_offset, parent_offset, number_of_node, root);
+                          (current_offset, parent_offset, number_of_node, 
+                          root, number_of_cuda_blocks);
 }
 
 /**
@@ -753,11 +762,12 @@ __device__ node::Node_SOA* g_node_soa_ptr;
 
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
-                              ui number_of_node, node::Node* root) {
+                              ui number_of_node, node::Node* root,
+                              ui number_of_cuda_blocks) {
   ui bid = blockIdx.x;
   ui tid = threadIdx.x;
 
-  ui block_incremental_value = GetNumberOfBlocks();
+  ui block_incremental_value = number_of_cuda_blocks;
   ui block_offset = bid;
 
   node::Node* current_node;

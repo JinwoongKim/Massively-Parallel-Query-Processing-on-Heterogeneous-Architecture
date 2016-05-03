@@ -78,6 +78,8 @@ class Tree {
 
   ui GetLeafNodeCount(void) const;
 
+  ui GetNumberOfBlocks(void) const;
+
   void Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
                                NodeType node_type,int level, ui node_offset, 
                                ui start_offset, ui end_offset);
@@ -116,6 +118,9 @@ class Tree {
   std::vector<ui> level_node_count;
 
   // total node count 
+  ui number_of_cuda_blocks = 0;
+
+  // total node count 
   ui total_node_count = 0;
 
   // leaf node count 
@@ -129,7 +134,8 @@ extern __device__ node::Node_SOA* g_node_soa_ptr;
 
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
-                              ui number_of_node, node::Node* root);
+                              ui number_of_node, node::Node* root,
+                              ui number_of_cuda_blocks);
 __global__ 
 void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
 

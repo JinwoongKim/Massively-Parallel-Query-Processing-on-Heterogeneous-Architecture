@@ -136,7 +136,7 @@ bool Evaluator::Search(void) {
           // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
           hybrid->SetChunkSize(chunk_size);
-          hybrid->SetBatchSize(batch_size);
+          hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
           tree->Search(query_data_set, number_of_search);
           break;
         }
@@ -154,12 +154,12 @@ void Evaluator::PrintHelp(char **argv) const {
   std::cerr << "Usage:\n" << *argv << std::endl << 
   " -d number of data\n" 
   " [ -q number of queries, default : 0]\n" 
+  " [ -b number of CUDA blocks, default 128]\n" 
+  " [ -p number of CPU threads, default number of CPU cores]\n" 
   " [ -i index type, default : Hybrid-tree]\n"
-  " [ -c chunk size, default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
-  " [ -p partitioned version, number of block ]\n" 
-  " [ -s selection ratio(%), default : 1 (%) ]\n"
-  " [ -g number of gpus, default : 1 ]\n" 
-  "\n e.g: ./bin/cuda -d 1000000 -q 1000 -s 0.5 -c 4 -w 3\n" 
+  " [ -c chunk size(for hybrid), default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
+  " [ -s selection ratio(%), default : 0.01 (%) ]\n"
+  "\n e.g: ./bin/cuda -d 1000000 -q 1000 -s 0.5 -c 4\n" 
   << std::endl;
 }
 
@@ -195,7 +195,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="i:I:c:C:d:D:q:Q:b:B:s:S:g:G:m:M:";
+  static const char *options="i:I:c:C:d:D:q:Q:b:B:p:P:s:S:";
   std::string number_of_data_str;
   int current_option;
 
@@ -211,7 +211,9 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'q':
       case 'Q': number_of_search = atoi(optarg); break;
       case 'b':
-      case 'B': batch_size = atoi(optarg); break;
+      case 'B': number_of_cuda_blocks = atoi(optarg); break;
+      case 'p':
+      case 'P': number_of_cpu_threads = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
      default: break;
@@ -249,8 +251,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
   number_of_cpu_core = std::thread::hardware_concurrency();
 
   // set the default batch size for hybrid indexing to number of cpu core
-  if( !batch_size ) {
-    batch_size = number_of_cpu_core;
+  if( !number_of_cpu_threads ) {
+    number_of_cpu_threads = number_of_cpu_core;
   }
 
   std::cout << *this << std::endl;
@@ -263,11 +265,11 @@ void Evaluator::AddTrees(std::string _index_type) {
 
   if( index_type == "hybrid" ||
       index_type == "h") {
-    std::shared_ptr<tree::Tree> tree (new tree::Hybrid());
+    std::shared_ptr<tree::Tree> tree (new tree::Hybrid(number_of_cuda_blocks));
     trees.push_back(tree);
   } else if ( index_type == "mphr" ||
               index_type == "m") {
-    std::shared_ptr<tree::Tree> tree (new tree::MPHR());
+    std::shared_ptr<tree::Tree> tree (new tree::MPHR(number_of_cuda_blocks));
     trees.push_back(tree);
   }
 }
@@ -286,11 +288,11 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   os << " Evaluator : " << std::endl
      << " number of data = " << evaluator.number_of_data << std::endl
      << " number of degrees = " << GetNumberOfDegrees() << std::endl
-     << " number of thread blocks = " << GetNumberOfBlocks() << std::endl
+     << " number of thread blocks = " << evaluator.number_of_cuda_blocks << std::endl
      << " number of threads = " << GetNumberOfThreads() << std::endl
      << " number of searches = " << evaluator.number_of_search << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
-     << " number of batch size = " << evaluator.batch_size << std::endl
+     << " number of CPU threads = " << evaluator.number_of_cpu_threads << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
 
