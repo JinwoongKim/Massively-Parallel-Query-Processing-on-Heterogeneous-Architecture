@@ -56,7 +56,7 @@ bool Tree::Top_Down(std::vector<node::Branch> &branches) {
   node_ptr = CreateNode(branches, 0, branches.size()-1, 0);
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
-    LOG_INFO("Level %zd", level_node_count[level_itr]);
+    LOG_INFO("Level[%u] %zd", level_itr, level_node_count[level_itr]);
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -301,7 +301,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   return true;
 }
 
-void Tree::PrintTree(ui offset, ui count) {
+void Tree::PrintTree(ui count, ui offset) {
   LOG_INFO("Print Tree");
   LOG_INFO("Height %zu", level_node_count.size());
 
@@ -311,7 +311,7 @@ void Tree::PrintTree(ui offset, ui count) {
  
   std::queue<node::Node*> bfs_queue;
   ui node_itr = 0;
-  ui node_count = 0;
+  ui print_count = 0;
 
   // push the root node
   bfs_queue.emplace(node_ptr);
@@ -324,7 +324,7 @@ void Tree::PrintTree(ui offset, ui count) {
 
     if(node_itr++>=offset) {
       std::cout << *node << std::endl;
-      node_count++;
+      print_count++;
     }
 
     // if it is an internal node, push it's child nodes
@@ -336,11 +336,11 @@ void Tree::PrintTree(ui offset, ui count) {
     }
 
     // if count is not zero, then print node out only as much as count
-    if( count && node_count == count ) break;
+    if( count && print_count == count ) break;
   }
 }
 
-void Tree::PrintTreeInSOA(ui offset, ui count) {
+void Tree::PrintTreeInSOA(ui count, ui offset) {
   LOG_INFO("Print Tree in SOA");
   LOG_INFO("Height %zu", level_node_count.size());
 
@@ -348,15 +348,13 @@ void Tree::PrintTreeInSOA(ui offset, ui count) {
     LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
   }
 
-  ui node_soa_itr=offset;
+  ui node_soa_itr = offset;
+  ui print_count=0;
 
-  for( int i=level_node_count.size()-1; i>=0; --i) {
-    for( ui range(j, 0, level_node_count[i])){
-      LOG_INFO("node %p",&node_soa_ptr[node_soa_itr]);
-      std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
-
-      if(count){ if( node_soa_itr>=count){ return; } }
-    }
+  while(print_count < count) {
+    LOG_INFO("node %p",&node_soa_ptr[node_soa_itr]);
+    std::cout << node_soa_ptr[node_soa_itr++] << std::endl;
+    print_count++;
   }
 }
 
@@ -464,8 +462,7 @@ std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> branches
   ui current_level_nodes = branches.size();
   
   while(current_level_nodes > 1) {
-    current_level_nodes = ((current_level_nodes%GetNumberOfDegrees())?1:0) 
-                          + current_level_nodes/GetNumberOfDegrees();
+    current_level_nodes = std::ceil(current_level_nodes/GetNumberOfDegrees());
     level_node_count.emplace(level_node_count.begin(), current_level_nodes);
   }
   return level_node_count;
@@ -583,11 +580,6 @@ void Tree::Thread_CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
       node_offset++;
     }
   }
-
-  if(branches.size()%GetNumberOfDegrees()) { 
-    auto last_node_offset = branches.size()/GetNumberOfDegrees();
-    node_soa_ptr[last_node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
-  }
 }
 
 bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
@@ -620,6 +612,12 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
     for(auto &thread : threads){
       thread.join();
     }
+  }
+
+
+  if(branches.size()%GetNumberOfDegrees()) {
+    auto last_node_offset = branches.size()/GetNumberOfDegrees();
+    node_soa_ptr[node_offset+(branches.size()/GetNumberOfDegrees())].SetBranchCount(branches.size()%GetNumberOfDegrees());
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();

@@ -44,7 +44,24 @@ Node_SOA* Node_SOA::GetChildNode(ui offset) const {
   return (Node_SOA*)((char*)this+child_offset[offset]);
 }
 
+Point Node_SOA::GetPoint(ui offset) const {
+  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  return points[offset];
+}
+
+Point Node_SOA::GetBranchPoint(ui branch_offset, ui dim) const {
+  auto offset = dim*GetNumberOfDegrees()+branch_offset;
+  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  return points[offset];
+}
+
 void Node_SOA::SetPoint(ui offset, Point point) {
+  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  points[offset] = point;
+}
+
+void Node_SOA::SetBranchPoint(ui branch_offset, Point point, ui dim) {
+  auto offset = dim*GetNumberOfDegrees() + branch_offset;
   assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
   points[offset] = point;
 }

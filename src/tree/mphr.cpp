@@ -62,15 +62,11 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = Bottom_Up(branches/*, tree_type*/);
     assert(ret);
 
-    //PrintTree();
-
     //===--------------------------------------------------------------------===//
     // Transform nodes into SOA fashion 
     //===--------------------------------------------------------------------===//
     node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
     assert(node_soa_ptr);
-
-    //PrintTreeInSOA();
 
     // free the node_ptr
     delete node_ptr;
@@ -285,7 +281,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
       // check if I am the leftmost
       // Gather the Overlap idex and compare
-      FindLeftMostOverlappingChild(childOverlap, GetNumberOfDegrees());
+      FindMinOnGPU(childOverlap, GetNumberOfDegrees());
 
       // none of the branches overlapped the query
       if( childOverlap[0] == ( GetNumberOfDegrees()+1)) {

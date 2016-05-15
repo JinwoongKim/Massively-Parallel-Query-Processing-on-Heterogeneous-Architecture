@@ -8,6 +8,9 @@
                             range_3(__VA_ARGS__)\
                             ) 
 
+#define MasterThreadOnly\
+        if( tid == 0 )\
+
 #define ParallelReduction(array, size) \
         int N = size/2 + size%2; \
         while(N > 1) { \
@@ -18,7 +21,7 @@
           __syncthreads(); \
         }\
 
-#define FindLeftMostOverlappingChild(array, size) \
+#define FindMinOnGPU(array, size) \
         int N = size/2 + size%2; \
         while(N > 1) { \
           if( tid < N ) { \
@@ -38,9 +41,61 @@
         } \
         __syncthreads(); \
 
-#define MasterThreadOnly\
-        if( tid == 0 )\
+#define FindMaxOnGPU(array, size) \
+        int N = size/2 + size%2; \
+        while(N > 1) { \
+          if( tid < N ) { \
+            if( array[tid] < array[tid+N]) { \
+              array[tid] = array[tid+N]; \
+            } \
+          } \
+          N = N/2 + N%2; \
+          __syncthreads(); \
+        }\
+        if( tid == 0 ) { \
+          if(N==1) { \
+            if( array[0] < array[1]) { \
+              array[0] = array[1]; \
+            } \
+          } \
+        } \
+        __syncthreads(); \
 
+#define FindMinOnCPU(array, size) { \
+        int N = size/2 + size%2; \
+        while(N > 1) { \
+          for( unsigned int tid=0; tid<N; tid++) { \
+            if( array[tid] > array[tid+N]) { \
+              array[tid] = array[tid+N]; \
+            } \
+          } \
+          N = N/2 + N%2; \
+        }\
+        if(N==1) { \
+          if( array[0] > array[1]) { \
+            array[0] = array[1]; \
+          } \
+        } \
+        } \
+
+#define FindMaxOnCPU(array, size) { \
+        int N = size/2 + size%2; \
+        while(N > 1) { \
+          for( unsigned int tid=0; tid<N; tid++) { \
+            if( array[tid] < array[tid+N]) { \
+              array[tid] = array[tid+N]; \
+            } \
+          } \
+          N = N/2 + N%2; \
+        }\
+        if(N==1) { \
+          if( array[0] < array[1]) { \
+            array[0] = array[1]; \
+          } \
+        } \
+        } \
+
+ 
 #include <iostream>
 #define cudaErrCheck(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -51,3 +106,4 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
     if (abort) exit(code);
   }
 }
+ 

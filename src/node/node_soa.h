@@ -21,8 +21,11 @@ class Node_SOA{
  __both__ ll GetLastIndex() const;
  __both__ ll GetChildOffset(ui offset) const;
  __both__ Node_SOA* GetChildNode(ui offset) const;
+  Point GetPoint(ui offset) const;
+  Point GetBranchPoint(ui branch_offset, ui dim) const;
 
  void SetPoint(ui offset, Point point);
+ void SetBranchPoint(ui branch_offset, Point point, ui dim);
  void SetIndex(ui offset, ll index);
  void SetChildOffset(ui offset, ll child_offset);
  void SetNodeType(NodeType type);

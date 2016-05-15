@@ -27,9 +27,18 @@ class Hybrid : public Tree {
 
   bool DumpToFile(std::string index_name);
 
+  bool BuildExtendLeafNodeOnCPU();
+
+  void Thread_BuildExtendLeafNodeOnCPU(ul current_offset, ul parent_offset, 
+                                       ui number_of_node, ui tid, ui number_of_threads);
+
   void SetNumberOfNodeSOA(ui number_of_data);
 
   ui GetNumberOfNodeSOA() const;
+
+  ui GetNumberOfLeafNodeSOA() const;
+
+  ui GetNumberOfExtendLeafNodeSOA() const;
 
   /**
    * Search the data 
@@ -58,13 +67,20 @@ class Hybrid : public Tree {
   // Members
   //===--------------------------------------------------------------------===//
   ui chunk_size;
+
   ui number_of_cpu_threads;
-  ui node_soa_count = 0;
+  
+  ui leaf_node_soa_count = 0;
+
+  ui extend_leaf_node_soa_count = 0;
 };
 
 //===--------------------------------------------------------------------===//
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
+
+extern __device__ node::Node_SOA* g_extend_leaf_node_soa_ptr;
+extern __device__ node::Node_SOA* g_leaf_node_soa_ptr;
 
 extern __device__ ui g_hit[GetNumberOfMAXBlocks()]; 
 extern __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 

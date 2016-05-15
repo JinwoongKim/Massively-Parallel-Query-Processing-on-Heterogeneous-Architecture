@@ -257,6 +257,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     number_of_cpu_threads = number_of_cpu_core;
   }
 
+  assert(number_of_cpu_threads <= number_of_cuda_blocks);
+
   std::cout << *this << std::endl;
   return true;
 }
@@ -295,6 +297,7 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of searches = " << evaluator.number_of_search << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
      << " number of CPU threads = " << evaluator.number_of_cpu_threads << std::endl
+     << " chunk size = " << evaluator.chunk_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
 

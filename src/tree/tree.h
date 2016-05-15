@@ -39,9 +39,9 @@ class Tree {
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
                      ui number_of_search) =0;
 
-  virtual void PrintTree(ui offset=0, ui count=0/*max*/);
+  virtual void PrintTree(ui count, ui offset=0);
 
-  virtual void PrintTreeInSOA(ui offset=0, ui count=0/*max*/);
+  virtual void PrintTreeInSOA(ui count, ui offset=0);
 
  //===--------------------------------------------------------------------===//
  // Accessor
@@ -108,6 +108,9 @@ class Tree {
  // Members
  //===--------------------------------------------------------------------===//
  protected:
+  // # of cuda blocks
+  ui number_of_cuda_blocks = 0;
+
   node::Node* node_ptr = nullptr;
 
   node::Node_SOA* node_soa_ptr = nullptr;
@@ -116,9 +119,6 @@ class Tree {
 
   // number of nodes in each level(start from root level)
   std::vector<ui> level_node_count;
-
-  // total node count 
-  ui number_of_cuda_blocks = 0;
 
   // total node count 
   ui total_node_count = 0;
