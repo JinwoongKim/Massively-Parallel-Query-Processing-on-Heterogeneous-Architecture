@@ -53,6 +53,10 @@ class Hybrid : public Tree {
 
   void SetChunkSize(ui chunk_size);
 
+  // level to scan on the GPU
+  // 1 : leaf nodes, 2 : extend and leaf nodes
+  void SetScanningLevel(ui scanning_level);
+
   void SetNumberOfCPUThreads(ui number_of_cpu_threads);
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
@@ -67,6 +71,8 @@ class Hybrid : public Tree {
   // Members
   //===--------------------------------------------------------------------===//
   ui chunk_size;
+
+  ui scanning_level;
 
   ui number_of_cpu_threads;
   
@@ -91,6 +97,11 @@ void global_SetHitCount(ui init_value);
 __global__
 void global_GetHitCount(ui* hit, ui* node_visit_count);
 
+
+__global__ 
+void global_ParallelScanning_ExtendLeafnodes(Point* _query, ll start_node_offset, 
+                                             ui chunk_size, ui bid_offset,
+                                             ui number_of_blocks_per_cpu);
 __global__ 
 void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
                                        ui chunk_size, ui bid_offset,

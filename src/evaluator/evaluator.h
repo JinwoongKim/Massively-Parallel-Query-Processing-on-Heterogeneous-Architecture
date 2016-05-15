@@ -78,6 +78,9 @@ class Evaluator{
 
   // # of cpu threads to process query concurrently 
   ui number_of_cpu_threads = 0;
+
+  // scanning level
+  ui scanning_level = 1;
   
   std::string selectivity="0.01";
   std::string query_size;

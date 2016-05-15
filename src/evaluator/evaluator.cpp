@@ -111,11 +111,16 @@ int Evaluator::SetDevice() {
 bool Evaluator::Build(void) {
   for(auto& tree : trees) {
     switch(tree->GetTreeType()){
-      case TREE_TYPE_HYBRID:
+      case TREE_TYPE_HYBRID:  {
+        std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
+        hybrid->SetScanningLevel(scanning_level);
         tree->Build(input_data_set);
-        break;
+      } break;
       case  TREE_TYPE_MPHR:
         tree->Build(input_data_set);
+        break;
+      default:
+        assert(0);
         break;
     }
   }
@@ -136,6 +141,7 @@ bool Evaluator::Search(void) {
           // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
           hybrid->SetChunkSize(chunk_size);
+          hybrid->SetScanningLevel(scanning_level);
           hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
           tree->Search(query_data_set, number_of_search);
           break;
@@ -195,7 +201,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="i:I:c:C:d:D:q:Q:b:B:p:P:s:S:";
+  static const char *options="i:I:c:C:d:D:q:Q:b:B:p:P:s:S:l:L:";
   std::string number_of_data_str;
   int current_option;
 
@@ -216,11 +222,17 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'P': number_of_cpu_threads = atoi(optarg); break;
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
+      case 'l':
+      case 'L': scanning_level = atoi(optarg);  break;
      default: break;
     } // end of switch
   } // end of while
 
+  // check # of cuda blocks
   assert(number_of_cuda_blocks <= GetNumberOfMAXBlocks());
+
+  // now, only support leaf node scanning and extend leaf node scanning
+  assert(scanning_level == 1 || scanning_level == 2);
 
   // try to get the gpu
   int ret = SetDevice();
@@ -257,7 +269,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     number_of_cpu_threads = number_of_cpu_core;
   }
 
-  assert(number_of_cpu_threads <= number_of_cuda_blocks);
+  assert(number_of_cuda_blocks/number_of_cpu_threads>0);
 
   std::cout << *this << std::endl;
   return true;
@@ -297,6 +309,7 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of searches = " << evaluator.number_of_search << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
      << " number of CPU threads = " << evaluator.number_of_cpu_threads << std::endl
+     << " scanning level = " << evaluator.scanning_level << std::endl
      << " chunk size = " << evaluator.chunk_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
