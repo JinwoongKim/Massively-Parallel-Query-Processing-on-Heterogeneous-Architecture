@@ -45,7 +45,17 @@ enum NodeType  {
 enum TreeType  {
   TREE_TYPE_INVALID = -1,
   TREE_TYPE_HYBRID =1,
-  TREE_TYPE_MPHR = 2,
+  TREE_TYPE_MPHR = 2
+};
+
+//===--------------------------------------------------------------------===//
+// ScanType
+//===--------------------------------------------------------------------===//
+enum ScanType  {
+  SCAN_TYPE_INVALID = -1,
+  SCAN_TYPE_LEAF = 1,
+  SCAN_TYPE_EXTENDLEAF = 2,
+  SCAN_TYPE_COMBINE = 3
 };
 
 //===--------------------------------------------------------------------===//
@@ -74,5 +84,7 @@ NodeType StringToNodeType(std::string str);
 std::string TreeTypeToString(TreeType type);
 TreeType StringToTreeType(std::string str);
 
+std::string ScanTypeToString(ScanType type);
+ScanType StringToScanType(std::string str);
 
 } // End of ursus namespace

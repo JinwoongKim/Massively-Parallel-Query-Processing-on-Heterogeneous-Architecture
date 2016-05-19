@@ -113,7 +113,7 @@ bool Evaluator::Build(void) {
     switch(tree->GetTreeType()){
       case TREE_TYPE_HYBRID:  {
         std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
-        hybrid->SetScanningLevel(scanning_level);
+        hybrid->SetScanType(scan_type);
         tree->Build(input_data_set);
       } break;
       case  TREE_TYPE_MPHR:
@@ -141,7 +141,7 @@ bool Evaluator::Search(void) {
           // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
           hybrid->SetChunkSize(chunk_size);
-          hybrid->SetScanningLevel(scanning_level);
+          hybrid->SetScanType(scan_type);
           hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
           tree->Search(query_data_set, number_of_search);
           break;
@@ -164,6 +164,7 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -p number of CPU threads, default number of CPU cores]\n" 
   " [ -c chunk size(for hybrid), default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
   " [ -s selection ratio(%), default : 0.01 (%) ]\n"
+  " [ -l scan type(1: leaf, 2: extend leaf, 3: combine), default : leaf]\n"
   " [ -i index type(should be last), default : Hybrid-tree]\n"
   "\n e.g: ./bin/cuda -d 1000000 -q 1000 -s 0.5 -c 4\n" 
   << std::endl;
@@ -223,7 +224,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
       case 'l':
-      case 'L': scanning_level = atoi(optarg);  break;
+      case 'L': scan_type = (ScanType)atoi(optarg);  break;
      default: break;
     } // end of switch
   } // end of while
@@ -306,7 +307,7 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of searches = " << evaluator.number_of_search << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
      << " number of CPU threads = " << evaluator.number_of_cpu_threads << std::endl
-     << " scanning level = " << evaluator.scanning_level << std::endl
+     << " scan type = " << ScanTypeToString(evaluator.scan_type) << std::endl
      << " chunk size = " << evaluator.chunk_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;

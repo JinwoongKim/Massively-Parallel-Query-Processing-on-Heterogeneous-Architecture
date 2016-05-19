@@ -11,7 +11,7 @@ std::string DataSetTypeToString(DataSetType type) {
 
   switch (type) {
     case (DATASET_TYPE_INVALID):
-      return "INVALID";
+      return "TYPE_INVALID";
     case (DATASET_TYPE_BINARY):
       return "BINARY";
     default: {
@@ -24,7 +24,7 @@ std::string DataSetTypeToString(DataSetType type) {
 }
 
 DataSetType StringToDataSetType(std::string str) {
-  if (str == "INVALID") {
+  if (str == "TYPE_INVALID") {
     return DATASET_TYPE_INVALID;
   } else if (str == "BINARY") {
     return DATASET_TYPE_BINARY;
@@ -41,7 +41,7 @@ std::string DataTypeToString(DataType type) {
 
   switch (type) {
     case (DATA_TYPE_INVALID):
-      return "INVALID";
+      return "TYPE_INVALID";
     case (DATA_TYPE_REAL):
       return "BINARY";
     case (DATA_TYPE_SYNTHETIC):
@@ -56,7 +56,7 @@ std::string DataTypeToString(DataType type) {
 }
 
 DataType StringToDataType(std::string str) {
-  if (str == "INVALID") {
+  if (str == "TYPE_INVALID") {
     return DATA_TYPE_INVALID;
   } else if (str == "REAL") {
     return DATA_TYPE_REAL;
@@ -75,7 +75,7 @@ std::string NodeTypeToString(NodeType type) {
 
   switch (type) {
     case (NODE_TYPE_INVALID):
-      return "INVALID";
+      return "TYPE_INVALID";
     case (NODE_TYPE_INTERNAL):
       return "INTERNAL";
     case (NODE_TYPE_EXTENDLEAF):
@@ -92,7 +92,7 @@ std::string NodeTypeToString(NodeType type) {
 }
 
 NodeType StringToNodeType(std::string str) {
-  if (str == "INVALID") {
+  if (str == "TYPE_INVALID") {
     return NODE_TYPE_INVALID;
   } else if (str == "INTERNAL") {
     return NODE_TYPE_INTERNAL;
@@ -113,7 +113,7 @@ std::string TreeTypeToString(TreeType type) {
 
   switch (type) {
     case (TREE_TYPE_INVALID):
-      return "INVALID";
+      return "TYPE_INVALID";
     case (TREE_TYPE_MPHR):
       return "MPHR";
     case (TREE_TYPE_HYBRID):
@@ -128,7 +128,7 @@ std::string TreeTypeToString(TreeType type) {
 }
 
 TreeType StringToTreeType(std::string str) {
-  if (str == "INVALID") {
+  if (str == "TYPE_INVALID") {
     return TREE_TYPE_INVALID;
   } else if (str == "MPHR") {
     return TREE_TYPE_MPHR;
@@ -137,6 +137,48 @@ TreeType StringToTreeType(std::string str) {
   }
   return TREE_TYPE_INVALID;
 }
+
+//===--------------------------------------------------------------------===//
+// ScanType <--> String Utilities
+//===--------------------------------------------------------------------===//
+
+std::string ScanTypeToString(ScanType type) {
+  std::string ret;
+
+  switch (type) {
+    case (SCAN_TYPE_INVALID):
+      return "TYPE_INVALID";
+    case (SCAN_TYPE_LEAF):
+      return "LEAF";
+    case (SCAN_TYPE_EXTENDLEAF):
+      return "EXTENDLEAF";
+    case (SCAN_TYPE_COMBINE):
+      return "COMBINE";
+    default: {
+      char buffer[32];
+      ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
+      ret = buffer;
+    }
+  }
+  return (ret);
+}
+
+ScanType StringToScanType(std::string str) {
+  if (str == "TYPE_INVALID") {
+    return SCAN_TYPE_INVALID;
+  } else if (str == "LEAF") {
+    return SCAN_TYPE_LEAF;
+  } else if (str == "EXTENDLEAF") {
+    return SCAN_TYPE_EXTENDLEAF;
+  } else if (str == "COMBINE") {
+    return SCAN_TYPE_COMBINE;
+  }
+ 
+  return SCAN_TYPE_INVALID;
+}
+
+
+
 
 } // End of ursus namespace
 

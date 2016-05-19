@@ -34,7 +34,7 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   // Load an index from file it exists
   // otherwise, build an index and dump it to file
   auto index_name = GetIndexName(input_data_set);
-  if(!DumpFromFile(index_name)) { 
+  if(!DumpFromFile(index_name))  {
     //===--------------------------------------------------------------------===//
     // Create branches
     //===--------------------------------------------------------------------===//
@@ -84,16 +84,17 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   ui offset = 0;
   ui count = 0;
   
-  if(scanning_level==1){
+  if(scan_type == SCAN_TYPE_LEAF){
     // Scanning leaf nodes on the GPU
     offset = GetNumberOfExtendLeafNodeSOA();
     count = GetNumberOfLeafNodeSOA();
-  }else if(scanning_level==2){
+  }else if(scan_type == SCAN_TYPE_EXTENDLEAF ||
+           scan_type == SCAN_TYPE_COMBINE){
     // Scanning extend and leaf nodes on the GPU
     offset = 0;
     count = GetNumberOfNodeSOA();
   }else {
-    LOG_INFO("scanning level %u", scanning_level);
+    LOG_INFO("scan type %s", (ScanTypeToString(scan_type)).c_str());
     assert(0);
   }
   ret = MoveTreeToGPU(offset, count);
@@ -454,6 +455,8 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
   LOG_INFO("Avg. Jump Count %f", total_jump_count/(float)number_of_search);
 
+  // A problem with using host-device synchronization points, such as
+  // cudaDeviceSynchronize(), is that they stall the GPU pipeline
   cudaDeviceSynchronize();
 
   global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
@@ -490,7 +493,8 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
   ui query_offset = 0;
 
   auto number_of_nodes = GetNumberOfLeafNodeSOA();
-  if(scanning_level == 2){
+  if(scan_type == SCAN_TYPE_EXTENDLEAF ||
+     scan_type == SCAN_TYPE_COMBINE ){
     number_of_nodes = GetNumberOfExtendLeafNodeSOA();
   }
 
@@ -510,7 +514,8 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
       }
 
       start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-      if(scanning_level == 2){
+      if(scan_type == SCAN_TYPE_EXTENDLEAF ||
+         scan_type == SCAN_TYPE_COMBINE ){
         start_node_offset /= GetNumberOfDegrees(); 
       }
 
@@ -523,18 +528,24 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
-      if(scanning_level == 1) {
-        global_ParallelScanning_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
+      if(scan_type == SCAN_TYPE_LEAF) {
+        global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
                                        bid_offset, number_of_blocks_per_cpu );
-      } else if(scanning_level == 2){
-        global_ParallelScanning_ExtendLeafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
-                                                (&d_query[query_offset], start_node_offset, chunk_size,
-                                                 bid_offset, number_of_blocks_per_cpu );
+      } else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+        global_ParallelScan_ExtendLeafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
+                                            (&d_query[query_offset], start_node_offset, chunk_size,
+                                            bid_offset, number_of_blocks_per_cpu );
+      } else if(scan_type == SCAN_TYPE_COMBINE) {
+        global_ParallelScan_Combine<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
+                                            (&d_query[query_offset], start_node_offset, chunk_size,
+                                            bid_offset, number_of_blocks_per_cpu );
       }
 
+      //cudaDeviceSynchronize();
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
-      if(scanning_level == 2){
+
+      if(scan_type == SCAN_TYPE_EXTENDLEAF) {
         visited_leafIndex *= GetNumberOfDegrees();
       }
 
@@ -548,8 +559,9 @@ void Hybrid::SetChunkSize(ui _chunk_size){
   chunk_size = _chunk_size;
 }
 
-void Hybrid::SetScanningLevel(ui _scanning_level){
-  scanning_level = _scanning_level;
+void Hybrid::SetScanType(ScanType _scan_type){
+  scan_type = _scan_type;
+  assert(scan_type);
 }
 
 void Hybrid::SetNumberOfCPUThreads(ui _number_of_cpu_threads){
@@ -575,14 +587,15 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     }
   } // leaf nodes
   else {
-    if(scanning_level==1) {
+    if(scan_type == SCAN_TYPE_LEAF) {
       for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
         if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex ) {
           start_node_index = node_ptr->GetBranchIndex(branch_itr);
           break;
         }
       }
-    } else if(scanning_level==2) {
+    } else if(scan_type == SCAN_TYPE_EXTENDLEAF ||
+              scan_type == SCAN_TYPE_COMBINE ) {
       start_node_index = node_ptr->GetBranchIndex(0);
       if( start_node_index <= visited_leafIndex) {
         start_node_index = visited_leafIndex+1;
@@ -685,78 +698,12 @@ void global_GetHitCount(ui* hit, ui* node_visit_count) {
   node_visit_count[tid] = g_node_visit_count[tid];
 }
 
+
+//===--------------------------------------------------------------------===//
+// Scan Type Leaf
+//===--------------------------------------------------------------------===//
 __global__ 
-void global_ParallelScanning_ExtendLeafnodes(Point* _query, ll start_node_offset, 
-                                             ui chunk_size, ui bid_offset, 
-                                             ui number_of_blocks_per_cpu) {
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-
-  __shared__ bool t_child_overlap[GetNumberOfThreads()]; 
-  __shared__ ui t_hit[GetNumberOfThreads()]; 
-  __shared__ Point query[GetNumberOfDims()*2];
-
-  if(tid < GetNumberOfDims()*2) {
-    query[tid] = _query[tid];
-  }
-
-  t_hit[tid] = 0;
-
-  // start from the first extend leaf node
-  node::Node_SOA* node_soa_ptr = g_node_soa_ptr + bid + start_node_offset;
-  __syncthreads();
-
-  for(ui range(node_itr, bid, chunk_size, number_of_blocks_per_cpu)) {
-
-    MasterThreadOnly {
-      g_node_visit_count[bid+bid_offset]++;
-    }
-
-    //===--------------------------------------------------------------------===//
-    // Extend Leaf Nodes
-    //===--------------------------------------------------------------------===//
-    if(tid < node_soa_ptr->GetBranchCount() &&
-        node_soa_ptr->IsOverlap(query, tid)) {
-      t_child_overlap[tid] = true;
-    } else {
-      t_child_overlap[tid] = false;
-    }
-    __syncthreads();
-
-    //===--------------------------------------------------------------------===//
-    // Leaf Nodes
-    //===--------------------------------------------------------------------===//
-    for( ui range(child_itr, 0, node_soa_ptr->GetBranchCount())) {
-      if( t_child_overlap[child_itr]) {
-        MasterThreadOnly {
-          g_node_visit_count[bid+bid_offset]++;
-        }
-
-        auto child_node = node_soa_ptr->GetChildNode(child_itr);
-
-        if(tid < child_node->GetBranchCount() &&
-            child_node->IsOverlap(query, tid)) {
-          t_hit[tid]++;
-        }
-        __syncthreads();
-      }
-    }
-    node_soa_ptr+=number_of_blocks_per_cpu;
-  }
-  __syncthreads();
-
-  //===--------------------------------------------------------------------===//
-  // Parallel Reduction 
-  //===--------------------------------------------------------------------===//
-  ParallelReduction(t_hit, GetNumberOfThreads());
-
-  MasterThreadOnly {
-      g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
-  }
-}
-
-__global__ 
-void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset, 
+void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset, 
                                        ui chunk_size, ui bid_offset, 
                                        ui number_of_blocks_per_cpu) {
   int bid = blockIdx.x;
@@ -802,7 +749,151 @@ void global_ParallelScanning_Leafnodes(Point* _query, ll start_node_offset,
   MasterThreadOnly {
     g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
   }
+}
 
+
+//===--------------------------------------------------------------------===//
+// Scan Type Extend Leaf
+//===--------------------------------------------------------------------===//
+__global__ 
+void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset, 
+                                             ui chunk_size, ui bid_offset, 
+                                             ui number_of_blocks_per_cpu) {
+  int bid = blockIdx.x;
+  int tid = threadIdx.x;
+
+  __shared__ bool child_overlap[GetNumberOfThreads()]; 
+  __shared__ ui t_hit[GetNumberOfThreads()]; 
+  __shared__ Point query[GetNumberOfDims()*2];
+
+  if(tid < GetNumberOfDims()*2) {
+    query[tid] = _query[tid];
+  }
+
+  t_hit[tid] = 0;
+
+  // start from the first extend leaf node
+  node::Node_SOA* node_soa_ptr = g_node_soa_ptr + start_node_offset + bid;
+  __syncthreads();
+
+  for(ui range(node_itr, bid, chunk_size, number_of_blocks_per_cpu)) {
+    MasterThreadOnly {
+      g_node_visit_count[bid+bid_offset]++;
+    }
+
+    //===--------------------------------------------------------------------===//
+    // Extend Leaf Nodes
+    //===--------------------------------------------------------------------===//
+    if(tid < node_soa_ptr->GetBranchCount() &&
+        node_soa_ptr->IsOverlap(query, tid)) {
+      child_overlap[tid] = true;
+    } else {
+      child_overlap[tid] = false;
+    }
+    __syncthreads();
+
+    //===--------------------------------------------------------------------===//
+    // Leaf Nodes
+    //===--------------------------------------------------------------------===//
+    for( ui range(child_itr, 0, node_soa_ptr->GetBranchCount())) {
+      if( child_overlap[child_itr]) {
+
+        MasterThreadOnly {
+          g_node_visit_count[bid+bid_offset]++;
+        }
+
+        auto child_node = node_soa_ptr->GetChildNode(child_itr);
+
+        if(tid < child_node->GetBranchCount() &&
+            child_node->IsOverlap(query, tid)) {
+          t_hit[tid]++;
+        }
+        __syncthreads();
+      }
+    }
+    node_soa_ptr += number_of_blocks_per_cpu;
+  }
+  __syncthreads();
+
+  //===--------------------------------------------------------------------===//
+  // Parallel Reduction 
+  //===--------------------------------------------------------------------===//
+  ParallelReduction(t_hit, GetNumberOfThreads());
+
+  MasterThreadOnly {
+      g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
+  }
+}
+
+//===--------------------------------------------------------------------===//
+// Scan Type Combine
+//===--------------------------------------------------------------------===//
+__global__ 
+void global_ParallelScan_Combine(Point* _query, ll start_node_offset, 
+                                ui chunk_size, ui bid_offset, 
+                                ui number_of_blocks_per_cpu) {
+  int bid = blockIdx.x;
+  int tid = threadIdx.x;
+
+  bool child_overlap[GetNumberOfMAXBlocks()]; 
+  __shared__ ui t_hit[GetNumberOfThreads()]; 
+  __shared__ Point query[GetNumberOfDims()*2];
+
+  if(tid < GetNumberOfDims()*2) {
+    query[tid] = _query[tid];
+  }
+
+  t_hit[tid] = 0;
+
+  // start from the first extend leaf node
+  node::Node_SOA* node_soa_ptr = g_node_soa_ptr + start_node_offset + bid / GetNumberOfDegrees();
+  __syncthreads();
+
+  for(ui range(node_itr, 0, chunk_size)) {
+    MasterThreadOnly {
+      g_node_visit_count[bid+bid_offset]++;
+    }
+
+    //===--------------------------------------------------------------------===//
+    // Extend Leaf Nodes
+    //===--------------------------------------------------------------------===//
+    MasterThreadOnly {
+      if(bid < node_soa_ptr->GetBranchCount()) {
+        node_soa_ptr->IsOverlap(query, bid);
+        child_overlap[bid] = true;
+      } else {
+        child_overlap[bid] = false;
+      }
+    }
+
+    //===--------------------------------------------------------------------===//
+    // Leaf Nodes
+    //===--------------------------------------------------------------------===//
+    if( child_overlap[bid] ) {
+      MasterThreadOnly {
+        g_node_visit_count[bid+bid_offset]++;
+      }
+
+      auto child_node = node_soa_ptr->GetChildNode(bid%GetNumberOfDegrees());
+
+      if(tid < child_node->GetBranchCount() &&
+          child_node->IsOverlap(query, tid)) {
+        t_hit[tid]++;
+      }
+      __syncthreads();
+    }
+    node_soa_ptr++;
+  }
+  __syncthreads();
+
+  //===--------------------------------------------------------------------===//
+  // Parallel Reduction 
+  //===--------------------------------------------------------------------===//
+  ParallelReduction(t_hit, GetNumberOfThreads());
+
+  MasterThreadOnly {
+      g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
+  }
 }
 
 
