@@ -490,7 +490,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
 
   ll start_node_index;
   ll start_node_offset;
-  ui query_offset = 0;
+  ui query_offset = start_offset*GetNumberOfDims()*2;
 
   auto number_of_nodes = GetNumberOfLeafNodeSOA();
   if(scan_type == SCAN_TYPE_EXTENDLEAF ||
