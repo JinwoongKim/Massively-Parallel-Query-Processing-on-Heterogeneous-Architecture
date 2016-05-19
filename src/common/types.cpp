@@ -152,8 +152,6 @@ std::string ScanTypeToString(ScanType type) {
       return "LEAF";
     case (SCAN_TYPE_EXTENDLEAF):
       return "EXTENDLEAF";
-    case (SCAN_TYPE_COMBINE):
-      return "COMBINE";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -170,8 +168,6 @@ ScanType StringToScanType(std::string str) {
     return SCAN_TYPE_LEAF;
   } else if (str == "EXTENDLEAF") {
     return SCAN_TYPE_EXTENDLEAF;
-  } else if (str == "COMBINE") {
-    return SCAN_TYPE_COMBINE;
   }
  
   return SCAN_TYPE_INVALID;

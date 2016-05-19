@@ -85,12 +85,11 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
   ui count = 0;
   
   if(scan_type == SCAN_TYPE_LEAF){
-    // Scanning leaf nodes on the GPU
+    // Move leaf nodes on the GPU
     offset = GetNumberOfExtendLeafNodeSOA();
     count = GetNumberOfLeafNodeSOA();
-  }else if(scan_type == SCAN_TYPE_EXTENDLEAF ||
-           scan_type == SCAN_TYPE_COMBINE){
-    // Scanning extend and leaf nodes on the GPU
+  }else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+    // Move extend and leaf nodes on the GPU
     offset = 0;
     count = GetNumberOfNodeSOA();
   }else {
@@ -493,8 +492,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
   ui query_offset = start_offset*GetNumberOfDims()*2;
 
   auto number_of_nodes = GetNumberOfLeafNodeSOA();
-  if(scan_type == SCAN_TYPE_EXTENDLEAF ||
-     scan_type == SCAN_TYPE_COMBINE ){
+  if(scan_type == SCAN_TYPE_EXTENDLEAF) {
     number_of_nodes = GetNumberOfExtendLeafNodeSOA();
   }
 
@@ -514,8 +512,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
       }
 
       start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-      if(scan_type == SCAN_TYPE_EXTENDLEAF ||
-         scan_type == SCAN_TYPE_COMBINE ){
+      if(scan_type == SCAN_TYPE_EXTENDLEAF)  {
         start_node_offset /= GetNumberOfDegrees(); 
       }
 
@@ -534,10 +531,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
                                        bid_offset, number_of_blocks_per_cpu );
       } else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
         global_ParallelScan_ExtendLeafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
-                                            (&d_query[query_offset], start_node_offset, chunk_size,
-                                            bid_offset, number_of_blocks_per_cpu );
-      } else if(scan_type == SCAN_TYPE_COMBINE) {
-        global_ParallelScan_Combine<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                             (&d_query[query_offset], start_node_offset, chunk_size,
                                             bid_offset, number_of_blocks_per_cpu );
       }
@@ -594,8 +587,7 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
           break;
         }
       }
-    } else if(scan_type == SCAN_TYPE_EXTENDLEAF ||
-              scan_type == SCAN_TYPE_COMBINE ) {
+    } else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
       start_node_index = node_ptr->GetBranchIndex(0);
       if( start_node_index <= visited_leafIndex) {
         start_node_index = visited_leafIndex+1;
@@ -675,9 +667,6 @@ void Hybrid::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
 //===--------------------------------------------------------------------===//
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
-
-__device__ node::Node_SOA* g_extend_leaf_node_soa_ptr;
-__device__ node::Node_SOA* g_leaf_node_soa_ptr;
 
 __device__ ui g_hit[GetNumberOfMAXBlocks()]; 
 __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 
@@ -824,78 +813,6 @@ void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset,
       g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
   }
 }
-
-//===--------------------------------------------------------------------===//
-// Scan Type Combine
-//===--------------------------------------------------------------------===//
-__global__ 
-void global_ParallelScan_Combine(Point* _query, ll start_node_offset, 
-                                ui chunk_size, ui bid_offset, 
-                                ui number_of_blocks_per_cpu) {
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-
-  bool child_overlap[GetNumberOfMAXBlocks()]; 
-  __shared__ ui t_hit[GetNumberOfThreads()]; 
-  __shared__ Point query[GetNumberOfDims()*2];
-
-  if(tid < GetNumberOfDims()*2) {
-    query[tid] = _query[tid];
-  }
-
-  t_hit[tid] = 0;
-
-  // start from the first extend leaf node
-  node::Node_SOA* node_soa_ptr = g_node_soa_ptr + start_node_offset + bid / GetNumberOfDegrees();
-  __syncthreads();
-
-  for(ui range(node_itr, 0, chunk_size)) {
-    MasterThreadOnly {
-      g_node_visit_count[bid+bid_offset]++;
-    }
-
-    //===--------------------------------------------------------------------===//
-    // Extend Leaf Nodes
-    //===--------------------------------------------------------------------===//
-    MasterThreadOnly {
-      if(bid < node_soa_ptr->GetBranchCount()) {
-        node_soa_ptr->IsOverlap(query, bid);
-        child_overlap[bid] = true;
-      } else {
-        child_overlap[bid] = false;
-      }
-    }
-
-    //===--------------------------------------------------------------------===//
-    // Leaf Nodes
-    //===--------------------------------------------------------------------===//
-    if( child_overlap[bid] ) {
-      MasterThreadOnly {
-        g_node_visit_count[bid+bid_offset]++;
-      }
-
-      auto child_node = node_soa_ptr->GetChildNode(bid%GetNumberOfDegrees());
-
-      if(tid < child_node->GetBranchCount() &&
-          child_node->IsOverlap(query, tid)) {
-        t_hit[tid]++;
-      }
-      __syncthreads();
-    }
-    node_soa_ptr++;
-  }
-  __syncthreads();
-
-  //===--------------------------------------------------------------------===//
-  // Parallel Reduction 
-  //===--------------------------------------------------------------------===//
-  ParallelReduction(t_hit, GetNumberOfThreads());
-
-  MasterThreadOnly {
-      g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
-  }
-}
-
 
 } // End of tree namespace
 } // End of ursus namespace

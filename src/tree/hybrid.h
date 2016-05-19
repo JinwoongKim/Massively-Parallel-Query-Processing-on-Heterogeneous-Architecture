@@ -85,9 +85,6 @@ class Hybrid : public Tree {
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
 
-extern __device__ node::Node_SOA* g_extend_leaf_node_soa_ptr;
-extern __device__ node::Node_SOA* g_leaf_node_soa_ptr;
-
 extern __device__ ui g_hit[GetNumberOfMAXBlocks()]; 
 extern __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 
 
@@ -105,10 +102,6 @@ __global__
 void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset, 
                                              ui chunk_size, ui bid_offset,
                                              ui number_of_blocks_per_cpu);
-__global__ 
-void global_ParallelScan_Combine(Point* _query, ll start_node_offset, 
-                                 ui chunk_size, ui bid_offset,
-                                 ui number_of_blocks_per_cpu);
  
 } // End of tree namespace
 } // End of ursus namespace

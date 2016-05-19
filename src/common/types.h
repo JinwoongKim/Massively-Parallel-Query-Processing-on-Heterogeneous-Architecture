@@ -55,7 +55,6 @@ enum ScanType  {
   SCAN_TYPE_INVALID = -1,
   SCAN_TYPE_LEAF = 1,
   SCAN_TYPE_EXTENDLEAF = 2,
-  SCAN_TYPE_COMBINE = 3
 };
 
 //===--------------------------------------------------------------------===//
