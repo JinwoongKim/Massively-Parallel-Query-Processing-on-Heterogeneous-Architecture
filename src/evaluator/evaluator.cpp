@@ -162,9 +162,9 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -q number of queries, default : 0]\n" 
   " [ -b number of CUDA blocks, default 128]\n" 
   " [ -p number of CPU threads, default number of CPU cores]\n" 
-  " [ -i index type, default : Hybrid-tree]\n"
   " [ -c chunk size(for hybrid), default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
   " [ -s selection ratio(%), default : 0.01 (%) ]\n"
+  " [ -i index type(should be last), default : Hybrid-tree]\n"
   "\n e.g: ./bin/cuda -d 1000000 -q 1000 -s 0.5 -c 4\n" 
   << std::endl;
 }
@@ -201,7 +201,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="i:I:c:C:d:D:q:Q:b:B:p:P:s:S:l:L:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:";
   std::string number_of_data_str;
   int current_option;
 
@@ -230,9 +230,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // check # of cuda blocks
   assert(number_of_cuda_blocks <= GetNumberOfMAXBlocks());
-
-  // now, only support leaf node scanning and extend leaf node scanning
-  assert(scanning_level == 1 || scanning_level == 2);
 
   // try to get the gpu
   int ret = SetDevice();
