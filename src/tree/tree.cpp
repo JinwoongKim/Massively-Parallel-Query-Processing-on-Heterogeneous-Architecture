@@ -462,7 +462,8 @@ std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> branches
   ui current_level_nodes = branches.size();
   
   while(current_level_nodes > 1) {
-    current_level_nodes = std::ceil(current_level_nodes/GetNumberOfDegrees());
+    current_level_nodes = ((current_level_nodes%GetNumberOfDegrees())?1:0) 
+                          + current_level_nodes/GetNumberOfDegrees();
     level_node_count.emplace(level_node_count.begin(), current_level_nodes);
   }
   return level_node_count;

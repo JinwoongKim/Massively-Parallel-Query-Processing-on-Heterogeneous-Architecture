@@ -192,8 +192,6 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
 
   ui number_of_batch = GetNumberOfBlocks();
   for(ui range(query_itr, 0, number_of_search, GetNumberOfBlocks())) {
-    LOG_INFO("query itr %u", query_itr);
-
     // if remaining query is less then number of blocks,
     // setting the number of cuda blocks as much as remaining query
     if(query_itr + GetNumberOfBlocks() > number_of_search) {
