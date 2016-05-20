@@ -3,6 +3,8 @@
 #include "tree/tree.h"
 #include "evaluator/recorder.h"
 
+#include <queue>
+
 namespace ursus {
 namespace tree {
 
@@ -47,7 +49,7 @@ class Hybrid : public Tree {
              ui number_of_search);
 
   void Thread_Search(std::vector<Point>&query, Point* d_query, 
-                     ui bid_offset, ui number_of_blocks_per_cpu, 
+                     ui tid, ui number_of_blocks_per_cpu, 
                      ui& jump_count, ui& node_visit_count, 
                      ui start_offset, ui end_offset) ;
 
@@ -67,6 +69,14 @@ class Hybrid : public Tree {
   void Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset, 
                          ui& hit, ui start_offset, ui end_offset);
 
+  // Collect start node index in advance
+  // to measure CPU/GPU execution time
+  void Thread_CollectStartNodeIndex(std::vector<Point>& query,
+                                    std::queue<ll> &start_node_indice,
+                                    ui start_offset, ui end_offset);
+
+  ll GetNextStartNodeIndex(ui tid);
+
   //===--------------------------------------------------------------------===//
   // Members
   //===--------------------------------------------------------------------===//
@@ -79,6 +89,8 @@ class Hybrid : public Tree {
   ui leaf_node_soa_count = 0;
 
   ui extend_leaf_node_soa_count = 0;
+
+  std::vector<std::queue<ll>> thread_start_node_index;
 };
 
 //===--------------------------------------------------------------------===//

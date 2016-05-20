@@ -7,7 +7,6 @@
 #include "transformer/transformer.h"
 
 #include <cassert>
-#include <queue>
 #include <thread>
 #include <algorithm>
 
@@ -418,6 +417,34 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   ui thread_node_visit_count_cpu[number_of_cpu_threads];
 
   //===--------------------------------------------------------------------===//
+  // Collect Start Node Index in Advance
+  //===--------------------------------------------------------------------===//
+  // NOTE : Collect start node index in advance to measure GPU kernel launching time
+  /*
+  thread_start_node_index.resize(number_of_cpu_threads);
+  // parallel for loop using c++ std 11 
+  {
+    auto chunk_size = number_of_search/number_of_cpu_threads;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
+
+    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
+      threads.push_back(std::thread(&Hybrid::Thread_CollectStartNodeIndex, this, 
+                        std::ref(query), std::ref(thread_start_node_index[thread_itr]),
+                        start_offset, end_offset));
+      start_offset = end_offset;
+      end_offset += chunk_size;
+    }
+
+    //Join the threads with the main thread
+    for(auto &thread : threads){
+      thread.join();
+    }
+  }
+  threads.clear();
+  */
+
+  //===--------------------------------------------------------------------===//
   // Execute Search Function
   //===--------------------------------------------------------------------===//
   recorder.TimeRecordStart();
@@ -431,8 +458,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     for (ui range(thread_itr, 0, number_of_cpu_threads)) {
       threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
                         std::ref(query), d_query, 
-                        thread_itr*number_of_blocks_per_cpu, 
-                        number_of_blocks_per_cpu, 
+                        thread_itr, number_of_blocks_per_cpu, 
                         std::ref(thread_jump_count[thread_itr]), 
                         std::ref(thread_node_visit_count_cpu[thread_itr]),
                         start_offset, end_offset));
@@ -480,10 +506,66 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
 }
 
-void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_offset,
+void Hybrid::Thread_CollectStartNodeIndex(std::vector<Point>& query,
+                                          std::queue<ll> &start_node_indice,
+                                          ui start_offset, ui end_offset){
+  ui node_visit_count = 0;
+
+  auto number_of_nodes = GetNumberOfLeafNodeSOA();
+  if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+    number_of_nodes = GetNumberOfExtendLeafNodeSOA();
+  }
+
+  for(ui range(query_itr, start_offset, end_offset)) {
+    ui query_offset = query_itr*GetNumberOfDims()*2;
+    ll visited_leafIndex = 0;
+
+    while(1) {
+      //===--------------------------------------------------------------------===//
+      // Traversal Internal Nodes on CPU
+      //===--------------------------------------------------------------------===//
+      auto start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
+                                               visited_leafIndex, &node_visit_count);
+        
+      // collect start node index
+      start_node_indice.emplace(start_node_index);
+
+      // no more overlapping internal nodes, terminate current query
+      if( start_node_index == 0) {
+        break;
+      }
+
+      auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
+      if(scan_type == SCAN_TYPE_EXTENDLEAF)  {
+        start_node_offset /= GetNumberOfDegrees(); 
+      }
+
+      // resize chunk_size if the sum of start node offset and chunk size is
+      // larger than number of leaf nodes
+      if(start_node_offset+chunk_size > number_of_nodes) {
+        chunk_size = number_of_nodes - start_node_offset;
+      }
+
+      visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
+
+      if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+        visited_leafIndex *= GetNumberOfDegrees();
+      }
+    }
+  }
+}
+
+ll Hybrid::GetNextStartNodeIndex(ui tid) {
+  auto start_node_index =  thread_start_node_index[tid].front();
+  thread_start_node_index[tid].pop();
+  return start_node_index;
+}
+
+void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                            ui number_of_blocks_per_cpu, ui& jump_count, 
                            ui& node_visit_count, ui start_offset, ui end_offset) {
 
+  ui bid_offset = tid*number_of_blocks_per_cpu;
   jump_count = 0;
   node_visit_count = 0;
 
@@ -500,11 +582,12 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
     ll visited_leafIndex = 0;
 
     while(1) {
+
       //===--------------------------------------------------------------------===//
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
-        start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset],
-                                                visited_leafIndex, &node_visit_count);
+      start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset], visited_leafIndex, &node_visit_count);
+//      start_node_index = GetNextStartNodeIndex(tid);
 
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
@@ -534,8 +617,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui bid_off
                                             (&d_query[query_offset], start_node_offset, chunk_size,
                                             bid_offset, number_of_blocks_per_cpu );
       }
-
-      //cudaDeviceSynchronize();
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
 
       if(scan_type == SCAN_TYPE_EXTENDLEAF) {
