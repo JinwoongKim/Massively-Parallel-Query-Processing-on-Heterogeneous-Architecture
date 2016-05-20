@@ -587,7 +587,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
       start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset], visited_leafIndex, &node_visit_count);
-//      start_node_index = GetNextStartNodeIndex(tid);
+      //start_node_index = GetNextStartNodeIndex(tid);
 
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
@@ -640,6 +640,7 @@ void Hybrid::SetScanType(ScanType _scan_type){
 
 void Hybrid::SetNumberOfCPUThreads(ui _number_of_cpu_threads){
   number_of_cpu_threads = _number_of_cpu_threads;
+  assert(number_of_cuda_blocks/number_of_cpu_threads>0);
 }
 
 ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 

@@ -118,6 +118,8 @@ std::string TreeTypeToString(TreeType type) {
       return "MPHR";
     case (TREE_TYPE_HYBRID):
       return "HYBRID";
+    case (TREE_TYPE_RTREE):
+      return "RTREE";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -134,6 +136,8 @@ TreeType StringToTreeType(std::string str) {
     return TREE_TYPE_MPHR;
   } else if (str == "HYBRID") {
     return TREE_TYPE_HYBRID;
+  } else if (str == "RTREE") {
+    return TREE_TYPE_RTREE;
   }
   return TREE_TYPE_INVALID;
 }

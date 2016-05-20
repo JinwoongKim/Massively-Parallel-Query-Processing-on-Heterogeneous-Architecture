@@ -1,0 +1,291 @@
+#include "tree/rtree.h"
+
+#include "common/macro.h"
+#include "common/logger.h"
+#include "evaluator/recorder.h"
+#include "sort/sorter.h"
+
+#include <cassert>
+#include <queue>
+#include <thread>
+#include <algorithm>
+
+namespace ursus {
+namespace tree {
+
+Rtree::Rtree(ui _number_of_cpu_threads) { 
+  tree_type = TREE_TYPE_RTREE;
+  number_of_cpu_threads = _number_of_cpu_threads;
+}
+
+/**
+ * @brief build trees
+ * @param input_data_set 
+ * @return true if success to build otherwise false
+ */
+bool Rtree::Build(std::shared_ptr<io::DataSet> input_data_set){
+
+  LOG_INFO("Build Rtree Tree");
+  bool ret = false;
+
+  // Load an index from file it exists
+  // otherwise, build an index and dump it to file
+  auto index_name = GetIndexName(input_data_set);
+  if(!DumpFromFile(index_name))  {
+    //===--------------------------------------------------------------------===//
+    // Create branches
+    //===--------------------------------------------------------------------===//
+    std::vector<node::Branch> branches = CreateBranches(input_data_set);
+
+    //===--------------------------------------------------------------------===//
+    // Assign Hilbert Ids to branches
+    //===--------------------------------------------------------------------===//
+    ret = AssignHilbertIndexToBranches(branches);
+    assert(ret);
+
+    //===--------------------------------------------------------------------===//
+    // Sort the branches either CPU or GPU depending on the size
+    //===--------------------------------------------------------------------===//
+    ret = sort::Sorter::Sort(branches);
+    assert(ret);
+
+    //===--------------------------------------------------------------------===//
+    // Build the internal nodes in a top-down fashion 
+    //===--------------------------------------------------------------------===//
+    ret = Top_Down(branches); 
+    assert(ret);
+
+    // Dump an index to the file
+    DumpToFile(index_name);
+  }
+
+  return true;
+}
+
+bool Hybrid::DumpFromFile(std::string index_name) {
+
+  FILE* index_file;
+  index_file = fopen(index_name.c_str(),"rb");
+
+  if(!index_file) {
+    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
+    return false;
+  }
+
+  LOG_INFO("Load an index file (%s)", index_name.c_str());
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
+  //===--------------------------------------------------------------------===//
+  // Height & level node count
+  //===--------------------------------------------------------------------===//
+  size_t height;
+
+  // read tree height
+  fread(&height, sizeof(size_t), 1, index_file);
+  level_node_count.resize(height);
+  for(ui range(level_itr, 0, height)) {
+    // read node count for each tree level
+    fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Node counts
+  //===--------------------------------------------------------------------===//
+  // read total node count
+  fread(&total_node_count, sizeof(ui), 1, index_file);
+
+  //===--------------------------------------------------------------------===//
+  // Internal nodes
+  //===--------------------------------------------------------------------===//
+  node_ptr = new node::Node[total_node_count];
+  fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
+
+  fclose(index_file);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
+
+  return true;
+}
+
+bool Hybrid::DumpToFile(std::string index_name) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+  LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
+
+  recorder.TimeRecordStart();
+  // NOTE :: Use fwrite since it is fast
+  FILE* index_file;
+  index_file = fopen(index_name.c_str(),"wb");
+
+  //===--------------------------------------------------------------------===//
+  // Height & level node count
+  //===--------------------------------------------------------------------===//
+  size_t height = level_node_count.size();
+  // write tree height
+  fwrite(&height, sizeof(size_t), 1, index_file);
+  for(ui range(level_itr, 0, height)) {
+    // write each tree node count
+    fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Node counts
+  //===--------------------------------------------------------------------===//
+  // write total node count
+  fwrite(&total_node_count, sizeof(ui), 1, index_file);
+
+  //===--------------------------------------------------------------------===//
+  // Internal nodes
+  //===--------------------------------------------------------------------===//
+
+  // Unlike dump function in MPHR class, we use the queue structure to dump the
+  // tree onto an index file since the nodes are allocated here and there in a
+  // Top-Down fashion
+  std::queue<node::Node*> bfs_queue;
+  std::vector<ll> original_child_offset; // for backup
+
+  // push the root node
+  bfs_queue.emplace(node_ptr);
+
+  // if the queue is not empty,
+  while(!bfs_queue.empty()) {
+    // pop the first element 
+    node::Node* node = bfs_queue.front();
+    bfs_queue.pop();
+
+    // NOTE : Backup the child offsets in order to recover node's child offset later
+    // I believe accessing memory is faster than accesing disk,
+    // I don't use another fwrite for this job.
+    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
+      for(ui range(child_itr, 0, node->GetBranchCount())) {
+        node::Node* child_node = node->GetBranchChildNode(child_itr);
+        bfs_queue.emplace(child_node);
+
+        // backup current child offset
+        original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
+
+        // reassign child offset
+        ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+        node->SetBranchChildOffset(child_itr, child_offset);
+      }
+    }
+
+    // write an internal node on disk
+    fwrite(node, sizeof(node::Node), 1, index_file);
+
+    // Recover child offset
+    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
+      for(ui range(child_itr, 0, node->GetBranchCount())) {
+        // reassign child offset
+        node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
+      }
+    }
+    original_child_offset.clear();
+  }
+
+  fclose(index_file);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
+  return true;
+}
+
+int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
+                   ui number_of_search){
+
+  auto& recorder = evaluator::Recorder::GetInstance();
+
+  //===--------------------------------------------------------------------===//
+  // Read Query 
+  //===--------------------------------------------------------------------===//
+  auto query = query_data_set->GetPoints();
+
+  //===--------------------------------------------------------------------===//
+  // Prepare Multi-thread Query Processing
+  //===--------------------------------------------------------------------===//
+  std::vector<std::thread> threads;
+  ui thread_hit[number_of_cpu_threads];
+  ui thread_node_visit_count[number_of_cpu_threads];
+
+  //===--------------------------------------------------------------------===//
+  // Execute Search Function
+  //===--------------------------------------------------------------------===//
+  recorder.TimeRecordStart();
+
+  // parallel for loop using c++ std 11 
+  {
+    auto chunk_size = number_of_search/number_of_cpu_threads;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
+
+    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
+      threads.push_back(std::thread(&Rtree::Thread_Search, this, 
+                        std::ref(query), thread_itr,  
+                        std::ref(thread_hit[thread_itr]), 
+                        std::ref(thread_node_visit_count[thread_itr]),
+                        start_offset, end_offset));
+
+      start_offset = end_offset;
+      end_offset += chunk_size;
+    }
+
+    //Join the threads with the main thread
+    for(auto &thread : threads){
+      thread.join();
+    }
+
+    for(ui range(thread_itr, 0, number_of_cpu_threads)) {
+      total_hit += thread_hit[thread_itr];
+      total_node_visit_count += thread_node_visit_count[thread_itr];
+    }
+  }
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
+  LOG_INFO("Search Time on the CPU = %.6fms", elapsed_time);
+
+  //===--------------------------------------------------------------------===//
+  // Show Results
+  //===--------------------------------------------------------------------===//
+  LOG_INFO("Hit : %u", total_hit);
+  LOG_INFO("Node visit count : %u", total_node_visit_count);
+}
+
+void Rtree::Thread_Search(std::vector<Point>& query, ui tid,
+                           ui& hit, ui& node_visit_count, ui start_offset, ui end_offset) {
+  hit = 0;
+  node_visit_count = 0;
+
+  ui query_offset = start_offset*GetNumberOfDims()*2;
+
+  for(ui range(query_itr, start_offset, end_offset)) {
+    hit = TraverseInternalNodes(node_ptr, &query[query_offset], &node_visit_count);
+    query_offset += GetNumberOfDims()*2;
+  }
+}
+
+ui Rtree::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
+                                 ui *node_visit_count) {
+  hit = 0;
+  (*node_visit_count)++;
+
+  // internal nodes
+  if(node_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+      if( node_ptr->IsOverlap(query, branch_itr)) {
+        hit += TraverseInternalNodes(node_ptr->GetBranchChildNode(branch_itr), 
+                                     query, node_visit_count);
+      }
+    }
+  } // leaf nodes
+  else {
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+      if( node_ptr->IsOverlap(query, branch_itr)) {
+        hit++;
+      }
+    }
+  }
+  return hit;
+}

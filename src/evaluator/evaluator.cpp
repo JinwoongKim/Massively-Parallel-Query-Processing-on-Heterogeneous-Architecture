@@ -267,8 +267,6 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
     number_of_cpu_threads = number_of_cpu_core;
   }
 
-  assert(number_of_cuda_blocks/number_of_cpu_threads>0);
-
   std::cout << *this << std::endl;
   return true;
 }

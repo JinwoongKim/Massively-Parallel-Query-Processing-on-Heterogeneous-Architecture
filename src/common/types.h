@@ -45,7 +45,8 @@ enum NodeType  {
 enum TreeType  {
   TREE_TYPE_INVALID = -1,
   TREE_TYPE_HYBRID =1,
-  TREE_TYPE_MPHR = 2
+  TREE_TYPE_MPHR = 2,
+  TREE_TYPE_RTREE = 3
 };
 
 //===--------------------------------------------------------------------===//
