@@ -420,30 +420,30 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     // Collect Start Node Index in Advance
     //===--------------------------------------------------------------------===//
-    // NOTE : Collect start node index in advance to measure GPU kernel launching time
     /*
-       thread_start_node_index.resize(number_of_cpu_threads);
+    // NOTE : Collect start node index in advance to measure GPU kernel launching time
+    thread_start_node_index.resize(number_of_cpu_threads);
     // parallel for loop using c++ std 11 
     {
-    auto chunk_size = number_of_search/number_of_cpu_threads;
-    auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
+      auto chunk_size = number_of_search/number_of_cpu_threads;
+      auto start_offset = 0 ;
+      auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
 
-    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-    threads.push_back(std::thread(&Hybrid::Thread_CollectStartNodeIndex, this, 
-    std::ref(query), std::ref(thread_start_node_index[thread_itr]),
-    start_offset, end_offset));
-    start_offset = end_offset;
-    end_offset += chunk_size;
-    }
+      for (ui range(thread_itr, 0, number_of_cpu_threads)) {
+        threads.push_back(std::thread(&Hybrid::Thread_CollectStartNodeIndex, this, 
+              std::ref(query), std::ref(thread_start_node_index[thread_itr]),
+              start_offset, end_offset));
+        start_offset = end_offset;
+        end_offset += chunk_size;
+      }
 
-    //Join the threads with the main thread
-    for(auto &thread : threads){
-    thread.join();
-    }
+      //Join the threads with the main thread
+      for(auto &thread : threads){
+        thread.join();
+      }
     }
     threads.clear();
-     */
+    */
 
     //===--------------------------------------------------------------------===//
     // Execute Search Function
@@ -611,7 +611,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
-      /*
       if(scan_type == SCAN_TYPE_LEAF) {
         global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
@@ -621,7 +620,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                                             (&d_query[query_offset], start_node_offset, chunk_size,
                                             bid_offset, number_of_blocks_per_cpu );
       }
-      */
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
 
       if(scan_type == SCAN_TYPE_EXTENDLEAF) {
