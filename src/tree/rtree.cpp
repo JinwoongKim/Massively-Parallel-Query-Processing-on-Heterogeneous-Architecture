@@ -193,7 +193,7 @@ bool Rtree::DumpToFile(std::string index_name) {
 }
 
 int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set, 
-                   ui number_of_search){
+                   ui number_of_search, ui number_of_repeat){
 
   auto& recorder = evaluator::Recorder::GetInstance();
 
@@ -201,59 +201,63 @@ int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set,
   // Read Query 
   //===--------------------------------------------------------------------===//
   auto query = query_data_set->GetPoints();
-
-  //===--------------------------------------------------------------------===//
-  // Prepare Multi-thread Query Processing
-  //===--------------------------------------------------------------------===//
-  std::vector<std::thread> threads;
-  ui thread_hit[number_of_cpu_threads];
-  ui thread_node_visit_count[number_of_cpu_threads];
   
-  ui total_hit=0;
-  ui total_node_visit_count=0;
-
-  //===--------------------------------------------------------------------===//
-  // Execute Search Function
-  //===--------------------------------------------------------------------===//
-  recorder.TimeRecordStart();
-
-  // parallel for loop using c++ std 11 
-  {
-    auto chunk_size = number_of_search/number_of_cpu_threads;
-    auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
-
-    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-      threads.push_back(std::thread(&Rtree::Thread_Search, this, 
-                        std::ref(query), thread_itr,  
-                        std::ref(thread_hit[thread_itr]), 
-                        std::ref(thread_node_visit_count[thread_itr]),
-                        start_offset, end_offset));
-
-      start_offset = end_offset;
-      end_offset += chunk_size;
+  for(ui range(repeat_itr, 0, number_of_repeat)) {
+    LOG_INFO("#%u) Evaluation", repeat_itr);
+    //===--------------------------------------------------------------------===//
+    // Prepare Multi-thread Query Processing
+    //===--------------------------------------------------------------------===//
+    std::vector<std::thread> threads;
+    ui thread_hit[number_of_cpu_threads];
+    ui thread_node_visit_count[number_of_cpu_threads];
+    
+    ui total_hit=0;
+    ui total_node_visit_count=0;
+  
+    //===--------------------------------------------------------------------===//
+    // Execute Search Function
+    //===--------------------------------------------------------------------===//
+    recorder.TimeRecordStart();
+  
+    // parallel for loop using c++ std 11 
+    {
+      auto search_chunk_size = number_of_search/number_of_cpu_threads;
+      auto start_offset = 0 ;
+      auto end_offset = start_offset + search_chunk_size + number_of_search%number_of_cpu_threads;
+  
+      for (ui range(thread_itr, 0, number_of_cpu_threads)) {
+        threads.push_back(std::thread(&Rtree::Thread_Search, this, 
+                          std::ref(query), thread_itr,  
+                          std::ref(thread_hit[thread_itr]), 
+                          std::ref(thread_node_visit_count[thread_itr]),
+                          start_offset, end_offset));
+  
+        start_offset = end_offset;
+        end_offset += search_chunk_size;
+      }
+  
+      //Join the threads with the main thread
+      for(auto &thread : threads){
+        thread.join();
+      }
+  
+      for(ui range(thread_itr, 0, number_of_cpu_threads)) {
+        total_hit += thread_hit[thread_itr];
+        total_node_visit_count += thread_node_visit_count[thread_itr];
+      }
     }
-
-    //Join the threads with the main thread
-    for(auto &thread : threads){
-      thread.join();
-    }
-
-    for(ui range(thread_itr, 0, number_of_cpu_threads)) {
-      total_hit += thread_hit[thread_itr];
-      total_node_visit_count += thread_node_visit_count[thread_itr];
-    }
+  
+    auto elapsed_time = recorder.TimeRecordEnd();
+    LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
+    LOG_INFO("Search Time on the CPU = %.6fms", elapsed_time);
+  
+    //===--------------------------------------------------------------------===//
+    // Show Results
+    //===--------------------------------------------------------------------===//
+    LOG_INFO("Hit : %u", total_hit);
+    LOG_INFO("Node visit count : %u", total_node_visit_count);
+    LOG_INFO("\n");
   }
-
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
-  LOG_INFO("Search Time on the CPU = %.6fms", elapsed_time);
-
-  //===--------------------------------------------------------------------===//
-  // Show Results
-  //===--------------------------------------------------------------------===//
-  LOG_INFO("Hit : %u", total_hit);
-  LOG_INFO("Node visit count : %u", total_node_visit_count);
 }
 
 void Rtree::SetNumberOfCPUThreads(ui _number_of_cpu_threads) {

@@ -158,7 +158,7 @@ bool MPHR::DumpToFile(std::string index_name) {
 }
 
 int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set, 
-                   ui number_of_search) {
+                   ui number_of_search, ui number_of_repeat) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
   //===--------------------------------------------------------------------===//
@@ -166,58 +166,62 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   auto d_query = query_data_set->GetDeviceQuery(number_of_search);
 
-  //===--------------------------------------------------------------------===//
-  // Prepare Hit & Node Visit Variables for evaluations
-  //===--------------------------------------------------------------------===//
-  ui h_hit[GetNumberOfBlocks()];
-  ui h_root_visit_count[GetNumberOfBlocks()];
-  ui h_node_visit_count[GetNumberOfBlocks()];
+  for(ui range(repeat_itr, 0, number_of_repeat)) {
+    LOG_INFO("#%u) Evaluation", repeat_itr);
+    //===--------------------------------------------------------------------===//
+    // Prepare Hit & Node Visit Variables for evaluations
+    //===--------------------------------------------------------------------===//
+    ui h_hit[GetNumberOfBlocks()];
+    ui h_root_visit_count[GetNumberOfBlocks()];
+    ui h_node_visit_count[GetNumberOfBlocks()];
 
-  ui total_hit = 0;
-  ui total_root_visit_count = 0;
-  ui total_node_visit_count = 0;
+    ui total_hit = 0;
+    ui total_root_visit_count = 0;
+    ui total_node_visit_count = 0;
 
-  ui* d_hit;
-  cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
-  ui* d_root_visit_count;
-  cudaErrCheck(cudaMalloc((void**) &d_root_visit_count, sizeof(ui)*GetNumberOfBlocks()));
-  ui* d_node_visit_count;
-  cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
+    ui* d_hit;
+    cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
+    ui* d_root_visit_count;
+    cudaErrCheck(cudaMalloc((void**) &d_root_visit_count, sizeof(ui)*GetNumberOfBlocks()));
+    ui* d_node_visit_count;
+    cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
 
-  //===--------------------------------------------------------------------===//
-  // Execute Search Function
-  //===--------------------------------------------------------------------===//
-  recorder.TimeRecordStart();
+    //===--------------------------------------------------------------------===//
+    // Execute Search Function
+    //===--------------------------------------------------------------------===//
+    recorder.TimeRecordStart();
 
-  ui number_of_batch = GetNumberOfBlocks();
-  for(ui range(query_itr, 0, number_of_search, GetNumberOfBlocks())) {
-    // if remaining query is less then number of blocks,
-    // setting the number of cuda blocks as much as remaining query
-    if(query_itr + GetNumberOfBlocks() > number_of_search) {
-      number_of_batch = number_of_search - query_itr;
+    ui number_of_batch = GetNumberOfBlocks();
+    for(ui range(query_itr, 0, number_of_search, GetNumberOfBlocks())) {
+      // if remaining query is less then number of blocks,
+      // setting the number of cuda blocks as much as remaining query
+      if(query_itr + GetNumberOfBlocks() > number_of_search) {
+        number_of_batch = number_of_search - query_itr;
+      }
+
+      global_RestartScanning_and_ParentCheck<<<number_of_batch,GetNumberOfThreads()>>>
+        (&d_query[query_itr*GetNumberOfDims()*2], d_hit, d_root_visit_count, d_node_visit_count);
+      cudaMemcpy(h_hit, d_hit, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
+      cudaMemcpy(h_root_visit_count, d_root_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
+      cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
+
+      for(ui range(i, 0, number_of_batch)) {
+        total_hit += h_hit[i];
+        total_root_visit_count += h_root_visit_count[i];
+        total_node_visit_count += h_node_visit_count[i];
+      }
     }
+    auto elapsed_time = recorder.TimeRecordEnd();
+    LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
 
-    global_RestartScanning_and_ParentCheck<<<number_of_batch,GetNumberOfThreads()>>>
-           (&d_query[query_itr*GetNumberOfDims()*2], d_hit, d_root_visit_count, d_node_visit_count);
-    cudaMemcpy(h_hit, d_hit, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_root_visit_count, d_root_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
-
-    for(ui range(i, 0, number_of_batch)) {
-      total_hit += h_hit[i];
-      total_root_visit_count += h_root_visit_count[i];
-      total_node_visit_count += h_node_visit_count[i];
-    }
+    //===--------------------------------------------------------------------===//
+    // Show Results
+    //===--------------------------------------------------------------------===//
+    LOG_INFO("Hit : %u", total_hit);
+    LOG_INFO("Root visit count : %u", total_root_visit_count);
+    LOG_INFO("Node visit count : %u", total_node_visit_count);
+    LOG_INFO("\n");
   }
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
-
-  //===--------------------------------------------------------------------===//
-  // Show Results
-  //===--------------------------------------------------------------------===//
-  LOG_INFO("Hit : %u", total_hit);
-  LOG_INFO("Root visit count : %u", total_root_visit_count);
-  LOG_INFO("Node visit count : %u", total_node_visit_count);
 
   return true;
 }

@@ -31,7 +31,7 @@ class MPHR : public Tree {
    * Search the data 
    */
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
-             ui number_of_search);
+             ui number_of_search, ui number_of_repeat);
 
   void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
 };

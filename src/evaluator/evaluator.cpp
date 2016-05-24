@@ -152,14 +152,14 @@ bool Evaluator::Search(void) {
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
           hybrid->SetChunkSize(chunk_size);
           hybrid->SetScanType(scan_type);
-          tree->Search(query_data_set, number_of_search);
+          tree->Search(query_data_set, number_of_search, number_of_repeat);
           break;
         }
       case TREE_TYPE_MPHR:
-        tree->Search(query_data_set, number_of_search);
+        tree->Search(query_data_set, number_of_search, number_of_repeat);
         break;
       case TREE_TYPE_RTREE:
-        tree->Search(query_data_set, number_of_search);
+        tree->Search(query_data_set, number_of_search, number_of_repeat);
         break;
     }
   }
@@ -214,7 +214,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:";
   std::string number_of_data_str;
   int current_option;
 
@@ -237,6 +237,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'S': selectivity = std::string(optarg);  break;
       case 'l':
       case 'L': scan_type = (ScanType)atoi(optarg);  break;
+      case 'r':
+      case 'R': number_of_repeat = atoi(optarg);  break;
      default: break;
     } // end of switch
   } // end of while

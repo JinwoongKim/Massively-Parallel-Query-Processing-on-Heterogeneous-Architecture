@@ -373,7 +373,7 @@ ui Hybrid::GetNumberOfExtendLeafNodeSOA() const {
 }
 
 int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
-                   ui number_of_search){
+                   ui number_of_search, ui number_of_repeat){
 
   auto& recorder = evaluator::Recorder::GetInstance();
 
@@ -383,126 +383,130 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   auto query = query_data_set->GetPoints();
   auto d_query = query_data_set->GetDeviceQuery(number_of_search);
 
-  //===--------------------------------------------------------------------===//
-  // Prepare Hit & Node Visit Variables for an evaluation
-  //===--------------------------------------------------------------------===//
-  ui h_hit[GetNumberOfBlocks()];
-  ui h_node_visit_count[GetNumberOfBlocks()];
+  for(ui range(repeat_itr, 0, number_of_repeat)) {
+    LOG_INFO("#%u) Evaluation", repeat_itr);
+    //===--------------------------------------------------------------------===//
+    // Prepare Hit & Node Visit Variables for an evaluation
+    //===--------------------------------------------------------------------===//
+    ui h_hit[GetNumberOfBlocks()];
+    ui h_node_visit_count[GetNumberOfBlocks()];
 
-  ui total_hit = 0;
-  ui total_jump_count = 0;
-  ui total_node_visit_count_cpu = 0;
-  ui total_node_visit_count_gpu = 0;
+    ui total_hit = 0;
+    ui total_jump_count = 0;
+    ui total_node_visit_count_cpu = 0;
+    ui total_node_visit_count_gpu = 0;
 
-  ui* d_hit;
-  cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
-  ui* d_node_visit_count;
-  cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
+    ui* d_hit;
+    cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
+    ui* d_node_visit_count;
+    cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
 
-  // initialize hit and node visit variables to zero
-  global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
-  cudaDeviceSynchronize();
+    // initialize hit and node visit variables to zero
+    global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
+    cudaDeviceSynchronize();
 
-  //===--------------------------------------------------------------------===//
-  // Prepare Multi-thread Query Processing
-  //===--------------------------------------------------------------------===//
-  ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_cpu_threads;
-  // chunk size should be equal or larger than number of blocks per cpu
-  // otherwise, just wasting GPU resources.
-  assert(chunk_size >= number_of_blocks_per_cpu);
+    //===--------------------------------------------------------------------===//
+    // Prepare Multi-thread Query Processing
+    //===--------------------------------------------------------------------===//
+    ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_cpu_threads;
+    // chunk size should be equal or larger than number of blocks per cpu
+    // otherwise, just wasting GPU resources.
+    assert(chunk_size >= number_of_blocks_per_cpu);
 
-  std::vector<std::thread> threads;
-  ui thread_jump_count[number_of_cpu_threads];
-  ui thread_node_visit_count_cpu[number_of_cpu_threads];
+    std::vector<std::thread> threads;
+    ui thread_jump_count[number_of_cpu_threads];
+    ui thread_node_visit_count_cpu[number_of_cpu_threads];
 
-  //===--------------------------------------------------------------------===//
-  // Collect Start Node Index in Advance
-  //===--------------------------------------------------------------------===//
-  // NOTE : Collect start node index in advance to measure GPU kernel launching time
-  /*
-  thread_start_node_index.resize(number_of_cpu_threads);
-  // parallel for loop using c++ std 11 
-  {
+    //===--------------------------------------------------------------------===//
+    // Collect Start Node Index in Advance
+    //===--------------------------------------------------------------------===//
+    // NOTE : Collect start node index in advance to measure GPU kernel launching time
+    /*
+       thread_start_node_index.resize(number_of_cpu_threads);
+    // parallel for loop using c++ std 11 
+    {
     auto chunk_size = number_of_search/number_of_cpu_threads;
     auto start_offset = 0 ;
     auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
 
     for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-      threads.push_back(std::thread(&Hybrid::Thread_CollectStartNodeIndex, this, 
-                        std::ref(query), std::ref(thread_start_node_index[thread_itr]),
-                        start_offset, end_offset));
-      start_offset = end_offset;
-      end_offset += chunk_size;
+    threads.push_back(std::thread(&Hybrid::Thread_CollectStartNodeIndex, this, 
+    std::ref(query), std::ref(thread_start_node_index[thread_itr]),
+    start_offset, end_offset));
+    start_offset = end_offset;
+    end_offset += chunk_size;
     }
 
     //Join the threads with the main thread
     for(auto &thread : threads){
-      thread.join();
+    thread.join();
     }
+    }
+    threads.clear();
+     */
+
+    //===--------------------------------------------------------------------===//
+    // Execute Search Function
+    //===--------------------------------------------------------------------===//
+    recorder.TimeRecordStart();
+
+    // parallel for loop using c++ std 11 
+    {
+      auto search_chunk_size = number_of_search/number_of_cpu_threads;
+      auto start_offset = 0 ;
+      auto end_offset = start_offset + search_chunk_size + number_of_search%number_of_cpu_threads;
+
+      for (ui range(thread_itr, 0, number_of_cpu_threads)) {
+        threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
+              std::ref(query), d_query, 
+              thread_itr, number_of_blocks_per_cpu, 
+              std::ref(thread_jump_count[thread_itr]), 
+              std::ref(thread_node_visit_count_cpu[thread_itr]),
+              start_offset, end_offset));
+
+        start_offset = end_offset;
+        end_offset += search_chunk_size;
+      }
+
+      //Join the threads with the main thread
+      for(auto &thread : threads){
+        thread.join();
+      }
+
+      for(ui range(thread_itr, 0, number_of_cpu_threads)) {
+        total_jump_count += thread_jump_count[thread_itr];
+        total_node_visit_count_cpu += thread_node_visit_count_cpu[thread_itr];
+      }
+    }
+
+    LOG_INFO("Avg. Jump Count %f", total_jump_count/(float)number_of_search);
+
+    // A problem with using host-device synchronization points, such as
+    // cudaDeviceSynchronize(), is that they stall the GPU pipeline
+    cudaDeviceSynchronize();
+
+    global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
+    cudaMemcpy(h_hit, d_hit, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*GetNumberOfBlocks(), 
+        cudaMemcpyDeviceToHost);
+
+    for(ui range(i, 0, GetNumberOfBlocks())) {
+      total_hit += h_hit[i];
+      total_node_visit_count_gpu += h_node_visit_count[i];
+    }
+
+    auto elapsed_time = recorder.TimeRecordEnd();
+    LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
+    LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
+
+    //===--------------------------------------------------------------------===//
+    // Show Results
+    //===--------------------------------------------------------------------===//
+    LOG_INFO("Hit : %u", total_hit);
+    LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
+    LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
+    LOG_INFO("\n");
   }
-  threads.clear();
-  */
-
-  //===--------------------------------------------------------------------===//
-  // Execute Search Function
-  //===--------------------------------------------------------------------===//
-  recorder.TimeRecordStart();
-
-  // parallel for loop using c++ std 11 
-  {
-    auto chunk_size = number_of_search/number_of_cpu_threads;
-    auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
-
-    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-      threads.push_back(std::thread(&Hybrid::Thread_Search, this, 
-                        std::ref(query), d_query, 
-                        thread_itr, number_of_blocks_per_cpu, 
-                        std::ref(thread_jump_count[thread_itr]), 
-                        std::ref(thread_node_visit_count_cpu[thread_itr]),
-                        start_offset, end_offset));
-
-      start_offset = end_offset;
-      end_offset += chunk_size;
-    }
-
-    //Join the threads with the main thread
-    for(auto &thread : threads){
-      thread.join();
-    }
-
-    for(ui range(thread_itr, 0, number_of_cpu_threads)) {
-      total_jump_count += thread_jump_count[thread_itr];
-      total_node_visit_count_cpu += thread_node_visit_count_cpu[thread_itr];
-    }
-  }
-
-  LOG_INFO("Avg. Jump Count %f", total_jump_count/(float)number_of_search);
-
-  // A problem with using host-device synchronization points, such as
-  // cudaDeviceSynchronize(), is that they stall the GPU pipeline
-  cudaDeviceSynchronize();
-
-  global_GetHitCount<<<1,GetNumberOfBlocks()>>>(d_hit, d_node_visit_count);
-  cudaMemcpy(h_hit, d_hit, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
-  cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*GetNumberOfBlocks(), 
-             cudaMemcpyDeviceToHost);
-
-  for(ui range(i, 0, GetNumberOfBlocks())) {
-    total_hit += h_hit[i];
-    total_node_visit_count_gpu += h_node_visit_count[i];
-  }
-
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
-  LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
-
-  //===--------------------------------------------------------------------===//
-  // Show Results
-  //===--------------------------------------------------------------------===//
-  LOG_INFO("Hit : %u", total_hit);
-  LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
-  LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
 }
 
 void Hybrid::Thread_CollectStartNodeIndex(std::vector<Point>& query,
@@ -607,6 +611,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
+      /*
       if(scan_type == SCAN_TYPE_LEAF) {
         global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
@@ -616,6 +621,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                                             (&d_query[query_offset], start_node_offset, chunk_size,
                                             bid_offset, number_of_blocks_per_cpu );
       }
+      */
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
 
       if(scan_type == SCAN_TYPE_EXTENDLEAF) {

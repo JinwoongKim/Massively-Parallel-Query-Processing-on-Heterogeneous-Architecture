@@ -29,7 +29,7 @@ class Rtree : public Tree {
    * Search the data 
    */
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
-             ui number_of_search);
+             ui number_of_search, ui number_of_repeat);
 
   void Thread_Search(std::vector<Point>&query, 
                      ui tid, ui& hit, ui& node_visit_count, 

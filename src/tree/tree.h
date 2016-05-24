@@ -37,7 +37,7 @@ class Tree {
    * Search the data 
    */
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
-                     ui number_of_search) =0;
+                     ui number_of_search, ui number_of_repeat) =0;
 
   virtual void PrintTree(ui count, ui offset=0);
 
