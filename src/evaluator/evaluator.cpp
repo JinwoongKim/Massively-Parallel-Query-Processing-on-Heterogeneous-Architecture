@@ -4,6 +4,7 @@
 #include "common/logger.h"
 #include "tree/mphr.h"
 #include "tree/hybrid.h"
+#include "tree/rtree.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -114,11 +115,20 @@ bool Evaluator::Build(void) {
       case TREE_TYPE_HYBRID:  {
         std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
         hybrid->SetScanType(scan_type);
+        hybrid->SetNumberOfCUDABlocks(number_of_cuda_blocks);
+        hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
       } break;
-      case  TREE_TYPE_MPHR:
+      case  TREE_TYPE_MPHR: {
+        std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
+        mphr->SetNumberOfCUDABlocks(number_of_cuda_blocks);
         tree->Build(input_data_set);
-        break;
+      } break;
+      case  TREE_TYPE_RTREE: {
+        std::shared_ptr<tree::Rtree> rtree = std::dynamic_pointer_cast<tree::Rtree>(tree);
+        rtree->SetNumberOfCPUThreads(number_of_cpu_threads);
+        tree->Build(input_data_set);
+      } break;
       default:
         assert(0);
         break;
@@ -142,11 +152,13 @@ bool Evaluator::Search(void) {
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
           hybrid->SetChunkSize(chunk_size);
           hybrid->SetScanType(scan_type);
-          hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
           tree->Search(query_data_set, number_of_search);
           break;
         }
       case TREE_TYPE_MPHR:
+        tree->Search(query_data_set, number_of_search);
+        break;
+      case TREE_TYPE_RTREE:
         tree->Search(query_data_set, number_of_search);
         break;
     }
@@ -277,11 +289,15 @@ void Evaluator::AddTrees(std::string _index_type) {
 
   if( index_type == "hybrid" ||
       index_type == "h") {
-    std::shared_ptr<tree::Tree> tree (new tree::Hybrid(number_of_cuda_blocks));
+    std::shared_ptr<tree::Tree> tree (new tree::Hybrid());
     trees.push_back(tree);
   } else if ( index_type == "mphr" ||
               index_type == "m") {
-    std::shared_ptr<tree::Tree> tree (new tree::MPHR(number_of_cuda_blocks));
+    std::shared_ptr<tree::Tree> tree (new tree::MPHR());
+    trees.push_back(tree);
+  } else if ( index_type == "rtree" ||
+              index_type == "r") {
+    std::shared_ptr<tree::Tree> tree (new tree::Rtree());
     trees.push_back(tree);
   }
 }

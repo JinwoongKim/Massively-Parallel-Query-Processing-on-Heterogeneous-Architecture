@@ -13,8 +13,7 @@
 namespace ursus {
 namespace tree {
 
-Hybrid::Hybrid(ui _number_of_cuda_blocks) { 
-  number_of_cuda_blocks = _number_of_cuda_blocks;
+Hybrid::Hybrid() { 
   tree_type = TREE_TYPE_HYBRID;
 }
 
@@ -641,6 +640,11 @@ void Hybrid::SetScanType(ScanType _scan_type){
 void Hybrid::SetNumberOfCPUThreads(ui _number_of_cpu_threads){
   number_of_cpu_threads = _number_of_cpu_threads;
   assert(number_of_cuda_blocks/number_of_cpu_threads>0);
+}
+
+void Hybrid::SetNumberOfCUDABlocks(ui _number_of_cuda_blocks){
+  number_of_cuda_blocks = _number_of_cuda_blocks;
+  assert(number_of_cuda_blocks);
 }
 
 ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 

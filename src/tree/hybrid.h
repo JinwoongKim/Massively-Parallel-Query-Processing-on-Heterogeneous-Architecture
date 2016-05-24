@@ -12,8 +12,7 @@ class Hybrid : public Tree {
   //===--------------------------------------------------------------------===//
   // Consteructor/Destructor
   //===--------------------------------------------------------------------===//
-    Hybrid() = delete;
-    Hybrid(ui number_of_cuda_blocks);
+  Hybrid();
 
  //===--------------------------------------------------------------------===//
  // Main Function
@@ -59,6 +58,8 @@ class Hybrid : public Tree {
   void SetScanType(ScanType scan_type);
 
   void SetNumberOfCPUThreads(ui number_of_cpu_threads);
+
+  void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count);

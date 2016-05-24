@@ -13,9 +13,8 @@
 namespace ursus {
 namespace tree {
 
-Rtree::Rtree(ui _number_of_cpu_threads) { 
+Rtree::Rtree() { 
   tree_type = TREE_TYPE_RTREE;
-  number_of_cpu_threads = _number_of_cpu_threads;
 }
 
 /**
@@ -62,7 +61,7 @@ bool Rtree::Build(std::shared_ptr<io::DataSet> input_data_set){
   return true;
 }
 
-bool Hybrid::DumpFromFile(std::string index_name) {
+bool Rtree::DumpFromFile(std::string index_name) {
 
   FILE* index_file;
   index_file = fopen(index_name.c_str(),"rb");
@@ -71,6 +70,7 @@ bool Hybrid::DumpFromFile(std::string index_name) {
     LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
     return false;
   }
+
 
   LOG_INFO("Load an index file (%s)", index_name.c_str());
   auto& recorder = evaluator::Recorder::GetInstance();
@@ -109,7 +109,7 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   return true;
 }
 
-bool Hybrid::DumpToFile(std::string index_name) {
+bool Rtree::DumpToFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
   LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
@@ -192,7 +192,7 @@ bool Hybrid::DumpToFile(std::string index_name) {
   return true;
 }
 
-int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
+int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search){
 
   auto& recorder = evaluator::Recorder::GetInstance();
@@ -208,6 +208,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   std::vector<std::thread> threads;
   ui thread_hit[number_of_cpu_threads];
   ui thread_node_visit_count[number_of_cpu_threads];
+  
+  ui total_hit=0;
+  ui total_node_visit_count=0;
 
   //===--------------------------------------------------------------------===//
   // Execute Search Function
@@ -253,6 +256,11 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("Node visit count : %u", total_node_visit_count);
 }
 
+void Rtree::SetNumberOfCPUThreads(ui _number_of_cpu_threads) {
+  number_of_cpu_threads = _number_of_cpu_threads;
+  assert(number_of_cpu_threads);
+}
+
 void Rtree::Thread_Search(std::vector<Point>& query, ui tid,
                            ui& hit, ui& node_visit_count, ui start_offset, ui end_offset) {
   hit = 0;
@@ -261,14 +269,14 @@ void Rtree::Thread_Search(std::vector<Point>& query, ui tid,
   ui query_offset = start_offset*GetNumberOfDims()*2;
 
   for(ui range(query_itr, start_offset, end_offset)) {
-    hit = TraverseInternalNodes(node_ptr, &query[query_offset], &node_visit_count);
+    hit += TraverseInternalNodes(node_ptr, &query[query_offset], &node_visit_count);
     query_offset += GetNumberOfDims()*2;
   }
 }
 
 ui Rtree::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                                  ui *node_visit_count) {
-  hit = 0;
+  ui hit = 0;
   (*node_visit_count)++;
 
   // internal nodes
@@ -289,3 +297,6 @@ ui Rtree::TraverseInternalNodes(node::Node *node_ptr, Point* query,
   }
   return hit;
 }
+
+} // End of tree namespace
+} // End of ursus namespace

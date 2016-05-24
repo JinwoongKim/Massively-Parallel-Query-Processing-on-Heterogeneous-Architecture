@@ -11,8 +11,7 @@ class MPHR : public Tree {
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
-  MPHR() = delete;
-  MPHR(ui number_of_cuda_blocks);
+  MPHR();
   ~MPHR();
 
  //===--------------------------------------------------------------------===//
@@ -33,6 +32,8 @@ class MPHR : public Tree {
    */
   int Search(std::shared_ptr<io::DataSet> query_data_set, 
              ui number_of_search);
+
+  void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
 };
 
 //===--------------------------------------------------------------------===//

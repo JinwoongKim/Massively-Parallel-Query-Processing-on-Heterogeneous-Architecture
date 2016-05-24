@@ -7,11 +7,10 @@ namespace tree {
 
 class Rtree : public Tree {
  public:
-  //===--------------------------------------------------------------------===//
-  // Consteructor/Destructor
-  //===--------------------------------------------------------------------===//
-    Rtree() = delete;
-    Rtree(ui number_of_cpu_threads);
+ //===--------------------------------------------------------------------===//
+ // Consteructor/Destructor
+ //===--------------------------------------------------------------------===//
+  Rtree();
 
  //===--------------------------------------------------------------------===//
  // Main Function
@@ -35,6 +34,8 @@ class Rtree : public Tree {
   void Thread_Search(std::vector<Point>&query, 
                      ui tid, ui& hit, ui& node_visit_count, 
                      ui start_offset, ui end_offset) ;
+
+  void SetNumberOfCPUThreads(ui number_of_cpu_threads);
 
   ui TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ui *node_visit_count);
