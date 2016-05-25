@@ -168,7 +168,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
   auto d_query = query_data_set->GetDeviceQuery(number_of_search);
 
   for(ui range(repeat_itr, 0, number_of_repeat)) {
-    LOG_INFO("#%u) Evaluation", repeat_itr);
+    LOG_INFO("#%u) Evaluation", repeat_itr+1);
     //===--------------------------------------------------------------------===//
     // Prepare Hit & Node Visit Variables for evaluations
     //===--------------------------------------------------------------------===//

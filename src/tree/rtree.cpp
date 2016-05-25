@@ -203,7 +203,7 @@ int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set,
   auto query = query_data_set->GetPoints();
   
   for(ui range(repeat_itr, 0, number_of_repeat)) {
-    LOG_INFO("#%u) Evaluation", repeat_itr);
+    LOG_INFO("#%u) Evaluation", repeat_itr+1);
     //===--------------------------------------------------------------------===//
     // Prepare Multi-thread Query Processing
     //===--------------------------------------------------------------------===//
