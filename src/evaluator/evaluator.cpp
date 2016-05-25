@@ -113,22 +113,24 @@ bool Evaluator::Build(void) {
   for(auto& tree : trees) {
     switch(tree->GetTreeType()){
       case TREE_TYPE_HYBRID:  {
+        // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
         std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
         hybrid->SetScanType(scan_type);
+        hybrid->SetChunkSize(chunk_size);
         hybrid->SetNumberOfCUDABlocks(number_of_cuda_blocks);
         hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
-      } break;
+        } break;
       case  TREE_TYPE_MPHR: {
         std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
         mphr->SetNumberOfCUDABlocks(number_of_cuda_blocks);
         tree->Build(input_data_set);
-      } break;
+        } break;
       case  TREE_TYPE_RTREE: {
         std::shared_ptr<tree::Rtree> rtree = std::dynamic_pointer_cast<tree::Rtree>(tree);
         rtree->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
-      } break;
+        } break;
       default:
         assert(0);
         break;
@@ -144,23 +146,72 @@ bool Evaluator::Build(void) {
 bool Evaluator::Search(void) {
   if( number_of_search == 0 ) return false;
 
+  std::vector<ui> cpu_thread_vec = {1,2,4,8,16,32};
+  std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256,
+                                    512, 768, 1024};
+  std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
+
   for(auto& tree : trees) {
-    switch(tree->GetTreeType()){
-      case TREE_TYPE_HYBRID:
-        {
-          // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
+    switch(tree->GetTreeType()) {
+      case TREE_TYPE_HYBRID: {
+        if( EvaluationMode ) {
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
-          hybrid->SetChunkSize(chunk_size);
-          hybrid->SetScanType(scan_type);
+
+          for(auto cpu_thread_itr : cpu_thread_vec) {
+            for(auto chunk_size_itr : chunk_size_vec) {
+              auto cuda_block_per_cpu = 128/cpu_thread_itr;
+              if( chunk_size_itr >= cuda_block_per_cpu) {
+                hybrid->SetChunkSize(chunk_size_itr);
+                hybrid->SetNumberOfCPUThreads(cpu_thread_itr);
+                hybrid->SetNumberOfCUDABlocks(128);
+                LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", cpu_thread_itr, cuda_block_per_cpu, chunk_size_itr);
+                tree->Search(query_data_set, number_of_search, number_of_repeat);
+              }
+            }
+          }
+
+          for(auto cuda_block_itr : cuda_block_vec) {
+            for(auto chunk_size_itr : chunk_size_vec) {
+              auto cpu_thread = 1;
+              if( chunk_size_itr >= cuda_block_itr) {
+                hybrid->SetChunkSize(chunk_size_itr);
+                hybrid->SetNumberOfCPUThreads(cpu_thread);
+                hybrid->SetNumberOfCUDABlocks(cuda_block_itr);
+                LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", 1, cuda_block_itr, chunk_size_itr);
+                tree->Search(query_data_set, number_of_search, number_of_repeat);
+              }
+            }
+          }
+        } else {
           tree->Search(query_data_set, number_of_search, number_of_repeat);
-          break;
         }
-      case TREE_TYPE_MPHR:
-        tree->Search(query_data_set, number_of_search, number_of_repeat);
-        break;
-      case TREE_TYPE_RTREE:
-        tree->Search(query_data_set, number_of_search, number_of_repeat);
-        break;
+      }  break;
+      case TREE_TYPE_MPHR: {
+        if( EvaluationMode ) {
+          std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
+
+          for(auto cuda_block_itr : cuda_block_vec) {
+            mphr->SetNumberOfCUDABlocks(cuda_block_itr);
+            LOG_INFO("Evaluation Mode On CUDA Block %u", cuda_block_itr);
+            tree->Search(query_data_set, number_of_search, number_of_repeat);
+          }
+        } else {
+          tree->Search(query_data_set, number_of_search, number_of_repeat);
+        }
+      } break;
+      case TREE_TYPE_RTREE: {
+        if( EvaluationMode ) {
+          std::shared_ptr<tree::Rtree> rtree = std::dynamic_pointer_cast<tree::Rtree>(tree);
+
+          for(auto cpu_thread_itr : cpu_thread_vec) {
+            rtree->SetNumberOfCPUThreads(cpu_thread_itr);
+            LOG_INFO("Evaluation Mode On CPU Thread %u", cpu_thread_itr);
+            tree->Search(query_data_set, number_of_search, number_of_repeat);
+          }
+        } else {
+          tree->Search(query_data_set, number_of_search, number_of_repeat);
+        }
+      } break;
     }
   }
 
@@ -214,7 +265,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:";
   std::string number_of_data_str;
   int current_option;
 
@@ -239,6 +290,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'L': scan_type = (ScanType)atoi(optarg);  break;
       case 'r':
       case 'R': number_of_repeat = atoi(optarg);  break;
+      case 'e':
+      case 'E': EvaluationMode = atoi(optarg);  break;
      default: break;
     } // end of switch
   } // end of while

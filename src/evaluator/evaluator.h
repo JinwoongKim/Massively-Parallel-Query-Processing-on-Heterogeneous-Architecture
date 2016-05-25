@@ -70,8 +70,12 @@ class Evaluator{
   // # of searches
   ui number_of_search = 0;
 
-  // # of searches
+  // # of repeat in Search function
   ui number_of_repeat = 1;
+
+  // evaluation mode, if it's on, run a search function multiple time with
+  // various settings
+  ui EvaluationMode = 0;
 
   // # of cpu cores to be used for evaluation
   ui number_of_cpu_core = 0;
