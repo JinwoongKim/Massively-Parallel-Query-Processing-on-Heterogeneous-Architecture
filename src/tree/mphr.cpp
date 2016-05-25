@@ -75,12 +75,13 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   }
 
   //===--------------------------------------------------------------------===//
-  // Move Trees to the GPU
+  // Move Tree to the GPU in advance
   //===--------------------------------------------------------------------===//
-  // copy the entire tree from the root node
-  ret = MoveTreeToGPU();
+  // copy the entire tree  to the GPU
+  ret = CopyNodeToGPU();
   assert(ret);
 
+  // deallocate tree on the host
   delete node_soa_ptr;
   node_soa_ptr = nullptr;
 
