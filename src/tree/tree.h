@@ -13,10 +13,10 @@ namespace tree {
 
 class Tree {
  public:
+
  //===--------------------------------------------------------------------===//
  // Virtual Function
  //===--------------------------------------------------------------------===//
-
   /**
    * Build the indexing structure
    */
@@ -102,7 +102,7 @@ class Tree {
   void BottomUpBuildonCPU(ul current_offset, ul parent_offset, ui number_of_node, 
                          node::Node* root, ui tid, ui number_of_threads);
 
-  bool MoveTreeToGPU(ui offset=0, ui count=0);
+  bool CopyNodeToGPU(ui offset=0, ui count=0);
 
  //===--------------------------------------------------------------------===//
  // Members
@@ -137,7 +137,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
                               ui number_of_node, node::Node* root,
                               ui number_of_cuda_blocks);
 __global__ 
-void global_MoveTreeToGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
+void global_SetRootOnTheGPu(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
 
 } // End of tree namespace
 } // End of ursus namespace

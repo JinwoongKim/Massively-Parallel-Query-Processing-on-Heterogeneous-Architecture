@@ -22,7 +22,7 @@ Hybrid::Hybrid() {
  * @param input_data_set 
  * @return true if success to build otherwise false
  */
-bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
+bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
   SetNumberOfNodeSOA(input_data_set->GetNumberOfData());
 
@@ -74,11 +74,10 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     DumpToFile(index_name);
   }
 
-  //===--------------------------------------------------------------------===//
-  // Move Trees to the GPU
-  //===--------------------------------------------------------------------===//
-  // FIXME : use stream..
 
+  //===--------------------------------------------------------------------===//
+  // Move Trees to the GPU in advance
+  //===--------------------------------------------------------------------===//
   ui offset = 0;
   ui count = 0;
   
@@ -94,7 +93,7 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set){
     LOG_INFO("scan type %s", (ScanTypeToString(scan_type)).c_str());
     assert(0);
   }
-  ret = MoveTreeToGPU(offset, count);
+  ret = CopyNodeToGPU(offset, count);
   assert(ret);
 
   LOG_INFO("Extend Leaf Node Count %u", GetNumberOfExtendLeafNodeSOA());
@@ -349,10 +348,10 @@ bool Hybrid::DumpToFile(std::string index_name) {
 }
 
 void Hybrid::SetNumberOfNodeSOA(ui number_of_data) {
-  leaf_node_soa_count = std::ceil((float)number_of_data/GetNumberOfDegrees());
+  leaf_node_soa_count = std::ceil((float)number_of_data/(float)GetNumberOfDegrees());
   assert(leaf_node_soa_count);
 
-  extend_leaf_node_soa_count = std::ceil((float)leaf_node_soa_count/GetNumberOfDegrees());
+  extend_leaf_node_soa_count = std::ceil((float)leaf_node_soa_count/(float)GetNumberOfDegrees());
   assert(extend_leaf_node_soa_count);
 }
 
@@ -504,8 +503,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
-    LOG_INFO("Node visit count on GPU : %u", total_node_visit_count_gpu);
-    LOG_INFO("\n");
+    LOG_INFO("Node visit count on GPU : %u\n\n", total_node_visit_count_gpu);
   }
 }
 
