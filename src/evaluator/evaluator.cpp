@@ -157,28 +157,34 @@ bool Evaluator::Search(void) {
         if( EvaluationMode ) {
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
 
-          for(auto cpu_thread_itr : cpu_thread_vec) {
-            for(auto chunk_size_itr : chunk_size_vec) {
-              auto cuda_block_per_cpu = 128/cpu_thread_itr;
-              if( chunk_size_itr >= cuda_block_per_cpu) {
-                hybrid->SetChunkSize(chunk_size_itr);
-                hybrid->SetNumberOfCPUThreads(cpu_thread_itr);
-                hybrid->SetNumberOfCUDABlocks(128);
-                LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", cpu_thread_itr, cuda_block_per_cpu, chunk_size_itr);
-                tree->Search(query_data_set, number_of_search, number_of_repeat);
+          if( EvaluationMode == 2 ||
+              EvaluationMode == 3) {
+            for(auto cpu_thread_itr : cpu_thread_vec) {
+              for(auto chunk_size_itr : chunk_size_vec) {
+                auto cuda_block_per_cpu = 128/cpu_thread_itr;
+                if( chunk_size_itr >= cuda_block_per_cpu) {
+                  hybrid->SetChunkSize(chunk_size_itr);
+                  hybrid->SetNumberOfCPUThreads(cpu_thread_itr);
+                  hybrid->SetNumberOfCUDABlocks(128);
+                  LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", cpu_thread_itr, cuda_block_per_cpu, chunk_size_itr);
+                  tree->Search(query_data_set, number_of_search, number_of_repeat);
+                }
               }
             }
           }
 
-          for(auto cuda_block_itr : cuda_block_vec) {
-            for(auto chunk_size_itr : chunk_size_vec) {
-              auto cpu_thread = 1;
-              if( chunk_size_itr >= cuda_block_itr) {
-                hybrid->SetChunkSize(chunk_size_itr);
-                hybrid->SetNumberOfCPUThreads(cpu_thread);
-                hybrid->SetNumberOfCUDABlocks(cuda_block_itr);
-                LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", 1, cuda_block_itr, chunk_size_itr);
-                tree->Search(query_data_set, number_of_search, number_of_repeat);
+          if( EvaluationMode == 1 ||
+              EvaluationMode == 3 ) {
+            for(auto cuda_block_itr : cuda_block_vec) {
+              for(auto chunk_size_itr : chunk_size_vec) {
+                auto cpu_thread = 1;
+                if( chunk_size_itr >= cuda_block_itr) {
+                  hybrid->SetChunkSize(chunk_size_itr);
+                  hybrid->SetNumberOfCPUThreads(cpu_thread);
+                  hybrid->SetNumberOfCUDABlocks(cuda_block_itr);
+                  LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", 1, cuda_block_itr, chunk_size_itr);
+                  tree->Search(query_data_set, number_of_search, number_of_repeat);
+                }
               }
             }
           }
