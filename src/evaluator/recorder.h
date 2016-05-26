@@ -6,10 +6,10 @@ namespace ursus {
 namespace evaluator {
 
 class Recorder{
- public:
  //===--------------------------------------------------------------------===//
  // Consteructor/Destructor
  //===--------------------------------------------------------------------===//
+ public:
   Recorder(const Recorder &) = delete;
   Recorder &operator=(const Recorder &) = delete;
   Recorder(Recorder &&) = delete;

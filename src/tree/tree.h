@@ -137,7 +137,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
                               ui number_of_node, node::Node* root,
                               ui number_of_cuda_blocks);
 __global__ 
-void global_SetRootOnTheGPu(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
+void global_SetRootOnTheGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
 
 } // End of tree namespace
 } // End of ursus namespace

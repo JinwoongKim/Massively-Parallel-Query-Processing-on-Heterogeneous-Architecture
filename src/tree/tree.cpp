@@ -654,7 +654,7 @@ bool Tree::CopyNodeToGPU(ui offset, ui count){
   cudaErrCheck(cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*count));
   cudaErrCheck(cudaMemcpy(d_node_soa_ptr, &node_soa_ptr[offset], sizeof(node::Node_SOA)*count, 
                cudaMemcpyHostToDevice));
-  global_SetRootOnTheGPu<<<1,1>>>(d_node_soa_ptr, count);
+  global_SetRootOnTheGPU<<<1,1>>>(d_node_soa_ptr, count);
   cudaDeviceSynchronize();
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -871,8 +871,7 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
 }
 
 __global__ 
-void global_SetRootOnTheGPu(node::Node_SOA* d_node_soa_ptr, ui total_node_count) { 
-  g_node_soa_ptr = (node::Node_SOA*)malloc (sizeof(node::Node_SOA)*total_node_count);
+void global_SetRootOnTheGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count) { 
   g_node_soa_ptr = d_node_soa_ptr;
 }
 
