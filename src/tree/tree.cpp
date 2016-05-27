@@ -636,32 +636,7 @@ void Tree::BottomUpBuild_ILP(ul current_offset, ul parent_offset,
                           root, number_of_cuda_blocks);
 }
 
-/**
- * @brief copy the entire of partial nodes of the tree to the GPU
- * @return true if success otherwise false
- */ 
-bool Tree::CopyNodeToGPU(ui offset, ui count){
 
-  // if count is 0, copy the entire tree nodes
-  if( count == 0 ) {
-    count = total_node_count;
-  }
-
-  auto& recorder = evaluator::Recorder::GetInstance();
-  recorder.TimeRecordStart();
-
-  node::Node_SOA* d_node_soa_ptr;
-  cudaErrCheck(cudaMalloc((void**) &d_node_soa_ptr, sizeof(node::Node_SOA)*count));
-  cudaErrCheck(cudaMemcpy(d_node_soa_ptr, &node_soa_ptr[offset], sizeof(node::Node_SOA)*count, 
-               cudaMemcpyHostToDevice));
-  global_SetRootOnTheGPU<<<1,1>>>(d_node_soa_ptr, count);
-  cudaDeviceSynchronize();
-
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Copy NodeSOA to the GPU = %.6fs", elapsed_time/1000.0f);
-
-  return true;
-}
 
 void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset, 
                               ui number_of_node, node::Node* root, ui tid, ui number_of_threads) {
@@ -758,8 +733,6 @@ void Tree::BottomUpBuildonCPU(ul current_offset, ul parent_offset,
 //===--------------------------------------------------------------------===//
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
-__device__ node::Node_SOA* g_node_soa_ptr;
-
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset, 
                               ui number_of_node, node::Node* root,
@@ -870,10 +843,6 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
   }
 }
 
-__global__ 
-void global_SetRootOnTheGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count) { 
-  g_node_soa_ptr = d_node_soa_ptr;
-}
 
 } // End of tree namespace
 } // End of ursus namespace

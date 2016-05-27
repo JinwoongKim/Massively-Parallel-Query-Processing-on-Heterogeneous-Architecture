@@ -102,8 +102,6 @@ class Tree {
   void BottomUpBuildonCPU(ul current_offset, ul parent_offset, ui number_of_node, 
                          node::Node* root, ui tid, ui number_of_threads);
 
-  bool CopyNodeToGPU(ui offset=0, ui count=0);
-
  //===--------------------------------------------------------------------===//
  // Members
  //===--------------------------------------------------------------------===//
@@ -130,14 +128,9 @@ class Tree {
 //===--------------------------------------------------------------------===//
 // Cuda function
 //===--------------------------------------------------------------------===//
-extern __device__ node::Node_SOA* g_node_soa_ptr;
-
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
                               ui number_of_node, node::Node* root,
                               ui number_of_cuda_blocks);
-__global__ 
-void global_SetRootOnTheGPU(node::Node_SOA* d_node_soa_ptr, ui total_node_count);
-
 } // End of tree namespace
 } // End of ursus namespace

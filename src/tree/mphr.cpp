@@ -5,6 +5,7 @@
 #include "evaluator/recorder.h"
 #include "sort/sorter.h"
 #include "transformer/transformer.h"
+#include "manager/chunk_manager.h"
 
 #include <cassert>
 
@@ -78,8 +79,11 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   // Move Tree to the GPU in advance
   //===--------------------------------------------------------------------===//
   // copy the entire tree  to the GPU
-  ret = CopyNodeToGPU();
-  assert(ret);
+
+  // Get Chunk Manager and initialize it
+  auto& chunk_manager = manager::ChunkManager::GetInstance();
+  chunk_manager.Init(sizeof(node::Node_SOA)*total_node_count);
+  chunk_manager.CopyNode(node_soa_ptr, 0, total_node_count);
 
   // deallocate tree on the host
   delete node_soa_ptr;
@@ -235,6 +239,7 @@ void MPHR::SetNumberOfCUDABlocks(ui _number_of_cuda_blocks){
 //===--------------------------------------------------------------------===//
 // Cuda Function 
 //===--------------------------------------------------------------------===//
+
 /**
  * @brief execute MPRS algorithm 
  * @param 
@@ -262,7 +267,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
   t_hit[tid] = 0;
 
-  node::Node_SOA* root = g_node_soa_ptr;
+  node::Node_SOA* root = manager::g_node_soa_ptr;
   node::Node_SOA* node_soa_ptr = root;
 
   ll visited_leafIndex = 0;

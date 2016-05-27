@@ -6,6 +6,7 @@ SUBDIRS=common \
 				sort \
 				mapper \
 				transformer \
+				manager \
 				main
 
 .PHONY: all clean $(SUBDIRS)
