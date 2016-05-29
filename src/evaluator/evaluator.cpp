@@ -124,6 +124,7 @@ bool Evaluator::Build(void) {
       case  TREE_TYPE_MPHR: {
         std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
         mphr->SetNumberOfCUDABlocks(number_of_cuda_blocks);
+        mphr->SetNumberOfPartition(number_of_partition);
         tree->Build(input_data_set);
         } break;
       case  TREE_TYPE_RTREE: {
@@ -192,7 +193,8 @@ bool Evaluator::Search(void) {
           tree->Search(query_data_set, number_of_search, number_of_repeat);
         }
       }  break;
-      case TREE_TYPE_MPHR: {
+      case TREE_TYPE_MPHR:
+      case TREE_TYPE_MPHR_PARTITION: {
         if( EvaluationMode ) {
           std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
 
@@ -202,6 +204,7 @@ bool Evaluator::Search(void) {
             tree->Search(query_data_set, number_of_search, number_of_repeat);
           }
         } else {
+          LOG_INFO("");
           tree->Search(query_data_set, number_of_search, number_of_repeat);
         }
       } break;
@@ -235,6 +238,8 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -s selection ratio(%), default : 0.01 (%) ]\n"
   " [ -l scan type(1: leaf, 2: extend leaf, 3: combine), default : leaf]\n"
   " [ -i index type(should be last), default : Hybrid-tree]\n"
+  " [ -r number of repeat of search]\n" 
+  " [ -e evaluation mode ]\n" 
   "\n e.g: ./bin/cuda -d 1000000 -q 1000 -s 0.5 -c 4\n" 
   << std::endl;
 }
@@ -271,7 +276,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:";
   std::string number_of_data_str;
   int current_option;
 
@@ -298,6 +303,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'R': number_of_repeat = atoi(optarg);  break;
       case 'e':
       case 'E': EvaluationMode = atoi(optarg);  break;
+      case 't':
+      case 'T': number_of_partition = atoi(optarg);  break;
      default: break;
     } // end of switch
   } // end of while

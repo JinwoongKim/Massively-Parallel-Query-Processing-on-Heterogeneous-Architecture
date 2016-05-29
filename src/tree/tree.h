@@ -39,9 +39,9 @@ class Tree {
   virtual int Search(std::shared_ptr<io::DataSet> query_data_set, 
                      ui number_of_search, ui number_of_repeat) =0;
 
-  virtual void PrintTree(ui count, ui offset=0);
+  void PrintTree(ui offset, ui count);
 
-  virtual void PrintTreeInSOA(ui count, ui offset=0);
+  void PrintTreeInSOA(ui offset, ui count);
 
  //===--------------------------------------------------------------------===//
  // Accessor
@@ -76,8 +76,6 @@ class Tree {
   std::vector<ui> GetLevelNodeCount(const std::vector<node::Branch> branches);
 
   ui GetTotalNodeCount(const std::vector<ui> level_node_count) const;
-
-  ui GetLeafNodeCount(void) const;
 
   ui GetNumberOfBlocks(void) const;
 

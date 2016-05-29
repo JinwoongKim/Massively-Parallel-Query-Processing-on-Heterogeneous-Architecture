@@ -79,7 +79,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
   //===--------------------------------------------------------------------===//
   // Move Trees to the GPU in advance
   //===--------------------------------------------------------------------===//
-  /*
+  auto& chunk_manager = manager::ChunkManager::GetInstance();
+
   ui offset = 0;
   ui count = 0;
   
@@ -95,9 +96,10 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     LOG_INFO("scan type %s", (ScanTypeToString(scan_type)).c_str());
     assert(0);
   }
-  ret = CopyNodeToGPU(offset, count);
-  assert(ret);
-  */
+
+  // Get Chunk Manager and initialize it
+  chunk_manager.Init(sizeof(node::Node_SOA)*count);
+  //chunk_manager.CopyNode(node_soa_ptr+offset, 0, count);
 
   LOG_INFO("Extend Leaf Node Count %u", GetNumberOfExtendLeafNodeSOA());
   LOG_INFO("Leaf Node Count %u", GetNumberOfLeafNodeSOA());
@@ -420,13 +422,6 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     // Execute Search Function
     //===--------------------------------------------------------------------===//
-    auto& chunk_manager = manager::ChunkManager::GetInstance();
-    if(scan_type == SCAN_TYPE_LEAF){
-      chunk_manager.Init(sizeof(node::Node_SOA)*GetNumberOfLeafNodeSOA());
-    }else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
-      chunk_manager.Init(sizeof(node::Node_SOA)*GetNumberOfNodeSOA());
-    }
-
     recorder.TimeRecordStart();
 
     // parallel for loop using c++ std 11 
@@ -592,9 +587,9 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
-      chunk_manager.CopyNode(node_soa_ptr, start_node_offset, chunk_size);
-      cudaDeviceSynchronize();
       if(scan_type == SCAN_TYPE_LEAF) {
+        chunk_manager.CopyNode(node_soa_ptr+GetNumberOfExtendLeafNodeSOA(), 
+                               start_node_offset, chunk_size);
         global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
                                        bid_offset, number_of_blocks_per_cpu );

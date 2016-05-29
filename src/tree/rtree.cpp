@@ -77,19 +77,6 @@ bool Rtree::DumpFromFile(std::string index_name) {
   recorder.TimeRecordStart();
 
   //===--------------------------------------------------------------------===//
-  // Height & level node count
-  //===--------------------------------------------------------------------===//
-  size_t height;
-
-  // read tree height
-  fread(&height, sizeof(size_t), 1, index_file);
-  level_node_count.resize(height);
-  for(ui range(level_itr, 0, height)) {
-    // read node count for each tree level
-    fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
-  }
-
-  //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
   // read total node count
@@ -118,17 +105,6 @@ bool Rtree::DumpToFile(std::string index_name) {
   // NOTE :: Use fwrite since it is fast
   FILE* index_file;
   index_file = fopen(index_name.c_str(),"wb");
-
-  //===--------------------------------------------------------------------===//
-  // Height & level node count
-  //===--------------------------------------------------------------------===//
-  size_t height = level_node_count.size();
-  // write tree height
-  fwrite(&height, sizeof(size_t), 1, index_file);
-  for(ui range(level_itr, 0, height)) {
-    // write each tree node count
-    fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
-  }
 
   //===--------------------------------------------------------------------===//
   // Node counts

@@ -55,8 +55,8 @@ __global__
 void global_SetRootOffset(ll* root_offset);
 
 __global__ 
-void global_RestartScanning_and_ParentCheck(Point* query, ui* hit, 
-                                 ui* root_visit_count, ui* node_visit_count);
+void global_RestartScanning_and_ParentCheck(Point* query, ui number_of_partition, 
+                                 ui* hit, ui* root_visit_count, ui* node_visit_count);
  
 } // End of tree namespace
 } // End of ursus namespace

@@ -73,6 +73,8 @@ class Evaluator{
   // # of repeat in Search function
   ui number_of_repeat = 1;
 
+  ui number_of_partition = 1;
+
   // evaluation mode, if it's on, run a search function multiple time with
   // various settings
   ui EvaluationMode = 0;

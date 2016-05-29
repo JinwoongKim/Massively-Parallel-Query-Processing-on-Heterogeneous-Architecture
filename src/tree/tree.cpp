@@ -187,8 +187,6 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
     node->SetNodeType(NODE_TYPE_LEAF);
     node->SetLevel(level);
 
-    leaf_node_count++;
-
   } else {
     //===--------------------------------------------------------------------===//
     // Create an internal node
@@ -232,7 +230,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   auto tree_height = level_node_count.size();
   total_node_count = GetTotalNodeCount(level_node_count);
   // set the leaf node count
-  leaf_node_count = level_node_count.back();
+  auto leaf_node_count = level_node_count.back();
   auto leaf_node_offset = total_node_count - leaf_node_count;
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
@@ -304,7 +302,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   return true;
 }
 
-void Tree::PrintTree(ui count, ui offset) {
+void Tree::PrintTree(ui offset, ui count) {
   LOG_INFO("Print Tree");
 
   std::queue<node::Node*> bfs_queue;
@@ -338,7 +336,7 @@ void Tree::PrintTree(ui count, ui offset) {
   }
 }
 
-void Tree::PrintTreeInSOA(ui count, ui offset) {
+void Tree::PrintTreeInSOA(ui offset, ui count) {
   LOG_INFO("Print Tree in SOA");
 
   ui node_soa_itr = offset;
@@ -468,10 +466,6 @@ ui Tree::GetTotalNodeCount(const std::vector<ui> level_node_count) const{
     total_node_count+=node_count;
   }
   return total_node_count;
-}
-
-ui Tree::GetLeafNodeCount(void) const{
-  return leaf_node_count;
 }
 
 ui Tree::GetNumberOfBlocks(void) const{

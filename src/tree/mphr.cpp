@@ -55,23 +55,33 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = sort::Sorter::Sort(branches);
     assert(ret);
 
-    ui size=0;
-    for(ui range(partition_itr, 0, number_of_partition)) {
-      auto chunk_size = branches.size()/number_of_partition;
-      auto start_offset = 0 ;
-      auto end_offset = start_offset + chunk_size + branches.size()%number_of_partitio;
+    node::Node_SOA* node_soa_ptr_backup[number_of_partition];
+    std::vector<ui> node_soa_ptr_size;
+    ui tmp_total_node_count=0;
+    auto chunk_size = branches.size()/number_of_partition;
+    auto start_offset = 0 ;
+    auto end_offset = start_offset + chunk_size + branches.size()%number_of_partition;
 
+    for(ui range(partition_itr, 0, number_of_partition)) {
       std::vector<node::Branch> partitioned_branches;
-      partitioned_branches.resize(end_offset-start_offset+1);
+      partitioned_branches.resize(end_offset-start_offset);
+      LOG_INFO("par itr %u", partition_itr);
+      LOG_INFO("start offset %u end offset %u ", start_offset, end_offset);
+      LOG_INFO("size %u", end_offset-start_offset);
       // copy the branch start from start offset to end offset into temp branches
-      // so that we can build an index without modification of existing build
-      // TODO branches to partitioned_branch with std::move which is almost zero cost
-      std::copy(partitioned_branches, branches+start_offset, branches+end_offset;)
+      // so that we can build an index without modification of existing build function
+      std::move(branches.begin()+start_offset, branches.begin()+end_offset,
+                partitioned_branches.begin());
+
+      for(auto b : partitioned_branches){
+        LOG_INFO("b : %lu", b.GetIndex());
+      }
 
       //===--------------------------------------------------------------------===//
       // Build the internal nodes in a bottop-up fashion on the GPU
       //===--------------------------------------------------------------------===//
-      // TODO We may pass TREE_TYPE so that we can set the child offset to some useful data in leaf nodes 
+      // TODO We may pass TREE_TYPE so that we can set the child offset to some
+      // useful data in leaf nodes 
       ret = Bottom_Up(partitioned_branches/*, tree_type*/);
       assert(ret);
 
@@ -85,25 +95,42 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
       delete node_ptr;
       node_ptr = nullptr;
 
-      DumpToFile(index_name);
+      //DumpToFile(index_name);
       //TODO set the partitioend mphr type flag
 
-      // Move node_soa_ptr to the backup_node_soa_ptr for MPHR
-      b_node_soa_ptr.emplace_back(node_soa_ptr);
-      root_offset[partition_itr] = size;
-      size += total_node_count;
+      LOG_INFO("TEST1");
+      //PrintTreeInSOA(0,total_node_count);
+
+      node_soa_ptr_backup[partition_itr] = node_soa_ptr;
+      node_soa_ptr_size.emplace_back(total_node_count);
+      root_offset[partition_itr] = tmp_total_node_count;
+      tmp_total_node_count += total_node_count;
+
+      start_offset = end_offset;
+      end_offset += chunk_size;
     }
-    total_node_count = size;
-    //after that, remove to the b_node_soa_ptr
-    ndoe_soa_ptr = 
+    total_node_count = tmp_total_node_count;
+    for(auto count : node_soa_ptr_size){
+      LOG_INFO("count%u", count);
+    }
+    LOG_INFO("total node count %u", total_node_count);
+
+    node_soa_ptr = new node::Node_SOA[total_node_count];
+    for(ui range(partition_itr, 0, number_of_partition)) {
+      memcpy(&node_soa_ptr[root_offset[partition_itr]], node_soa_ptr_backup[partition_itr],
+             sizeof(node::Node_SOA)*node_soa_ptr_size[partition_itr]);
+    }
+
+    LOG_INFO("TEST2");
+    //PrintTreeInSOA(0,total_node_count);
   }
 
   //===--------------------------------------------------------------------===//
   // Set Root Offset per Each CUDA Block
   //===--------------------------------------------------------------------===//
   ll* d_root_offset;
-  cudaErrCheck(cudaMalloc((void**) &d_root_offest, sizeof(ll)*GetNumberOfBlocks()));
-  cudaErrCheck(cudaMemcpy(d_root_offest, root_offset, 
+  cudaErrCheck(cudaMalloc((void**) &d_root_offset, sizeof(ll)*GetNumberOfBlocks()));
+  cudaErrCheck(cudaMemcpy(d_root_offset, root_offset, 
                           sizeof(ll)*GetNumberOfBlocks(), cudaMemcpyHostToDevice));
   global_SetRootOffset<<<1,GetNumberOfBlocks()>>>(d_root_offset);
 
@@ -116,7 +143,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   chunk_manager.Init(sizeof(node::Node_SOA)*total_node_count);
   chunk_manager.CopyNode(node_soa_ptr, 0, total_node_count);
 
-  // deallocate tree on the host
+    // deallocate tree on the host
   delete node_soa_ptr;
   node_soa_ptr = nullptr;
 
@@ -221,23 +248,32 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
     recorder.TimeRecordStart();
 
     ui number_of_batch = GetNumberOfBlocks();
-    for(ui range(query_itr, 0, number_of_search, GetNumberOfBlocks())) {
+    for(ui range(query_itr, 0, number_of_search,0)) {
       // if remaining query is less then number of blocks,
       // setting the number of cuda blocks as much as remaining query
-      if(query_itr + GetNumberOfBlocks() > number_of_search) {
+      if( number_of_partition > 1) {
+        number_of_batch = GetNumberOfBlocks();
+      } else if(query_itr + GetNumberOfBlocks() > number_of_search) {
         number_of_batch = number_of_search - query_itr;
       }
 
       global_RestartScanning_and_ParentCheck<<<number_of_batch,GetNumberOfThreads()>>>
-        (&d_query[query_itr*GetNumberOfDims()*2], d_hit, d_root_visit_count, d_node_visit_count);
+        (&d_query[query_itr*GetNumberOfDims()*2], number_of_partition, d_hit, 
+         d_root_visit_count, d_node_visit_count);
       cudaMemcpy(h_hit, d_hit, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
       cudaMemcpy(h_root_visit_count, d_root_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
       cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
 
       for(ui range(i, 0, number_of_batch)) {
+        LOG_INFO("h hit[%u] %u", i, h_hit[i]);
         total_hit += h_hit[i];
         total_root_visit_count += h_root_visit_count[i];
         total_node_visit_count += h_node_visit_count[i];
+      }
+      if(number_of_partition == 1) {
+        query_itr += GetNumberOfBlocks(); 
+      } else {
+        query_itr += 1;
       }
     }
     auto elapsed_time = recorder.TimeRecordEnd();
@@ -248,8 +284,7 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Root visit count : %u", total_root_visit_count);
-    LOG_INFO("Node visit count : %u", total_node_visit_count);
-    LOG_INFO("\n");
+    LOG_INFO("Node visit count : %u\n", total_node_visit_count);
   }
 
   return true;
@@ -272,7 +307,7 @@ void MPHR::SetNumberOfPartition(ui _number_of_partition){
 // Cuda Function 
 //===--------------------------------------------------------------------===//
 
-__device__ g_root_offset[GetNumberOfMAXBlocks()];
+__device__ ll g_root_offset[GetNumberOfMAXBlocks()];
 
 __global__ 
 void global_SetRootOffset(ll* root_offset) {
@@ -285,7 +320,7 @@ void global_SetRootOffset(ll* root_offset) {
  * @param 
  */
 __global__ 
-void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit, 
+void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partition, ui* hit, 
                     ui* root_visit_count, ui* node_visit_count) {
 
   int bid = blockIdx.x;
@@ -295,7 +330,10 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
   __shared__ ui t_hit[GetNumberOfThreads()]; 
   __shared__ bool isHit;
 
-  ui query_offset = bid*GetNumberOfDims()*2;
+  ui query_offset=0;
+  if(number_of_partition == 1 ) {
+    query_offset = bid*GetNumberOfDims()*2;
+  }
   __shared__ Point query[GetNumberOfDims()*2];
 
   if(tid < GetNumberOfDims()*2) {
@@ -312,6 +350,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
   ll visited_leafIndex = 0;
   ll last_leafIndex = root->GetLastIndex();
+
 
   MasterThreadOnly {
     root_visit_count[bid]++;

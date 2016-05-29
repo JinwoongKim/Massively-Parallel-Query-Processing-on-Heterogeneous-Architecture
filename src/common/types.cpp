@@ -116,8 +116,8 @@ std::string TreeTypeToString(TreeType type) {
       return "TYPE_INVALID";
     case (TREE_TYPE_MPHR):
       return "MPHR";
-    case (TREE_TYPE_MPHR_PARTITIONED):
-      return "MPHR_PARTITIONED
+    case (TREE_TYPE_MPHR_PARTITION):
+      return "MPHR_PARTITION";
     case (TREE_TYPE_HYBRID):
       return "HYBRID";
     case (TREE_TYPE_RTREE):
@@ -136,8 +136,8 @@ TreeType StringToTreeType(std::string str) {
     return TREE_TYPE_INVALID;
   } else if (str == "MPHR") {
     return TREE_TYPE_MPHR;
-  } else if (str == "MPHR_PARTITIONED") {
-    return TREE_TYPE_MPHR_PARTITIONED;
+  } else if (str == "MPHR_PARTITION") {
+    return TREE_TYPE_MPHR_PARTITION;
   } else if (str == "HYBRID") {
     return TREE_TYPE_HYBRID;
   } else if (str == "RTREE") {
