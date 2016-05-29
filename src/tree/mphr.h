@@ -34,11 +34,26 @@ class MPHR : public Tree {
              ui number_of_search, ui number_of_repeat);
 
   void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
+
+  void SetNumberOfPartition(ui number_of_partition);
+
+  //===--------------------------------------------------------------------===//
+  // Members
+  //===--------------------------------------------------------------------===//
+  ui number_of_partition = 1;
+
+  ll root_offset[GetNumberOfMAXBlocks()] = {0};
 };
 
 //===--------------------------------------------------------------------===//
 // Cuda Function 
 //===--------------------------------------------------------------------===//
+
+extern __device__ ll g_root_offset[GetNumberOfMAXBlocks()];
+
+__global__ 
+void global_SetRootOffset(ll* root_offset);
+
 __global__ 
 void global_RestartScanning_and_ParentCheck(Point* query, ui* hit, 
                                  ui* root_visit_count, ui* node_visit_count);

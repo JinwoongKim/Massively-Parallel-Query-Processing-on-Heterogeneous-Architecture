@@ -55,31 +55,62 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = sort::Sorter::Sort(branches);
     assert(ret);
 
-    //===--------------------------------------------------------------------===//
-    // Build the internal nodes in a bottop-up fashion on the GPU
-    //===--------------------------------------------------------------------===//
-    // TODO We may pass TREE_TYPE so that we can set the child offset to some useful data in leaf nodes 
-    ret = Bottom_Up(branches/*, tree_type*/);
-    assert(ret);
+    ui size=0;
+    for(ui range(partition_itr, 0, number_of_partition)) {
+      auto chunk_size = branches.size()/number_of_partition;
+      auto start_offset = 0 ;
+      auto end_offset = start_offset + chunk_size + branches.size()%number_of_partitio;
 
-    //===--------------------------------------------------------------------===//
-    // Transform nodes into SOA fashion 
-    //===--------------------------------------------------------------------===//
-    node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
-    assert(node_soa_ptr);
+      std::vector<node::Branch> partitioned_branches;
+      partitioned_branches.resize(end_offset-start_offset+1);
+      // copy the branch start from start offset to end offset into temp branches
+      // so that we can build an index without modification of existing build
+      // TODO branches to partitioned_branch with std::move which is almost zero cost
+      std::copy(partitioned_branches, branches+start_offset, branches+end_offset;)
 
-    // free the node_ptr
-    delete node_ptr;
-    node_ptr = nullptr;
+      //===--------------------------------------------------------------------===//
+      // Build the internal nodes in a bottop-up fashion on the GPU
+      //===--------------------------------------------------------------------===//
+      // TODO We may pass TREE_TYPE so that we can set the child offset to some useful data in leaf nodes 
+      ret = Bottom_Up(partitioned_branches/*, tree_type*/);
+      assert(ret);
 
-    DumpToFile(index_name);
+      //===--------------------------------------------------------------------===//
+      // Transform nodes into SOA fashion 
+      //===--------------------------------------------------------------------===//
+      node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
+      assert(node_soa_ptr);
+
+      // free the node_ptr
+      delete node_ptr;
+      node_ptr = nullptr;
+
+      DumpToFile(index_name);
+      //TODO set the partitioend mphr type flag
+
+      // Move node_soa_ptr to the backup_node_soa_ptr for MPHR
+      b_node_soa_ptr.emplace_back(node_soa_ptr);
+      root_offset[partition_itr] = size;
+      size += total_node_count;
+    }
+    total_node_count = size;
+    //after that, remove to the b_node_soa_ptr
+    ndoe_soa_ptr = 
   }
+
+  //===--------------------------------------------------------------------===//
+  // Set Root Offset per Each CUDA Block
+  //===--------------------------------------------------------------------===//
+  ll* d_root_offset;
+  cudaErrCheck(cudaMalloc((void**) &d_root_offest, sizeof(ll)*GetNumberOfBlocks()));
+  cudaErrCheck(cudaMemcpy(d_root_offest, root_offset, 
+                          sizeof(ll)*GetNumberOfBlocks(), cudaMemcpyHostToDevice));
+  global_SetRootOffset<<<1,GetNumberOfBlocks()>>>(d_root_offset);
 
   //===--------------------------------------------------------------------===//
   // Move Tree to the GPU in advance
   //===--------------------------------------------------------------------===//
   // copy the entire tree  to the GPU
-
   // Get Chunk Manager and initialize it
   auto& chunk_manager = manager::ChunkManager::GetInstance();
   chunk_manager.Init(sizeof(node::Node_SOA)*total_node_count);
@@ -106,21 +137,14 @@ bool MPHR::DumpFromFile(std::string index_name){
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  size_t height;
+  // read number of partition
+  fread(&number_of_partition, sizeof(ui), 1, index_file);
 
-  // read tree height
-  fread(&height, sizeof(size_t), 1, index_file);
-  level_node_count.resize(height);
-  for(ui range(level_itr, 0, height)) {
-    // read node count for each tree level
-    fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
-  }
+  // read root offset
+  fread(&root_offset, sizeof(ll), number_of_partition, index_file);
+
   // read total node count
   fread(&total_node_count, sizeof(ui), 1, index_file);
-
-  for(ui range( level_itr, 0, level_node_count.size() )) {
-    LOG_INFO("Level %zd", level_node_count[level_itr]);
-  }
 
   node_soa_ptr = new node::Node_SOA[total_node_count];
   // read nodes
@@ -144,15 +168,15 @@ bool MPHR::DumpToFile(std::string index_name) {
   FILE* index_file;
   index_file = fopen(index_name.c_str(),"wb");
 
-  size_t height = level_node_count.size();
-  // write tree height
-  fwrite(&height, sizeof(size_t), 1, index_file);
-  for(ui range(level_itr, 0, height)) {
-    // write each tree node count
-    fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
-  }
+  // write number of partition
+  fwrite(&number_of_partition, sizeof(ui), 1, index_file);
+
+  // write root offset
+  fwrite(&root_offset, sizeof(ll), number_of_partition, index_file);
+
   // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
+
   // write nodes
   fwrite(node_soa_ptr, sizeof(node::Node_SOA), total_node_count, index_file);
   fclose(index_file);
@@ -236,9 +260,25 @@ void MPHR::SetNumberOfCUDABlocks(ui _number_of_cuda_blocks){
   assert(number_of_cuda_blocks);
 }
 
+void MPHR::SetNumberOfPartition(ui _number_of_partition){
+  number_of_partition = _number_of_partition;
+  if( number_of_partition > 1) {
+    tree_type = TREE_TYPE_MPHR_PARTITION;
+  }
+  assert(number_of_partition);
+}
+
 //===--------------------------------------------------------------------===//
 // Cuda Function 
 //===--------------------------------------------------------------------===//
+
+__device__ g_root_offset[GetNumberOfMAXBlocks()];
+
+__global__ 
+void global_SetRootOffset(ll* root_offset) {
+  int tid = threadIdx.x;
+  g_root_offset[tid] = root_offset[tid];
+}
 
 /**
  * @brief execute MPRS algorithm 
@@ -267,7 +307,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui* hit,
 
   t_hit[tid] = 0;
 
-  node::Node_SOA* root = manager::g_node_soa_ptr;
+  node::Node_SOA* root = manager::g_node_soa_ptr + g_root_offset[bid];
   node::Node_SOA* node_soa_ptr = root;
 
   ll visited_leafIndex = 0;

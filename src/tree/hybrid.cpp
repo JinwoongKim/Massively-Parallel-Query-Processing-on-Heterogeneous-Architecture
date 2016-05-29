@@ -205,26 +205,10 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   recorder.TimeRecordStart();
 
   //===--------------------------------------------------------------------===//
-  // Height & level node count
-  //===--------------------------------------------------------------------===//
-  size_t height;
-
-  // read tree height
-  fread(&height, sizeof(size_t), 1, index_file);
-  level_node_count.resize(height);
-  for(ui range(level_itr, 0, height)) {
-    // read node count for each tree level
-    fread(&level_node_count[level_itr], sizeof(ui), 1, index_file);
-  }
-
-  //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
   // read total node count
   fread(&total_node_count, sizeof(ui), 1, index_file);
-
-  // read leaf node count
-  fread(&leaf_node_count, sizeof(ui), 1, index_file);
 
   // read node soa count
   fread(&extend_leaf_node_soa_count, sizeof(ui), 1, index_file);
@@ -264,24 +248,10 @@ bool Hybrid::DumpToFile(std::string index_name) {
   index_file = fopen(index_name.c_str(),"wb");
 
   //===--------------------------------------------------------------------===//
-  // Height & level node count
-  //===--------------------------------------------------------------------===//
-  size_t height = level_node_count.size();
-  // write tree height
-  fwrite(&height, sizeof(size_t), 1, index_file);
-  for(ui range(level_itr, 0, height)) {
-    // write each tree node count
-    fwrite(&level_node_count[level_itr], sizeof(ui), 1, index_file);
-  }
-
-  //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
   // write total node count
   fwrite(&total_node_count, sizeof(ui), 1, index_file);
-
-  // write leaf node count
-  fwrite(&leaf_node_count, sizeof(ui), 1, index_file);
 
   // write extend leaf node soa count 
   fwrite(&extend_leaf_node_soa_count, sizeof(ui), 1, index_file);

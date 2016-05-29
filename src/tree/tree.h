@@ -56,7 +56,8 @@ class Tree {
   std::vector<node::Branch> CreateBranches(std::shared_ptr<io::DataSet> input_data_set) ;
 
   node::Node* CreateNode(std::vector<node::Branch> &branches, 
-                         ui start_offset, ui end_offset, int level);
+                         ui start_offset, ui end_offset, int level,
+                         std::vector<ui>& level_node_count);
 
   ui GetSplitOffset(std::vector<node::Branch> &branches,
                     ui start_offset, ui end_offset);
@@ -74,7 +75,7 @@ class Tree {
 
   std::vector<ui> GetLevelNodeCount(const std::vector<node::Branch> branches);
 
-  ui GetTotalNodeCount(void) const;
+  ui GetTotalNodeCount(const std::vector<ui> level_node_count) const;
 
   ui GetLeafNodeCount(void) const;
 
@@ -115,14 +116,10 @@ class Tree {
 
   TreeType tree_type = TREE_TYPE_INVALID;
 
-  // number of nodes in each level(start from root level)
-  std::vector<ui> level_node_count;
-
   // total node count 
+  // For MPHR like trees, total node count,
+  // For Hybrid trees, the total node count of internal nodes
   ui total_node_count = 0;
-
-  // leaf node count 
-  ui leaf_node_count = 0;
 };
 
 //===--------------------------------------------------------------------===//

@@ -50,10 +50,11 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
 }
 
 bool Tree::Top_Down(std::vector<node::Branch> &branches) {
+  std::vector<ui> level_node_count;
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  node_ptr = CreateNode(branches, 0, branches.size()-1, 0);
+  node_ptr = CreateNode(branches, 0, branches.size()-1, 0, level_node_count);
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
     LOG_INFO("Level[%u] %zd", level_itr, level_node_count[level_itr]);
@@ -159,7 +160,8 @@ std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches,
 }
 
 node::Node* Tree::CreateNode(std::vector<node::Branch> &branches, 
-                             ui start_offset, ui end_offset, int level) {
+                             ui start_offset, ui end_offset, int level, 
+                             std::vector<ui>& level_node_count) {
 
   node::Node* node = new node::Node();
   // increase node counts
@@ -194,7 +196,8 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
     auto split_position = GetSplitPosition(branches, start_offset, end_offset);
 
     for(ui range(child_itr, 0, split_position.size()-1)) {
-      auto child_node = CreateNode(branches, split_position[child_itr], split_position[child_itr+1], level+1);
+      auto child_node = CreateNode(branches, split_position[child_itr], split_position[child_itr+1], 
+                                   level+1, level_node_count);
       split_position[child_itr+1] += 1;
 
       // calculate child node's MBB and set it 
@@ -225,9 +228,9 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
  // Configure trees
  //===--------------------------------------------------------------------===//
   // Get node count for each level
-  level_node_count = GetLevelNodeCount(branches);
+  auto level_node_count = GetLevelNodeCount(branches);
   auto tree_height = level_node_count.size();
-  total_node_count = GetTotalNodeCount();
+  total_node_count = GetTotalNodeCount(level_node_count);
   // set the leaf node count
   leaf_node_count = level_node_count.back();
   auto leaf_node_offset = total_node_count - leaf_node_count;
@@ -303,12 +306,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
 
 void Tree::PrintTree(ui count, ui offset) {
   LOG_INFO("Print Tree");
-  LOG_INFO("Height %zu", level_node_count.size());
 
-  for(ui range( level_itr, 0, level_node_count.size() )) {
-    LOG_INFO("Level %zd", level_node_count[level_itr]);
-  }
- 
   std::queue<node::Node*> bfs_queue;
   ui node_itr = 0;
   ui print_count = 0;
@@ -342,11 +340,6 @@ void Tree::PrintTree(ui count, ui offset) {
 
 void Tree::PrintTreeInSOA(ui count, ui offset) {
   LOG_INFO("Print Tree in SOA");
-  LOG_INFO("Height %zu", level_node_count.size());
-
-  for( int i=level_node_count.size()-1; i>=0; --i) {
-    LOG_INFO("Level %zd", (level_node_count.size()-1)-i);
-  }
 
   ui node_soa_itr = offset;
   ui print_count=0;
@@ -469,7 +462,7 @@ std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> branches
   return level_node_count;
 }
 
-ui Tree::GetTotalNodeCount(void) const{
+ui Tree::GetTotalNodeCount(const std::vector<ui> level_node_count) const{
   ui total_node_count=0;
   for( auto node_count  : level_node_count) {
     total_node_count+=node_count;
