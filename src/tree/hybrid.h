@@ -109,11 +109,13 @@ void global_GetHitCount(ui* hit, ui* node_visit_count);
 __global__ 
 void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset, 
                                    ui chunk_size, ui bid_offset,
-                                   ui number_of_blocks_per_cpu);
+                                   ui number_of_blocks_per_cpu,
+                                   node::Node_SOA* root);
 __global__ 
 void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset, 
                                              ui chunk_size, ui bid_offset,
-                                             ui number_of_blocks_per_cpu);
+                                             ui number_of_blocks_per_cpu,
+                                             node::Node_SOA* root);
  
 } // End of tree namespace
 } // End of ursus namespace

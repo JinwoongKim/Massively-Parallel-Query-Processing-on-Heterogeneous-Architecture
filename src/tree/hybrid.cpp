@@ -59,8 +59,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     //===--------------------------------------------------------------------===//
     // Build the last two level nodes in a bottom-up fashion 
     //===--------------------------------------------------------------------===//
-    node_soa_ptr = new node::Node_SOA[GetNumberOfNodeSOA()];
-    assert(node_soa_ptr);
+    // Use Unified Memory
+    cudaMallocManaged(&node_soa_ptr, sizeof(node::Node_SOA)*GetNumberOfNodeSOA());
 
     // Copy leaf nodes 
     ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, 1, 
@@ -73,28 +73,6 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     // Dump an index to the file
     DumpToFile(index_name);
   }
-
-
-  //===--------------------------------------------------------------------===//
-  // Move Trees to the GPU in advance
-  //===--------------------------------------------------------------------===//
-  ui offset = 0;
-  ui count = 0;
-  
-  if(scan_type == SCAN_TYPE_LEAF){
-    // Move leaf nodes on the GPU
-    offset = GetNumberOfExtendLeafNodeSOA();
-    count = GetNumberOfLeafNodeSOA();
-  }else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
-    // Move extend and leaf nodes on the GPU
-    offset = 0;
-    count = GetNumberOfNodeSOA();
-  }else {
-    LOG_INFO("scan type %s", (ScanTypeToString(scan_type)).c_str());
-    assert(0);
-  }
-  ret = CopyNodeToGPU(offset, count);
-  assert(ret);
 
   LOG_INFO("Extend Leaf Node Count %u", GetNumberOfExtendLeafNodeSOA());
   LOG_INFO("Leaf Node Count %u", GetNumberOfLeafNodeSOA());
@@ -504,6 +482,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
     LOG_INFO("Node visit count on GPU : %u\n\n", total_node_visit_count_gpu);
+
+    cudaErrCheck(cudaFree(d_hit));
+    cudaErrCheck(cudaFree(d_node_visit_count));
   }
 }
 
@@ -574,6 +555,11 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   ll start_node_offset;
   ui query_offset = start_offset*GetNumberOfDims()*2;
 
+  auto root = node_soa_ptr;
+  if(scan_type == SCAN_TYPE_LEAF) {
+    root += GetNumberOfExtendLeafNodeSOA();
+  }
+
   auto number_of_nodes = GetNumberOfLeafNodeSOA();
   if(scan_type == SCAN_TYPE_EXTENDLEAF) {
     number_of_nodes = GetNumberOfExtendLeafNodeSOA();
@@ -612,11 +598,12 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       if(scan_type == SCAN_TYPE_LEAF) {
         global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
-                                       bid_offset, number_of_blocks_per_cpu );
+                                       bid_offset, number_of_blocks_per_cpu, root);
       } else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
         global_ParallelScan_ExtendLeafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
-                                            (&d_query[query_offset], start_node_offset, chunk_size,
-                                            bid_offset, number_of_blocks_per_cpu );
+                                            (&d_query[query_offset], start_node_offset, 
+                                            chunk_size, bid_offset, number_of_blocks_per_cpu,
+                                            root);
       }
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
 
@@ -782,7 +769,8 @@ void global_GetHitCount(ui* hit, ui* node_visit_count) {
 __global__ 
 void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset, 
                                        ui chunk_size, ui bid_offset, 
-                                       ui number_of_blocks_per_cpu) {
+                                       ui number_of_blocks_per_cpu,
+                                       node::Node_SOA* root) {
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
@@ -795,7 +783,7 @@ void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset,
 
   t_hit[tid] = 0;
 
-  node::Node_SOA* node_soa_ptr = g_node_soa_ptr/*first leaf node*/ + start_node_offset + bid;
+  node::Node_SOA* node_soa_ptr = root + start_node_offset + bid;
   __syncthreads();
 
   //===--------------------------------------------------------------------===//
@@ -835,7 +823,8 @@ void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset,
 __global__ 
 void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset, 
                                              ui chunk_size, ui bid_offset, 
-                                             ui number_of_blocks_per_cpu) {
+                                             ui number_of_blocks_per_cpu,
+                                             node::Node_SOA* root) {
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
@@ -850,7 +839,7 @@ void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset,
   t_hit[tid] = 0;
 
   // start from the first extend leaf node
-  node::Node_SOA* node_soa_ptr = g_node_soa_ptr + start_node_offset + bid;
+  node::Node_SOA* node_soa_ptr = root + start_node_offset + bid;
   __syncthreads();
 
   for(ui range(node_itr, bid, chunk_size, number_of_blocks_per_cpu)) {
