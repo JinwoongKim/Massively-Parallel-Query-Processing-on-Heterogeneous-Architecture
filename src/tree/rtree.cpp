@@ -24,7 +24,7 @@ Rtree::Rtree() {
  */
 bool Rtree::Build(std::shared_ptr<io::DataSet> input_data_set){
 
-  LOG_INFO("Build Rtree Tree");
+  LOG_INFO("Build Rtree");
   bool ret = false;
 
   // Load an index from file it exists

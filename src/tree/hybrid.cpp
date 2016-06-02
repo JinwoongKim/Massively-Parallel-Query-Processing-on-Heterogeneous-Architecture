@@ -99,7 +99,7 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
   // Get Chunk Manager and initialize it
   chunk_manager.Init(sizeof(node::Node_SOA)*count);
-  //chunk_manager.CopyNode(node_soa_ptr+offset, 0, count);
+  chunk_manager.CopyNode(node_soa_ptr+offset, 0, count);
 
   LOG_INFO("Extend Leaf Node Count %u", GetNumberOfExtendLeafNodeSOA());
   LOG_INFO("Leaf Node Count %u", GetNumberOfLeafNodeSOA());
@@ -542,7 +542,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                            ui& node_visit_count, ui start_offset, ui end_offset) {
 
   // Get Chunk Manager and initialize it
-  auto& chunk_manager = manager::ChunkManager::GetInstance();
+  //auto& chunk_manager = manager::ChunkManager::GetInstance();
 
   ui bid_offset = tid*number_of_blocks_per_cpu;
   jump_count = 0;
@@ -588,8 +588,8 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
       if(scan_type == SCAN_TYPE_LEAF) {
-        chunk_manager.CopyNode(node_soa_ptr+GetNumberOfExtendLeafNodeSOA(), 
-                               start_node_offset, chunk_size);
+        //chunk_manager.CopyNode(node_soa_ptr+GetNumberOfExtendLeafNodeSOA(), 
+        //                       start_node_offset, chunk_size);
         global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
                                        bid_offset, number_of_blocks_per_cpu );
