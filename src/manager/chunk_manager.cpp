@@ -14,12 +14,17 @@ ChunkManager& ChunkManager::GetInstance(){
 }
 
 bool ChunkManager::Init(size_t size) {
+  cudaErrCheck(cudaMalloc((void**) &d_node_soa_ptr, size));
+  global_SetRootNode<<<1,1>>>(d_node_soa_ptr);
+  cudaDeviceSynchronize();
+  return true;
+}
 
-  // Use Pinned Memory
+// Allocate in Pinned Memory
+bool ChunkManager::InitInPinnedMemory(size_t size) {
   cudaErrCheck(cudaMallocHost((void**) &d_node_soa_ptr, size));
   global_SetRootNode<<<1,1>>>(d_node_soa_ptr);
   cudaDeviceSynchronize();
-
   return true;
 }
 

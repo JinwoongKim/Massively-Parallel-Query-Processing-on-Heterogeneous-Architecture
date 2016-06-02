@@ -22,6 +22,8 @@ class ChunkManager {
 
   bool Init(size_t size);
 
+  bool InitInPinnedMemory(size_t size);
+
   bool CopyNode(node::Node_SOA* node_soa_ptr, ll offset, ui number_of_nodes);
 
   //===--------------------------------------------------------------------===//
