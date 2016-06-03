@@ -43,7 +43,7 @@ std::string DataTypeToString(DataType type) {
     case (DATA_TYPE_INVALID):
       return "TYPE_INVALID";
     case (DATA_TYPE_REAL):
-      return "BINARY";
+      return "REAL";
     case (DATA_TYPE_SYNTHETIC):
       return "SYNTHETIC";
     default: {
