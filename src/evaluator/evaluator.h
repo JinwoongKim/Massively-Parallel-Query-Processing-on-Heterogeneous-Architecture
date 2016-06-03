@@ -92,7 +92,10 @@ class Evaluator{
   ScanType scan_type = SCAN_TYPE_LEAF;
   
   std::string selectivity="0.01";
+
   std::string query_size;
+
+  std::string data_type = "synthetic";
 
   // To control chunk_size in Hybrid indexing 
   ui chunk_size = GetNumberOfDegrees();

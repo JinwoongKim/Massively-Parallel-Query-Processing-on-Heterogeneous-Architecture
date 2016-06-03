@@ -44,19 +44,35 @@ bool Evaluator::Initialize(int argc, char** argv){
 }
 
 bool Evaluator::ReadDataSet(void){
-  //TODO : hard coded now...
-  input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-                       "/home/jwkim/dataFiles/input/synthetic/synthetic_200m_3d_data.bin",
-                       DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
+  auto low_data_type = ToLowerCase(data_type);
+  if( low_data_type == "real"){
+    input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
+          "/home/jwkim/dataFiles/input/real/NOAA0.bin",
+          DATASET_TYPE_BINARY, DATA_TYPE_REAL)); 
+  } else if (low_data_type == "synthetic") {
+    input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
+          "/home/jwkim/dataFiles/input/synthetic/synthetic_200m_3d_data.bin",
+          DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
+  } else {
+    assert(0);
+  }
   return true;
 }
 
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
-  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-                       "/home/jwkim/dataFiles/query/synthetic/synthetic_dim_query.3.bin."
-                       +selectivity+"s",
-                       DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
+  auto low_data_type = ToLowerCase(data_type);
+  if( low_data_type == "real"){
+    query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
+          "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
+          +selectivity+"s."+query_size, DATASET_TYPE_BINARY, DATA_TYPE_REAL)); 
+  } else if (low_data_type == "synthetic") {
+    query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
+          "/home/jwkim/dataFiles/query/synthetic/synthetic_dim_query.3.bin."
+          +selectivity+"s", DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
+  } else {
+    assert(0);
+  }
 
   return true;
 }
@@ -276,7 +292,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:y:Y:";
   std::string number_of_data_str;
   int current_option;
 
@@ -305,6 +321,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'E': EvaluationMode = atoi(optarg);  break;
       case 't':
       case 'T': number_of_partition = atoi(optarg);  break;
+      case 'y':
+      case 'Y': data_type = std::string(optarg);  break;
      default: break;
     } // end of switch
   } // end of while

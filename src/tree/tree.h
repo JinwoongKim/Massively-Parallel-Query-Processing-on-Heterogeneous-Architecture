@@ -93,6 +93,11 @@ class Tree {
   bool CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
                            NodeType node_type,int level, ui node_offset);
 
+  ui BruteForceSearchOnCPU(Point* query);
+
+  void Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset, 
+                         ui& hit, ui start_offset, ui end_offset);
+
     /**
    * wrapper function for Cuda 
    */
