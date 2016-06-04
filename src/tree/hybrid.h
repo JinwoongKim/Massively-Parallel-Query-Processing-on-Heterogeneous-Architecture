@@ -64,11 +64,6 @@ class Hybrid : public Tree {
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count);
 
-  ui BruteForceSearchOnCPU(Point* query);
-
-  void Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset, 
-                         ui& hit, ui start_offset, ui end_offset);
-
   // Collect start node index in advance
   // to measure CPU/GPU execution time
   void Thread_CollectStartNodeIndex(std::vector<Point>& query,

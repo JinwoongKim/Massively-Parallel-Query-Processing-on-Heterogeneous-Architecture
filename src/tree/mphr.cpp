@@ -65,17 +65,11 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
     for(ui range(partition_itr, 0, number_of_partition)) {
       std::vector<node::Branch> partitioned_branches;
       partitioned_branches.resize(end_offset-start_offset);
-      LOG_INFO("par itr %u", partition_itr);
-      LOG_INFO("start offset %u end offset %u ", start_offset, end_offset);
-      LOG_INFO("size %u", end_offset-start_offset);
+
       // copy the branch start from start offset to end offset into temp branches
       // so that we can build an index without modification of existing build function
       std::move(branches.begin()+start_offset, branches.begin()+end_offset,
                 partitioned_branches.begin());
-
-      for(auto b : partitioned_branches){
-        LOG_INFO("b : %lu", b.GetIndex());
-      }
 
       //===--------------------------------------------------------------------===//
       // Build the internal nodes in a bottop-up fashion on the GPU
@@ -95,12 +89,6 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
       delete node_ptr;
       node_ptr = nullptr;
 
-      //DumpToFile(index_name);
-      //TODO set the partitioend mphr type flag
-
-      LOG_INFO("TEST1");
-      //PrintTreeInSOA(0,total_node_count);
-
       node_soa_ptr_backup[partition_itr] = node_soa_ptr;
       node_soa_ptr_size.emplace_back(total_node_count);
       root_offset[partition_itr] = tmp_total_node_count;
@@ -110,10 +98,6 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
       end_offset += chunk_size;
     }
     total_node_count = tmp_total_node_count;
-    for(auto count : node_soa_ptr_size){
-      LOG_INFO("count%u", count);
-    }
-    LOG_INFO("total node count %u", total_node_count);
 
     node_soa_ptr = new node::Node_SOA[total_node_count];
     for(ui range(partition_itr, 0, number_of_partition)) {
@@ -121,8 +105,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
              sizeof(node::Node_SOA)*node_soa_ptr_size[partition_itr]);
     }
 
-    LOG_INFO("TEST2");
-    //PrintTreeInSOA(0,total_node_count);
+    DumpToFile(index_name);
   }
 
   //===--------------------------------------------------------------------===//
@@ -265,7 +248,6 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
       cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui)*number_of_batch, cudaMemcpyDeviceToHost);
 
       for(ui range(i, 0, number_of_batch)) {
-        LOG_INFO("h hit[%u] %u", i, h_hit[i]);
         total_hit += h_hit[i];
         total_root_visit_count += h_root_visit_count[i];
         total_node_visit_count += h_node_visit_count[i];

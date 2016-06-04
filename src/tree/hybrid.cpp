@@ -64,8 +64,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     assert(node_soa_ptr);
 
     // Copy leaf nodes 
-    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, 1, 
-                              GetNumberOfExtendLeafNodeSOA()/*offset*/);
+    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, 
+                              1, GetNumberOfExtendLeafNodeSOA()/*offset*/);
     assert(ret);
 
     ret = BuildExtendLeafNodeOnCPU();
@@ -663,73 +663,6 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     }
   }
   return start_node_index;
-}
-
-ui Hybrid::BruteForceSearchOnCPU(Point* query) {
-
-  auto& recorder = evaluator::Recorder::GetInstance();
-  const size_t number_of_cpu_threads = std::thread::hardware_concurrency();
-
-  std::vector<ll> start_node_offset;
-  ui hit=0;
-
-  // parallel for loop using c++ std 11 
-  {
-    std::vector<std::thread> threads;
-    std::vector<ll> thread_start_node_offset[number_of_cpu_threads];
-    ui thread_hit[number_of_cpu_threads];
-
-    auto chunk_size = leaf_node_soa_count/number_of_cpu_threads;
-    auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + leaf_node_soa_count%number_of_cpu_threads;
-
-    //Launch a group of threads
-    for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-      threads.push_back(std::thread(&Hybrid::Thread_BruteForce, this, 
-                        query, std::ref(thread_start_node_offset[thread_itr]), std::ref(thread_hit[thread_itr]),
-                        start_offset, end_offset));
-
-      start_offset = end_offset;
-      end_offset += chunk_size;
-    }
-
-    //Join the threads with the main thread
-    for(auto &thread : threads){
-      thread.join();
-    }
-
-    for(ui range(thread_itr, 0, number_of_cpu_threads)) {
-      start_node_offset.insert( start_node_offset.end(), 
-                                thread_start_node_offset[thread_itr].begin(), 
-                                thread_start_node_offset[thread_itr].end()); 
-      hit += thread_hit[thread_itr];
-    }
-  }
-
-  std::sort(start_node_offset.begin(), start_node_offset.end());
-
-  //for( auto offset : start_node_offset) {
-  //  LOG_INFO("start node offset %lu", offset);
-  //}
-  LOG_INFO("Hit on CPU : %u", hit);
-
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_cpu_threads, elapsed_time/1000.0f);
-
-  return hit;
-}
-
-void Hybrid::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
-                               ui &hit, ui start_offset, ui end_offset) {
-  hit = 0;
-  for(ui range(node_itr, start_offset, end_offset)) {
-    for(ui range(child_itr, 0, node_soa_ptr[node_itr].GetBranchCount())) {
-      if( node_soa_ptr[node_itr].IsOverlap(query, child_itr) ) {
-        start_node_offset.emplace_back(node_itr);
-        hit++;
-      }
-    }
-  }
 }
 
 //===--------------------------------------------------------------------===//

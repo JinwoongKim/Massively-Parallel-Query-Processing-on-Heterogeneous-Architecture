@@ -98,6 +98,9 @@ class Tree {
   void Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset, 
                          ui& hit, ui start_offset, ui end_offset);
 
+  void Thread_BruteForceInSOA(Point* query, std::vector<ll> &start_node_offset,
+                             ui &hit, ui start_offset, ui end_offset);
+
     /**
    * wrapper function for Cuda 
    */

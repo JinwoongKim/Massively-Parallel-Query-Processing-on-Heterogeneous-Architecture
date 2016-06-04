@@ -187,6 +187,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
       node->SetBranchIndex(branch_itr, branches[offset].GetIndex());
       node->SetBranchChildOffset(branch_itr, 0);
     }
+    node->SetBranchCount(number_of_data);
     node->SetNodeType(NODE_TYPE_LEAF);
     node->SetLevel(level);
 
@@ -251,7 +252,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   auto used = evaluator::Evaluator::GetUsedMem();
 
   // if an index is larger than device memory
-  if((index_size+used)/(double)total > 1.0) {
+  if( (index_size+used)/(double)total > 1.0) {
     device_type = "CPU";
     const size_t number_of_threads = std::thread::hardware_concurrency();
 
@@ -410,8 +411,8 @@ void Tree::Thread_Mapping(std::vector<node::Branch> &branches, ui start_offset, 
     auto points = branches[offset].GetPoints();
     auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(GetNumberOfDims(),
                                                                    number_of_bits, points);
-    //branches[offset].SetIndex(hilbert_index);
-    branches[offset].SetIndex(offset+1);
+    branches[offset].SetIndex(hilbert_index);
+    //branches[offset].SetIndex(offset+1);
   }
 }
 
@@ -479,27 +480,23 @@ ui Tree::GetNumberOfBlocks(void) const{
 void Tree::Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
                             NodeType node_type,int level, ui node_offset, 
                             ui start_offset, ui end_offset) {
-  ui branch_itr=0;
 
   node_offset += start_offset/GetNumberOfDegrees();
 
   for(ui range(branch_itr, start_offset, end_offset)) {
     node_ptr[node_offset].SetBranch(branches[branch_itr], branch_itr%GetNumberOfDegrees());
-
     // increase the node offset 
     if(((branch_itr+1)%GetNumberOfDegrees())==0){
       node_ptr[node_offset].SetNodeType(node_type);
       node_ptr[node_offset].SetLevel(level);
+      node_ptr[node_offset].SetBranchCount(GetNumberOfDegrees());
       node_offset++;
     }
   }
-
-  node_ptr[node_offset].SetNodeType(node_type);
-  node_ptr[node_offset].SetLevel(level);
 }
 
 bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, 
-                            NodeType node_type,int level, ui node_offset) {
+                            NodeType node_type,int level, ui leaf_node_offset) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
@@ -517,7 +514,7 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
     //Launch a group of threads
     for (ui range(thread_itr, 0, number_of_threads)) {
       threads.push_back(std::thread(&Tree::Thread_CopyBranchToNode, this, 
-                        std::ref(branches), node_type, level, node_offset, 
+                        std::ref(branches), node_type, level, leaf_node_offset, 
                         start_offset, end_offset));
 
       start_offset = end_offset;
@@ -528,6 +525,11 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
     for(auto &thread : threads){
       thread.join();
     }
+
+    ui node_offset = leaf_node_offset + branches.size()/GetNumberOfDegrees();
+    node_ptr[node_offset].SetNodeType(node_type);
+    node_ptr[node_offset].SetLevel(level);
+    node_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -608,7 +610,6 @@ bool Tree::CopyBranchToNodeSOA(std::vector<node::Branch> &branches,
 
 
   if(branches.size()%GetNumberOfDegrees()) {
-    auto last_node_offset = branches.size()/GetNumberOfDegrees();
     node_soa_ptr[node_offset+(branches.size()/GetNumberOfDegrees())].SetBranchCount(branches.size()%GetNumberOfDegrees());
   }
 
@@ -774,15 +775,37 @@ ui Tree::BruteForceSearchOnCPU(Point* query) {
   return hit;
 }
 
-void Tree::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
+void Tree::Thread_BruteForceInSOA(Point* query, std::vector<ll> &start_node_offset,
                              ui &hit, ui start_offset, ui end_offset) {
   hit = 0;
   for(ui range(node_itr, start_offset, end_offset)) {
     for(ui range(child_itr, 0, node_soa_ptr[node_itr].GetBranchCount())) {
-      if( node_soa_ptr[node_itr].GetNodeType() == NODE_TYPE_LEAF &&
-          node_soa_ptr[node_itr].IsOverlap(query, child_itr) ) {
+      if( node_soa_ptr[node_itr].GetNodeType() == NODE_TYPE_LEAF) {
+        if(node_soa_ptr[node_itr].IsOverlap(query, child_itr) ) {
           start_node_offset.emplace_back(node_itr);
           hit++;
+        }else{
+          LOG_INFO("node itr %u", node_itr);
+          std::cout<<node_soa_ptr<<std::endl;
+        }
+      }
+    }
+  }
+}
+
+void Tree::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
+                             ui &hit, ui start_offset, ui end_offset) {
+  hit = 0;
+  for(ui range(node_itr, start_offset, end_offset)) {
+    for(ui range(child_itr, 0, node_ptr[node_itr].GetBranchCount())) {
+      if( node_ptr[node_itr].GetNodeType() == NODE_TYPE_LEAF) {
+        if(node_ptr[node_itr].IsOverlap(query, child_itr) ) {
+          start_node_offset.emplace_back(node_itr);
+          hit++;
+        }else{
+          LOG_INFO("node itr %u", node_itr);
+          std::cout<<node_ptr<<std::endl;
+        }
       }
     }
   }

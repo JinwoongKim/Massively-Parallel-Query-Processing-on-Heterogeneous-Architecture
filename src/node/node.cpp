@@ -117,8 +117,7 @@ int Node::GetLevel(void) const {
 
 __both__
 void Node::SetBranch(Branch _branch, ui offset) {
-  branches[offset++] = _branch;
-  branch_count = (offset>branch_count)?offset:branch_count;
+  branches[offset] = _branch;
 }
 
 __both__
