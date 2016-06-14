@@ -39,17 +39,31 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     //===--------------------------------------------------------------------===//
     std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
-    //===--------------------------------------------------------------------===//
-    // Assign Hilbert Ids to branches
-    //===--------------------------------------------------------------------===//
-    ret = AssignHilbertIndexToBranches(branches);
-    assert(ret);
+    if( input_data_set->GetClusterType() == CLUSTER_TYPE_HILBERT ||
+        input_data_set->GetClusterType() == CLUSTER_TYPE_KMEANSHILBERT){
+      //===--------------------------------------------------------------------===//
+      // Assign Hilbert Ids to branches
+      //===--------------------------------------------------------------------===//
+      ret = AssignHilbertIndexToBranches(branches);
+      assert(ret);
 
-    //===--------------------------------------------------------------------===//
-    // Sort the branches either CPU or GPU depending on the size
-    //===--------------------------------------------------------------------===//
-    ret = sort::Sorter::Sort(branches);
-    assert(ret);
+      //===--------------------------------------------------------------------===//
+      // Sort the branches either CPU or GPU depending on the size
+      //===--------------------------------------------------------------------===//
+      ret = sort::Sorter::Sort(branches);
+      assert(ret);
+
+      if( input_data_set->GetClusterType() == CLUSTER_TYPE_KMEANSHILBERT){
+        //===--------------------------------------------------------------------===//
+        // Cluster Branches using Kmeans 
+        //===--------------------------------------------------------------------===//
+        ret = ClusterBrancheUsingKmeans(branches);
+        assert(ret);
+
+        ret = sort::Sorter::Sort(branches);
+        assert(ret);
+      }
+    }
 
     //===--------------------------------------------------------------------===//
     // Build the internal nodes in a top-down fashion 
@@ -64,8 +78,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     assert(node_soa_ptr);
 
     // Copy leaf nodes 
-    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, 
-                              1, GetNumberOfExtendLeafNodeSOA()/*offset*/);
+    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, 1, 
+                             GetNumberOfExtendLeafNodeSOA()/*offset*/);
     assert(ret);
 
     ret = BuildExtendLeafNodeOnCPU();
@@ -73,8 +87,7 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
     // Dump an index to the file
     DumpToFile(index_name);
-  }
-
+  } 
 
   //===--------------------------------------------------------------------===//
   // Move Trees to the GPU in advance
@@ -384,8 +397,13 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_cpu_threads;
     // chunk size should be equal or larger than number of blocks per cpu
+    
     // otherwise, just wasting GPU resources.
-    assert(chunk_size >= number_of_blocks_per_cpu);
+    if(scan_type == SCAN_TYPE_LEAF) {
+      assert(chunk_size >= number_of_blocks_per_cpu);
+    } else if(scan_type == SCAN_TYPE_LEAF) {
+      assert(chunk_size >= number_of_blocks_per_cpu*GetNumberOfDegrees());
+    }
 
     std::vector<std::thread> threads;
     ui thread_jump_count[number_of_cpu_threads];

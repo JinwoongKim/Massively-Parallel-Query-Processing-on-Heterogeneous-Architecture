@@ -1,4 +1,6 @@
-#define DFN_NumberOfClusters 800
+#define DFN_NumberOfClusters 20000 // for real dataset it takes 1 hour
+//#define DFN_NumberOfClusters 200000 // for synthetic dataset
+
 #define kMeansLoopIteration 5000
 #define DFN_KmeansThreashhold 0.00001
 

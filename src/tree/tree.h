@@ -73,6 +73,8 @@ class Tree {
 
   bool AssignHilbertIndexToBranches(std::vector<node::Branch> &branches);
 
+  bool ClusterBrancheUsingKmeans(std::vector<node::Branch> &branches);
+
   std::vector<ui> GetLevelNodeCount(const std::vector<node::Branch> branches);
 
   ui GetTotalNodeCount(const std::vector<ui> level_node_count) const;

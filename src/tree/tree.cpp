@@ -5,6 +5,7 @@
 #include "evaluator/evaluator.h"
 #include "evaluator/recorder.h"
 #include "mapper/hilbert_mapper.h"
+#include "mapper/kmeans_mapper.h"
 
 #include <algorithm>
 #include <cmath>
@@ -33,6 +34,7 @@ TreeType Tree::GetTreeType() const {
 std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
 
   auto data_type = input_data_set->GetDataType();
+  auto cluster_type = input_data_set->GetClusterType();
   auto dataset_type = input_data_set->GetDataSetType();
   auto number_of_data = input_data_set->GetNumberOfData();
   auto dimensions = GetNumberOfDims();
@@ -46,7 +48,9 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
 
   std::string index_name =
   "./index_files/"+DataTypeToString(data_type)+"_"+DataSetTypeToString(dataset_type)+
-  "_DATA_"+std::to_string(dimensions)+"DIMS_"+number_of_data_str+"_"+
+  "_DATA_"+std::to_string(dimensions)+
+  "_"+ClusterTypeToString(cluster_type)+"_" +
+  "DIMS_"+number_of_data_str+"_"+
   TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
 
   return index_name;
@@ -357,6 +361,7 @@ void Tree::Thread_SetRect(std::vector<node::Branch> &branches, std::vector<Point
                                                          ui start_offset, ui end_offset) {
   for(ui range(offset, start_offset, end_offset)) {
     branches[offset].SetRect(&points[offset*GetNumberOfDims()]);
+    branches[offset].SetIndex(offset+1);
   }
 }
 
@@ -374,6 +379,7 @@ std::vector<node::Branch> Tree::CreateBranches(std::shared_ptr<io::DataSet> inpu
   std::vector<node::Branch> branches(number_of_data);
 
   const size_t number_of_threads = std::thread::hardware_concurrency();
+
 
   // parallel for loop using c++ std 11 
   {
@@ -409,10 +415,9 @@ void Tree::Thread_Mapping(std::vector<node::Branch> &branches, ui start_offset, 
 
   for(ui range(offset, start_offset, end_offset)) {
     auto points = branches[offset].GetPoints();
-    auto hilbert_index = mapper::Hilbert_Mapper::MappingIntoSingle(GetNumberOfDims(),
+    auto hilbert_index = mapper::HilbertMapper::MappingIntoSingle(GetNumberOfDims(),
                                                                    number_of_bits, points);
     branches[offset].SetIndex(hilbert_index);
-    //branches[offset].SetIndex(offset+1);
   }
 }
 
@@ -447,6 +452,18 @@ bool Tree::AssignHilbertIndexToBranches(std::vector<node::Branch> &branches) {
 
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Assign Hilbert Index Time on CPU (%zu threads)= %.6fs", number_of_threads, elapsed_time/1000.0f);
+  return true;
+}
+
+bool Tree::ClusterBrancheUsingKmeans(std::vector<node::Branch> &branches) {
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
+  auto ret = mapper::KmeansMapper::ClusteringBranches(branches, GetNumberOfDims());
+  assert(ret);
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Clustering branches using K-means&Hilbert Curve = %.6fs", elapsed_time/1000.0f);
   return true;
 }
 

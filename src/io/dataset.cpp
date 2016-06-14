@@ -11,8 +11,8 @@ DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
                  std::string data_set_path, DataSetType data_set_type, DataType data_type,
                  ClusterType cluster_type)
   : number_of_dimensions(number_of_dimensions), number_of_data(number_of_data),
-    data_set_path(data_set_path), data_set_type(data_set_type), data_type(data_type),
-    cluster_type(cluster_type){
+    data_set_path(data_set_path), data_set_type(data_set_type), 
+    data_type(data_type), cluster_type(cluster_type){
 
   // read data from data_set_path
   std::ifstream input_stream; 
@@ -24,7 +24,6 @@ DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
 
     default:
       input_stream.open(data_set_path, std::ifstream::in);
-
   }
 
   // print out an error message when it was failed to be opened
@@ -86,7 +85,9 @@ std::ostream &operator<<(std::ostream &os, const DataSet &dataset) {
      << " Number of dimensions = " << dataset.GetNumberOfDims() << std::endl
      << " Number of data = " << dataset.GetNumberOfData() << std::endl
      << " DataSet path = " << dataset.GetDataSetPath() << std::endl
-     << " DataSet type = " << DataSetTypeToString(dataset.GetDataSetType()) << std::endl;
+     << " DataSet type = " << DataSetTypeToString(dataset.GetDataSetType()) << std::endl
+     << " Data type = " << DataTypeToString(dataset.GetDataType()) << std::endl
+     << " Cluster type = " << ClusterTypeToString(dataset.GetClusterType()) << std::endl;
 
   return os;
 }

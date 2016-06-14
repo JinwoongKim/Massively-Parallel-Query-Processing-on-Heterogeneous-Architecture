@@ -47,30 +47,22 @@ bool Evaluator::ReadDataSet(void){
 
   auto data_type = GetDataType();
   auto cluster_type = GetClusterType();
+  auto data_path = GetDataPath(data_type);
 
   input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-                       "/home/jwkim/dataFiles/input/real/NOAA0.bin",
-                       DATASET_TYPE_BINARY, data_type, cluster_type)); 
+                       data_path, DATASET_TYPE_BINARY, data_type, cluster_type)); 
 
   return true;
 }
 
 bool Evaluator::ReadQuerySet(void){
-  //TODO : hard coded now...
-  auto low_s_data_type = ToLowerCase(s_data_type);
-  if( low_s_data_type == "real"){
-    query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-          "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
-          +selectivity+"s."+query_size, DATASET_TYPE_BINARY, DATA_TYPE_REAL,
-          StringToClusterType(s_cluster_type))); 
-  } else if (low_s_data_type == "synthetic") {
-    query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-          "/home/jwkim/dataFiles/query/synthetic/synthetic_dim_query.3.bin."
-          +selectivity+"s", DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC,
-          StringToClusterType(s_cluster_type))); 
-  } else {
-    assert(0);
-  }
+
+  auto data_type = GetDataType();
+  auto cluster_type = GetClusterType();
+  auto query_path = GetQueryPath(data_type);
+
+  query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
+                       query_path, DATASET_TYPE_BINARY, data_type, cluster_type)); 
 
   return true;
 }
@@ -391,34 +383,62 @@ void Evaluator::AddTrees(std::string _index_type) {
 DataType Evaluator::GetDataType(void){
   s_data_type = ToLowerCase(s_data_type);
 
-  if( s_data_type == "r" ||
-      s_data_type == "real"){
+  if( s_data_type == "r" || s_data_type == "real" ||
+      s_data_type == "data_type_real"){
       s_data_type = "DATA_TYPE_REAL";
-  } else if (s_data_type == "s" ||
-             s_data_type == "synthetic") {
+  } else if (s_data_type == "s" || s_data_type == "synthetic" ||
+             s_data_type == "data_type_synthetic") {
       s_data_type = "DATA_TYPE_SYNTHETIC";
   } else {
     assert(0);
   }
 
+  LOG_INFO("%s", s_data_type.c_str());
   return StringToDataType(s_data_type);
 }
 
 ClusterType Evaluator::GetClusterType(void){
   s_cluster_type = ToLowerCase(s_cluster_type);
 
-  if(s_cluster_type == "h" ||
-     s_cluster_type == "hilbert"){
+  if(s_cluster_type == "h" || s_cluster_type == "hilbert" ||
+     s_cluster_type == "cluster_type_hilbert"){
      s_cluster_type = "CLUSTER_TYPE_HILBERT";
-  } else if(s_cluster_type == "k" ||
-            s_cluster_type == "kmeans"){
+  } else if(s_cluster_type == "k" || s_cluster_type == "kmeans" ||
+            s_cluster_type == "cluster_type_kmeanshilbert"){
      s_cluster_type = "CLUSTER_TYPE_KMEANSHILBERT";
-  } else if(s_cluster_type == "o" ||
-            s_cluster_type == "original"){
+  } else if(s_cluster_type == "o" || s_cluster_type == "original"||
+            s_cluster_type == "cluster_type_none"){
      s_cluster_type = "CLUSTER_TYPE_NONE";
   }
 
   return StringToClusterType(s_cluster_type);
+}
+
+std::string Evaluator::GetDataPath(const DataType data_type) const {
+ std::string data_path="/home/jwkim/dataFiles/input";
+
+  if( data_type == DATA_TYPE_REAL) {
+    data_path+="/real/NOAA0.bin";
+  } else if( data_type == DATA_TYPE_SYNTHETIC) {
+    data_path+="/synthetic/synthetic_200m_3d_data.bin";
+  } else {
+    assert(0);
+  }
+  return data_path;
+}
+
+
+std::string Evaluator::GetQueryPath(const DataType data_type) const {
+ std::string data_path="/home/jwkim/dataFiles/query";
+
+  if( data_type == DATA_TYPE_REAL) {
+    data_path+="/real/real_dim_query.3.bin."+selectivity+"s."+query_size;
+  } else if( data_type == DATA_TYPE_SYNTHETIC) {
+    data_path+="/synthetic/synthetic_dim_query.3.bin."+selectivity+"s";
+  } else {
+    assert(0);
+  }
+  return data_path;
 }
 
 std::string Evaluator::ToLowerCase(std::string str) {

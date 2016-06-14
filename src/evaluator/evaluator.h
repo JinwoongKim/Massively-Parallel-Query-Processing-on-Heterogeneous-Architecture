@@ -54,7 +54,12 @@ class Evaluator{
   void AddTrees(std::string index_type);
 
   DataType GetDataType(void);
+
   ClusterType GetClusterType(void);
+
+  std::string GetDataPath(const DataType data_type) const;
+ 
+  std::string GetQueryPath(const DataType data_type) const;
 
   std::string ToLowerCase(std::string str);
 
