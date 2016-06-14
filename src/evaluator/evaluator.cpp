@@ -44,32 +44,30 @@ bool Evaluator::Initialize(int argc, char** argv){
 }
 
 bool Evaluator::ReadDataSet(void){
-  auto low_data_type = ToLowerCase(data_type);
-  if( low_data_type == "real"){
-    input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-          "/home/jwkim/dataFiles/input/real/NOAA0.bin",
-          DATASET_TYPE_BINARY, DATA_TYPE_REAL)); 
-  } else if (low_data_type == "synthetic") {
-    input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-          "/home/jwkim/dataFiles/input/synthetic/synthetic_200m_3d_data.bin",
-          DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
-  } else {
-    assert(0);
-  }
+
+  auto data_type = GetDataType();
+  auto cluster_type = GetClusterType();
+
+  input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
+                       "/home/jwkim/dataFiles/input/real/NOAA0.bin",
+                       DATASET_TYPE_BINARY, data_type, cluster_type)); 
+
   return true;
 }
 
 bool Evaluator::ReadQuerySet(void){
   //TODO : hard coded now...
-  auto low_data_type = ToLowerCase(data_type);
-  if( low_data_type == "real"){
+  auto low_s_data_type = ToLowerCase(s_data_type);
+  if( low_s_data_type == "real"){
     query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
           "/home/jwkim/dataFiles/query/real/real_dim_query.3.bin."
-          +selectivity+"s."+query_size, DATASET_TYPE_BINARY, DATA_TYPE_REAL)); 
-  } else if (low_data_type == "synthetic") {
+          +selectivity+"s."+query_size, DATASET_TYPE_BINARY, DATA_TYPE_REAL,
+          StringToClusterType(s_cluster_type))); 
+  } else if (low_s_data_type == "synthetic") {
     query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
           "/home/jwkim/dataFiles/query/synthetic/synthetic_dim_query.3.bin."
-          +selectivity+"s", DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC)); 
+          +selectivity+"s", DATASET_TYPE_BINARY, DATA_TYPE_SYNTHETIC,
+          StringToClusterType(s_cluster_type))); 
   } else {
     assert(0);
   }
@@ -292,7 +290,7 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:y:Y:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:y:Y:u:U:";
   std::string number_of_data_str;
   int current_option;
 
@@ -322,7 +320,9 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 't':
       case 'T': number_of_partition = atoi(optarg);  break;
       case 'y':
-      case 'Y': data_type = std::string(optarg);  break;
+      case 'Y': s_data_type = std::string(optarg);  break;
+      case 'u':
+      case 'U': s_cluster_type = std::string(optarg);  break;
      default: break;
     } // end of switch
   } // end of while
@@ -388,6 +388,39 @@ void Evaluator::AddTrees(std::string _index_type) {
   }
 }
 
+DataType Evaluator::GetDataType(void){
+  s_data_type = ToLowerCase(s_data_type);
+
+  if( s_data_type == "r" ||
+      s_data_type == "real"){
+      s_data_type = "DATA_TYPE_REAL";
+  } else if (s_data_type == "s" ||
+             s_data_type == "synthetic") {
+      s_data_type = "DATA_TYPE_SYNTHETIC";
+  } else {
+    assert(0);
+  }
+
+  return StringToDataType(s_data_type);
+}
+
+ClusterType Evaluator::GetClusterType(void){
+  s_cluster_type = ToLowerCase(s_cluster_type);
+
+  if(s_cluster_type == "h" ||
+     s_cluster_type == "hilbert"){
+     s_cluster_type = "CLUSTER_TYPE_HILBERT";
+  } else if(s_cluster_type == "k" ||
+            s_cluster_type == "kmeans"){
+     s_cluster_type = "CLUSTER_TYPE_KMEANSHILBERT";
+  } else if(s_cluster_type == "o" ||
+            s_cluster_type == "original"){
+     s_cluster_type = "CLUSTER_TYPE_NONE";
+  }
+
+  return StringToClusterType(s_cluster_type);
+}
+
 std::string Evaluator::ToLowerCase(std::string str) {
  std::string lower_str;
  std::locale loc;
@@ -407,6 +440,8 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of searches = " << evaluator.number_of_search << std::endl
      << " number of cpu cores = " << evaluator.number_of_cpu_core << std::endl
      << " number of CPU threads = " << evaluator.number_of_cpu_threads << std::endl
+     << " data type = " << evaluator.s_data_type << std::endl
+     << " cluster type = " << evaluator.s_cluster_type << std::endl
      << " scan type = " << ScanTypeToString(evaluator.scan_type) << std::endl
      << " chunk size = " << evaluator.chunk_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl

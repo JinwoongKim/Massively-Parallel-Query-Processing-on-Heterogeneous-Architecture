@@ -18,7 +18,8 @@ class DataSet{
           ui number_of_data,
           std::string data_set_path,
           DataSetType data_set_type,
-          DataType data_type);
+          DataType data_type,
+          ClusterType cluster_type);
 
   ~DataSet(){
   }
@@ -35,6 +36,8 @@ class DataSet{
   DataSetType GetDataSetType(void) const;
 
   DataType GetDataType(void) const;
+
+  ClusterType GetClusterType(void) const;
 
   std::vector<Point> GetPoints(void) const;
 
@@ -61,6 +64,9 @@ class DataSet{
 
   // DataSet path
   DataType data_type;
+
+  // Cluster Type
+  ClusterType cluster_type;
 
   std::vector<Point> points;
 };

@@ -51,6 +51,16 @@ enum TreeType  {
 };
 
 //===--------------------------------------------------------------------===//
+// ClusterType
+//===--------------------------------------------------------------------===//
+enum ClusterType  {
+  CLUSTER_TYPE_INVALID = -1,
+  CLUSTER_TYPE_NONE = 1,
+  CLUSTER_TYPE_HILBERT = 2,
+  CLUSTER_TYPE_KMEANSHILBERT = 3
+};
+
+//===--------------------------------------------------------------------===//
 // ScanType
 //===--------------------------------------------------------------------===//
 enum ScanType  {
@@ -87,5 +97,8 @@ TreeType StringToTreeType(std::string str);
 
 std::string ScanTypeToString(ScanType type);
 ScanType StringToScanType(std::string str);
+
+std::string ClusterTypeToString(ClusterType type);
+ClusterType StringToClusterType(std::string str);
 
 } // End of ursus namespace

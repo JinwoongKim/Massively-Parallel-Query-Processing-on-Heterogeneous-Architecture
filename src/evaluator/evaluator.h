@@ -53,6 +53,9 @@ class Evaluator{
 
   void AddTrees(std::string index_type);
 
+  DataType GetDataType(void);
+  ClusterType GetClusterType(void);
+
   std::string ToLowerCase(std::string str);
 
   // Get a string representation for debugging
@@ -95,7 +98,9 @@ class Evaluator{
 
   std::string query_size;
 
-  std::string data_type = "synthetic";
+  std::string s_data_type = "synthetic";
+
+  std::string s_cluster_type= "hilbert";
 
   // To control chunk_size in Hybrid indexing 
   ui chunk_size = GetNumberOfDegrees();

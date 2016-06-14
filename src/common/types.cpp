@@ -11,9 +11,9 @@ std::string DataSetTypeToString(DataSetType type) {
 
   switch (type) {
     case (DATASET_TYPE_INVALID):
-      return "TYPE_INVALID";
+      return "DATASET_TYPE_INVALID";
     case (DATASET_TYPE_BINARY):
-      return "BINARY";
+      return "DATASET_TYPE_BINARY";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -24,9 +24,9 @@ std::string DataSetTypeToString(DataSetType type) {
 }
 
 DataSetType StringToDataSetType(std::string str) {
-  if (str == "TYPE_INVALID") {
+  if (str == "DATASET_TYPE_INVALID") {
     return DATASET_TYPE_INVALID;
-  } else if (str == "BINARY") {
+  } else if (str == "DATASET_TYPE_BINARY") {
     return DATASET_TYPE_BINARY;
   }
   return DATASET_TYPE_INVALID;
@@ -41,11 +41,11 @@ std::string DataTypeToString(DataType type) {
 
   switch (type) {
     case (DATA_TYPE_INVALID):
-      return "TYPE_INVALID";
+      return "DATA_TYPE_INVALID";
     case (DATA_TYPE_REAL):
-      return "REAL";
+      return "DATA_TYPE_REAL";
     case (DATA_TYPE_SYNTHETIC):
-      return "SYNTHETIC";
+      return "DATA_TYPE_SYNTHETIC";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -56,11 +56,11 @@ std::string DataTypeToString(DataType type) {
 }
 
 DataType StringToDataType(std::string str) {
-  if (str == "TYPE_INVALID") {
+  if (str == "DATA_TYPE_INVALID") {
     return DATA_TYPE_INVALID;
-  } else if (str == "REAL") {
+  } else if (str == "DATA_TYPE_REAL") {
     return DATA_TYPE_REAL;
-  } else if (str == "SYNTHETIC") {
+  } else if (str == "DATA_TYPE_SYNTHETIC") {
     return DATA_TYPE_SYNTHETIC;
   }
   return DATA_TYPE_INVALID;
@@ -75,13 +75,13 @@ std::string NodeTypeToString(NodeType type) {
 
   switch (type) {
     case (NODE_TYPE_INVALID):
-      return "TYPE_INVALID";
+      return "NODE_TYPE_INVALID";
     case (NODE_TYPE_INTERNAL):
-      return "INTERNAL";
+      return "NODE_TYPE_INTERNAL";
     case (NODE_TYPE_EXTENDLEAF):
-      return "EXTENDLEAF";
+      return "NODE_TYPE_EXTENDLEAF";
     case (NODE_TYPE_LEAF):
-      return "LEAF";
+      return "NODE_TYPE_LEAF";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -92,13 +92,13 @@ std::string NodeTypeToString(NodeType type) {
 }
 
 NodeType StringToNodeType(std::string str) {
-  if (str == "TYPE_INVALID") {
+  if (str == "NODE_TYPE_INVALID") {
     return NODE_TYPE_INVALID;
-  } else if (str == "INTERNAL") {
+  } else if (str == "NODE_TYPE_INTERNAL") {
     return NODE_TYPE_INTERNAL;
-  } else if (str == "EXTENDLEAF") {
+  } else if (str == "NODE_TYPE_EXTENDLEAF") {
     return NODE_TYPE_EXTENDLEAF;
-  } else if (str == "LEAF") {
+  } else if (str == "NODE_TYPE_LEAF") {
     return NODE_TYPE_LEAF;
   }
   return NODE_TYPE_INVALID;
@@ -113,15 +113,15 @@ std::string TreeTypeToString(TreeType type) {
 
   switch (type) {
     case (TREE_TYPE_INVALID):
-      return "TYPE_INVALID";
+      return "TREE_TYPE_INVALID";
     case (TREE_TYPE_MPHR):
-      return "MPHR";
+      return "TREE_TYPE_MPHR";
     case (TREE_TYPE_MPHR_PARTITION):
-      return "MPHR_PARTITION";
+      return "TREE_TYPE_MPHR_PARTITION";
     case (TREE_TYPE_HYBRID):
-      return "HYBRID";
+      return "TREE_TYPE_HYBRID";
     case (TREE_TYPE_RTREE):
-      return "RTREE";
+      return "TREE_TYPE_RTREE";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -132,18 +132,56 @@ std::string TreeTypeToString(TreeType type) {
 }
 
 TreeType StringToTreeType(std::string str) {
-  if (str == "TYPE_INVALID") {
+  if (str == "TREE_TYPE_INVALID") {
     return TREE_TYPE_INVALID;
-  } else if (str == "MPHR") {
+  } else if (str == "TREE_TYPE_MPHR") {
     return TREE_TYPE_MPHR;
-  } else if (str == "MPHR_PARTITION") {
+  } else if (str == "TREE_TYPE_MPHR_PARTITION") {
     return TREE_TYPE_MPHR_PARTITION;
-  } else if (str == "HYBRID") {
+  } else if (str == "TREE_TYPE_HYBRID") {
     return TREE_TYPE_HYBRID;
-  } else if (str == "RTREE") {
+  } else if (str == "TREE_TYPE_RTREE") {
     return TREE_TYPE_RTREE;
   }
   return TREE_TYPE_INVALID;
+}
+
+//===--------------------------------------------------------------------===//
+// ClusterType <--> String Utilities
+//===--------------------------------------------------------------------===//
+
+std::string ClusterTypeToString(ClusterType type) {
+  std::string ret;
+
+  switch (type) {
+    case (CLUSTER_TYPE_INVALID):
+      return "CLUSTER_TYPE_INVALID";
+    case (CLUSTER_TYPE_NONE):
+      return "CLUSTER_TYPE_NONE";
+    case (CLUSTER_TYPE_HILBERT):
+      return "CLUSTER_TYPE_HILBERT";
+    case (CLUSTER_TYPE_KMEANSHILBERT):
+      return "CLUSTER_TYPE_KMEANSHILBERT";
+    default: {
+      char buffer[32];
+      ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
+      ret = buffer;
+    }
+  }
+  return (ret);
+}
+
+ClusterType StringToClusterType(std::string str) {
+  if (str == "CLUSTER_TYPE_INVALID") {
+    return CLUSTER_TYPE_INVALID;
+  } else if (str == "CLUSTER_TYPE_NONE") {
+    return CLUSTER_TYPE_NONE;
+  } else if (str == "CLUSTER_TYPE_HILBERT") {
+    return CLUSTER_TYPE_HILBERT;
+  } else if (str == "CLUSTER_TYPE_KMEANSHILBERT") {
+    return CLUSTER_TYPE_KMEANSHILBERT;
+  }
+  return CLUSTER_TYPE_INVALID;
 }
 
 //===--------------------------------------------------------------------===//
@@ -155,11 +193,11 @@ std::string ScanTypeToString(ScanType type) {
 
   switch (type) {
     case (SCAN_TYPE_INVALID):
-      return "TYPE_INVALID";
+      return "SCAN_TYPE_INVALID";
     case (SCAN_TYPE_LEAF):
-      return "LEAF";
+      return "SCAN_TYPE_LEAF";
     case (SCAN_TYPE_EXTENDLEAF):
-      return "EXTENDLEAF";
+      return "SCAN_TYPE_EXTENDLEAF";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -170,19 +208,16 @@ std::string ScanTypeToString(ScanType type) {
 }
 
 ScanType StringToScanType(std::string str) {
-  if (str == "TYPE_INVALID") {
+  if (str == "SCAN_TYPE_INVALID") {
     return SCAN_TYPE_INVALID;
-  } else if (str == "LEAF") {
+  } else if (str == "SCAN_TYPE_LEAF") {
     return SCAN_TYPE_LEAF;
-  } else if (str == "EXTENDLEAF") {
+  } else if (str == "SCAN_TYPE_EXTENDLEAF") {
     return SCAN_TYPE_EXTENDLEAF;
   }
  
   return SCAN_TYPE_INVALID;
 }
-
-
-
 
 } // End of ursus namespace
 
