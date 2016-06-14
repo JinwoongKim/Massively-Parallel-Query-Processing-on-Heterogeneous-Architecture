@@ -13,7 +13,7 @@ namespace mapper {
 * @return index value : number_of_dimensions*number_of_bits bits.
 */
 ll 
-Hilbert_Mapper::MappingIntoSingle(ui number_of_dimensions,
+HilbertMapper::MappingIntoSingle(ui number_of_dimensions,
                                   ui number_of_bits,
                                   std::vector<Point> points) {
   std::vector<ll> coord(number_of_dimensions);
@@ -77,7 +77,7 @@ Hilbert_Mapper::MappingIntoSingle(ui number_of_dimensions,
  *                      each with number of bits 
  */
 std::vector<Point>
-Hilbert_Mapper::MappingIntoMulti(ui number_of_dimensions,
+HilbertMapper::MappingIntoMulti(ui number_of_dimensions,
                                  ui number_of_bits,
                                  ll index) {
   std::vector<ll> coord(number_of_dimensions);
@@ -133,7 +133,7 @@ Hilbert_Mapper::MappingIntoMulti(ui number_of_dimensions,
 }
 
 ll
-Hilbert_Mapper::bitTranspose(ui number_of_dimensions, 
+HilbertMapper::bitTranspose(ui number_of_dimensions, 
                              ui number_of_bits, 
                              ll inCoords) {
 
@@ -183,7 +183,7 @@ Hilbert_Mapper::bitTranspose(ui number_of_dimensions,
 }
 
 ll
-Hilbert_Mapper::getIntBits(ui number_of_dimensions, ui number_of_bytes, 
+HilbertMapper::getIntBits(ui number_of_dimensions, ui number_of_bytes, 
                            char const* c, ui y){
   ui const bit = y%8;
   ui const offs = whichByte(number_of_bytes,y);
@@ -216,7 +216,7 @@ Hilbert_Mapper::getIntBits(ui number_of_dimensions, ui number_of_bytes,
  */
 
 int
-Hilbert_Mapper::hilbert_cmp(ui number_of_dimensions, 
+HilbertMapper::hilbert_cmp(ui number_of_dimensions, 
                             ui number_of_bytes, 
                             ui number_of_bits,
                             void const* c1, void const* c2){
@@ -228,7 +228,7 @@ Hilbert_Mapper::hilbert_cmp(ui number_of_dimensions,
 }
 
 int
-Hilbert_Mapper::hilbert_cmp_work(ui number_of_dimensions, 
+HilbertMapper::hilbert_cmp_work(ui number_of_dimensions, 
                                  ui number_of_bytes, 
                                  ui number_of_bits,
                                  ui max, ui y,

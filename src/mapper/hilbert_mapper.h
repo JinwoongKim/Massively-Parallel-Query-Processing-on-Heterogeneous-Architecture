@@ -7,7 +7,7 @@
 namespace ursus {
 namespace mapper {
 
-class Hilbert_Mapper {
+class HilbertMapper {
  public:
  static ll MappingIntoSingle(ui number_of_dimensions,
                               ui number_of_bits,
