@@ -77,12 +77,13 @@ class Tree {
 
   std::vector<ui> GetLevelNodeCount(const std::vector<node::Branch> branches);
 
-  ui GetTotalNodeCount(const std::vector<ui> level_node_count) const;
+  ui GetDeviceNodeCount(const std::vector<ui> level_node_count);
 
   ui GetNumberOfBlocks(void) const;
 
   void Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
-                               NodeType node_type,int level, ui node_offset, 
+                               node::Node* node_ptr, NodeType node_type,
+                               int level, ui node_offset, 
                                ui start_offset, ui end_offset);
 
   void Thread_CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
@@ -90,7 +91,8 @@ class Tree {
                                ui start_offset, ui end_offset);
 
   bool CopyBranchToNode(std::vector<node::Branch> &branches,
-                        NodeType node_type, int level, ui node_offset);
+                        NodeType node_type, int level, ui node_offset,
+                        node::Node* node_ptr);
 
   bool CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
                            NodeType node_type,int level, ui node_offset);
@@ -120,14 +122,18 @@ class Tree {
 
   node::Node* node_ptr = nullptr;
 
+  // TODO tmp node ptr for bottom up construnction
+  node::Node* b_node_ptr = nullptr;
+
   node::Node_SOA* node_soa_ptr = nullptr;
 
   TreeType tree_type = TREE_TYPE_INVALID;
 
-  // total node count 
-  // For MPHR like trees, total node count,
-  // For Hybrid trees, the total node count of internal nodes
-  ui total_node_count = 0;
+  // For Rtree and Hybrid trees
+  ui host_node_count = 0;
+
+  // For MPHR and Hybrid Trees
+  ui device_node_count = 0;
 };
 
 //===--------------------------------------------------------------------===//

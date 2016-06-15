@@ -90,9 +90,10 @@ int Evaluator::SetDevice() {
 
     size_t avail, total;
     cudaMemGetInfo( &avail, &total );
-    // if available space is less than 10%, try to get another on,
+    // if someone uses GPU, try to get another on,
     // otherwise success to get the GPU
-    if( avail > 0.1 ) {
+    auto used = (total-avail)/(float)total;
+    if( used < 0.1 ) {
       if((gpu_itr+1)%10==1) {
         LOG_INFO("%ust GPU(%s) is selected", gpu_itr+1, prop.name);
       } else if((gpu_itr+1)%10==2) {
@@ -121,7 +122,7 @@ bool Evaluator::Build(void) {
       case TREE_TYPE_HYBRID:  {
         // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
         std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
-        hybrid->SetScanType(scan_type);
+        hybrid->SetScanLevel(scan_level);
         hybrid->SetChunkSize(chunk_size);
         hybrid->SetNumberOfCUDABlocks(number_of_cuda_blocks);
         hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
@@ -304,7 +305,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 's':
       case 'S': selectivity = std::string(optarg);  break;
       case 'l':
-      case 'L': scan_type = (ScanType)atoi(optarg);  break;
+      case 'L': scan_level = atoi(optarg);  break;
       case 'r':
       case 'R': number_of_repeat = atoi(optarg);  break;
       case 'e':
@@ -393,7 +394,6 @@ DataType Evaluator::GetDataType(void){
     assert(0);
   }
 
-  LOG_INFO("%s", s_data_type.c_str());
   return StringToDataType(s_data_type);
 }
 
@@ -421,6 +421,7 @@ std::string Evaluator::GetDataPath(const DataType data_type) const {
     data_path+="/real/NOAA0.bin";
   } else if( data_type == DATA_TYPE_SYNTHETIC) {
     data_path+="/synthetic/synthetic_200m_3d_data.bin";
+    //TODO data_path+="/synthetic/synthetic_200m_"+std::to_string(GetNumberOfDims())+"d_data.bin";
   } else {
     assert(0);
   }
@@ -434,7 +435,7 @@ std::string Evaluator::GetQueryPath(const DataType data_type) const {
   if( data_type == DATA_TYPE_REAL) {
     data_path+="/real/real_dim_query.3.bin."+selectivity+"s."+query_size;
   } else if( data_type == DATA_TYPE_SYNTHETIC) {
-    data_path+="/synthetic/synthetic_dim_query.3.bin."+selectivity+"s";
+    data_path+="/synthetic/synthetic_dim_query."+std::to_string(GetNumberOfDims())+".bin."+selectivity+"s";
   } else {
     assert(0);
   }
@@ -462,7 +463,7 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " number of CPU threads = " << evaluator.number_of_cpu_threads << std::endl
      << " data type = " << evaluator.s_data_type << std::endl
      << " cluster type = " << evaluator.s_cluster_type << std::endl
-     << " scan type = " << ScanTypeToString(evaluator.scan_type) << std::endl
+     << " scan level = " << evaluator.scan_level << std::endl
      << " chunk size = " << evaluator.chunk_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;

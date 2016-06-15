@@ -184,40 +184,5 @@ ClusterType StringToClusterType(std::string str) {
   return CLUSTER_TYPE_INVALID;
 }
 
-//===--------------------------------------------------------------------===//
-// ScanType <--> String Utilities
-//===--------------------------------------------------------------------===//
-
-std::string ScanTypeToString(ScanType type) {
-  std::string ret;
-
-  switch (type) {
-    case (SCAN_TYPE_INVALID):
-      return "SCAN_TYPE_INVALID";
-    case (SCAN_TYPE_LEAF):
-      return "SCAN_TYPE_LEAF";
-    case (SCAN_TYPE_EXTENDLEAF):
-      return "SCAN_TYPE_EXTENDLEAF";
-    default: {
-      char buffer[32];
-      ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
-      ret = buffer;
-    }
-  }
-  return (ret);
-}
-
-ScanType StringToScanType(std::string str) {
-  if (str == "SCAN_TYPE_INVALID") {
-    return SCAN_TYPE_INVALID;
-  } else if (str == "SCAN_TYPE_LEAF") {
-    return SCAN_TYPE_LEAF;
-  } else if (str == "SCAN_TYPE_EXTENDLEAF") {
-    return SCAN_TYPE_EXTENDLEAF;
-  }
- 
-  return SCAN_TYPE_INVALID;
-}
-
 } // End of ursus namespace
 

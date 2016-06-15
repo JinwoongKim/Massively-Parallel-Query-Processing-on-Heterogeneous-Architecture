@@ -97,7 +97,7 @@ class Evaluator{
   ui number_of_cpu_threads = 0;
 
   // scan type
-  ScanType scan_type = SCAN_TYPE_LEAF;
+  ui  scan_level = 1;
   
   std::string selectivity="0.01";
 
@@ -110,10 +110,8 @@ class Evaluator{
   // To control chunk_size in Hybrid indexing 
   ui chunk_size = GetNumberOfDegrees();
 
-  // Measure and record time and count  
-  //Logger logger;
-  
   std::shared_ptr<io::DataSet> input_data_set;
+
   std::shared_ptr<io::DataSet> query_data_set;
 
   std::vector<std::shared_ptr<tree::Tree>> trees;

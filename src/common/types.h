@@ -61,15 +61,6 @@ enum ClusterType  {
 };
 
 //===--------------------------------------------------------------------===//
-// ScanType
-//===--------------------------------------------------------------------===//
-enum ScanType  {
-  SCAN_TYPE_INVALID = -1,
-  SCAN_TYPE_LEAF = 1,
-  SCAN_TYPE_EXTENDLEAF = 2,
-};
-
-//===--------------------------------------------------------------------===//
 // Hilbert Curve
 //===--------------------------------------------------------------------===//
 /*
@@ -94,9 +85,6 @@ NodeType StringToNodeType(std::string str);
 
 std::string TreeTypeToString(TreeType type);
 TreeType StringToTreeType(std::string str);
-
-std::string ScanTypeToString(ScanType type);
-ScanType StringToScanType(std::string str);
 
 std::string ClusterTypeToString(ClusterType type);
 ClusterType StringToClusterType(std::string str);

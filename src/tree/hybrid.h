@@ -32,8 +32,6 @@ class Hybrid : public Tree {
   void Thread_BuildExtendLeafNodeOnCPU(ul current_offset, ul parent_offset, 
                                        ui number_of_node, ui tid, ui number_of_threads);
 
-  void SetNumberOfNodeSOA(ui number_of_data);
-
   ui GetNumberOfNodeSOA() const;
 
   ui GetNumberOfLeafNodeSOA() const;
@@ -55,7 +53,7 @@ class Hybrid : public Tree {
 
   // level to scan on the GPU
   // 1 : leaf nodes, 2 : extend and leaf nodes
-  void SetScanType(ScanType scan_type);
+  void SetScanLevel(ui scan_level);
 
   void SetNumberOfCPUThreads(ui number_of_cpu_threads);
 
@@ -77,14 +75,11 @@ class Hybrid : public Tree {
   //===--------------------------------------------------------------------===//
   ui chunk_size;
 
-  ScanType scan_type;
+  ui scan_level;
 
   ui number_of_cpu_threads;
   
-  ui leaf_node_soa_count = 0;
-
-  ui extend_leaf_node_soa_count = 0;
-
+  std::vector<ui> level_node_count;
   std::vector<std::queue<ll>> thread_start_node_index;
 };
 

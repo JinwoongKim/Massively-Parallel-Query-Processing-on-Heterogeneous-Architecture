@@ -48,9 +48,8 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
 
   std::string index_name =
   "./index_files/"+DataTypeToString(data_type)+"_"+DataSetTypeToString(dataset_type)+
-  "_DATA_"+std::to_string(dimensions)+
-  "_"+ClusterTypeToString(cluster_type)+"_" +
-  "DIMS_"+number_of_data_str+"_"+
+  "_DATA_"+"_"+ClusterTypeToString(cluster_type)+"_" +
+  std::to_string(dimensions)+"DIMS_"+number_of_data_str+"_"+
   TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
 
   return index_name;
@@ -172,7 +171,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
 
   node::Node* node = new node::Node();
   // increase node counts
-  total_node_count++;
+  host_node_count++;
 
   if( level_node_count.size() <= level ) {
     level_node_count.emplace_back(1);
@@ -236,22 +235,23 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   // Get node count for each level
   auto level_node_count = GetLevelNodeCount(branches);
   auto tree_height = level_node_count.size();
-  total_node_count = GetTotalNodeCount(level_node_count);
+  device_node_count = GetDeviceNodeCount(level_node_count);
   // set the leaf node count
   auto leaf_node_count = level_node_count.back();
-  auto leaf_node_offset = total_node_count - leaf_node_count;
+  auto leaf_node_offset = device_node_count - leaf_node_count;
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
     LOG_INFO("Level %zd", level_node_count[level_itr]);
   }
 
-  node_ptr = new node::Node[total_node_count];
+  b_node_ptr = new node::Node[device_node_count];
   // Copy the branches to nodes 
-  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height-1, leaf_node_offset);
+  auto ret = CopyBranchToNode(branches, NODE_TYPE_LEAF, tree_height-1, 
+                              leaf_node_offset, b_node_ptr);
   assert(ret);
 
   // Calculate index size and get used and total device memory space
-  auto index_size = total_node_count*sizeof(node::Node);
+  auto index_size = device_node_count*sizeof(node::Node);
   auto total = evaluator::Evaluator::GetTotalMem();
   auto used = evaluator::Evaluator::GetUsedMem();
 
@@ -263,7 +263,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
     // parallel for loop using c++ std 11 
     {
       std::vector<std::thread> threads;
-      ul current_offset = total_node_count;
+      ul current_offset = device_node_count;
 
       //Launch a group of threads
       for( ui level_itr=tree_height-1; level_itr >0; level_itr--) {
@@ -272,7 +272,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
 
         for (ui range(thread_itr, 0, number_of_threads)) {
           threads.push_back(std::thread(&Tree::BottomUpBuildonCPU, this, current_offset, 
-                parent_offset, level_node_count[level_itr], std::ref(node_ptr), thread_itr, 
+                parent_offset, level_node_count[level_itr], std::ref(b_node_ptr), thread_itr, 
                 number_of_threads));
         }
         //Join the threads with the main thread
@@ -287,19 +287,19 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
     // Copy the leaf nodes to the GPU
     //===--------------------------------------------------------------------===//
     node::Node* d_node_ptr;
-    cudaErrCheck(cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*total_node_count));
-    cudaErrCheck(cudaMemcpy(d_node_ptr, node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyHostToDevice));
+    cudaErrCheck(cudaMalloc((void**) &d_node_ptr, sizeof(node::Node)*device_node_count));
+    cudaErrCheck(cudaMemcpy(d_node_ptr, b_node_ptr, sizeof(node::Node)*device_node_count, cudaMemcpyHostToDevice));
 
     //===--------------------------------------------------------------------===//
     // Construct the rest part of trees on the GPU
     //===--------------------------------------------------------------------===//
-    ul current_offset = total_node_count;
+    ul current_offset = device_node_count;
       for( ui level_itr=tree_height-1; level_itr>0; level_itr--) {
       current_offset -= level_node_count[level_itr];
       ul parent_offset = (current_offset-level_node_count[level_itr-1]);
       BottomUpBuild_ILP(current_offset, parent_offset, level_node_count[level_itr], d_node_ptr);
     }
-    cudaErrCheck(cudaMemcpy(node_ptr, d_node_ptr, sizeof(node::Node)*total_node_count, cudaMemcpyDeviceToHost));
+    cudaErrCheck(cudaMemcpy(b_node_ptr, d_node_ptr, sizeof(node::Node)*device_node_count, cudaMemcpyDeviceToHost));
     cudaErrCheck(cudaFree(d_node_ptr));
   }
   
@@ -471,7 +471,8 @@ bool Tree::ClusterBrancheUsingKmeans(std::vector<node::Branch> &branches) {
 std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> branches) {
   std::vector<ui> level_node_count;
 
-  // in this case, previous level is real data not the leaf level
+  // in this case, below 'current_level_nodes" holds # of real data
+  // it is not the # of leaf nodes
   ui current_level_nodes = branches.size();
   
   while(current_level_nodes > 1) {
@@ -482,12 +483,14 @@ std::vector<ui> Tree::GetLevelNodeCount(const std::vector<node::Branch> branches
   return level_node_count;
 }
 
-ui Tree::GetTotalNodeCount(const std::vector<ui> level_node_count) const{
-  ui total_node_count=0;
-  for( auto node_count  : level_node_count) {
-    total_node_count+=node_count;
+ui Tree::GetDeviceNodeCount(const std::vector<ui> level_node_count) {
+  if( !device_node_count ){
+    for( auto node_count  : level_node_count) {
+      device_node_count+=node_count;
+    }
   }
-  return total_node_count;
+  assert(device_node_count);
+  return device_node_count;
 }
 
 ui Tree::GetNumberOfBlocks(void) const{
@@ -495,25 +498,26 @@ ui Tree::GetNumberOfBlocks(void) const{
 }
 
 void Tree::Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
-                            NodeType node_type,int level, ui node_offset, 
+                            node::Node* _node_ptr, NodeType node_type,
+                            int level, ui node_offset, 
                             ui start_offset, ui end_offset) {
 
   node_offset += start_offset/GetNumberOfDegrees();
 
   for(ui range(branch_itr, start_offset, end_offset)) {
-    node_ptr[node_offset].SetBranch(branches[branch_itr], branch_itr%GetNumberOfDegrees());
+    _node_ptr[node_offset].SetBranch(branches[branch_itr], branch_itr%GetNumberOfDegrees());
     // increase the node offset 
     if(((branch_itr+1)%GetNumberOfDegrees())==0){
-      node_ptr[node_offset].SetNodeType(node_type);
-      node_ptr[node_offset].SetLevel(level);
-      node_ptr[node_offset].SetBranchCount(GetNumberOfDegrees());
+      _node_ptr[node_offset].SetNodeType(node_type);
+      _node_ptr[node_offset].SetLevel(level);
+      _node_ptr[node_offset].SetBranchCount(GetNumberOfDegrees());
       node_offset++;
     }
   }
 }
 
-bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, 
-                            NodeType node_type,int level, ui leaf_node_offset) {
+bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, NodeType node_type,
+                            int level, ui leaf_node_offset, node::Node* _node_ptr) {
 
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
@@ -531,8 +535,8 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
     //Launch a group of threads
     for (ui range(thread_itr, 0, number_of_threads)) {
       threads.push_back(std::thread(&Tree::Thread_CopyBranchToNode, this, 
-                        std::ref(branches), node_type, level, leaf_node_offset, 
-                        start_offset, end_offset));
+                        std::ref(branches), std::ref(_node_ptr), node_type, level, 
+                        leaf_node_offset, start_offset, end_offset));
 
       start_offset = end_offset;
       end_offset += chunk_size;
@@ -544,9 +548,9 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches,
     }
 
     ui node_offset = leaf_node_offset + branches.size()/GetNumberOfDegrees();
-    node_ptr[node_offset].SetNodeType(node_type);
-    node_ptr[node_offset].SetLevel(level);
-    node_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
+    _node_ptr[node_offset].SetNodeType(node_type);
+    _node_ptr[node_offset].SetLevel(level);
+    _node_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -752,9 +756,9 @@ ui Tree::BruteForceSearchOnCPU(Point* query) {
     std::vector<ll> thread_start_node_offset[number_of_cpu_threads];
     ui thread_hit[number_of_cpu_threads];
 
-    auto chunk_size = total_node_count/number_of_cpu_threads;
+    auto chunk_size = device_node_count/number_of_cpu_threads;
     auto start_offset = 0 ;
-    auto end_offset = start_offset + chunk_size + total_node_count%number_of_cpu_threads;
+    auto end_offset = start_offset + chunk_size + device_node_count%number_of_cpu_threads;
 
     //Launch a group of threads
     for (ui range(thread_itr, 0, number_of_cpu_threads)) {
@@ -814,14 +818,14 @@ void Tree::Thread_BruteForce(Point* query, std::vector<ll> &start_node_offset,
                              ui &hit, ui start_offset, ui end_offset) {
   hit = 0;
   for(ui range(node_itr, start_offset, end_offset)) {
-    for(ui range(child_itr, 0, node_ptr[node_itr].GetBranchCount())) {
-      if( node_ptr[node_itr].GetNodeType() == NODE_TYPE_LEAF) {
-        if(node_ptr[node_itr].IsOverlap(query, child_itr) ) {
+    for(ui range(child_itr, 0, b_node_ptr[node_itr].GetBranchCount())) {
+      if( b_node_ptr[node_itr].GetNodeType() == NODE_TYPE_LEAF) {
+        if(b_node_ptr[node_itr].IsOverlap(query, child_itr) ) {
           start_node_offset.emplace_back(node_itr);
           hit++;
         }else{
           LOG_INFO("node itr %u", node_itr);
-          std::cout<<node_ptr<<std::endl;
+          std::cout<<b_node_ptr<<std::endl;
         }
       }
     }

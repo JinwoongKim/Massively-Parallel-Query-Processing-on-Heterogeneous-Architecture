@@ -57,7 +57,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
     node::Node_SOA* node_soa_ptr_backup[number_of_partition];
     std::vector<ui> node_soa_ptr_size;
-    ui tmp_total_node_count=0;
+    ui tmp_device_node_count=0;
     auto chunk_size = branches.size()/number_of_partition;
     auto start_offset = 0 ;
     auto end_offset = start_offset + chunk_size + branches.size()%number_of_partition;
@@ -72,7 +72,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
                 partitioned_branches.begin());
 
       //===--------------------------------------------------------------------===//
-      // Build the internal nodes in a bottop-up fashion on the GPU
+      // Build the tree in a bottop-up fashion on the GPU
       //===--------------------------------------------------------------------===//
       // TODO We may pass TREE_TYPE so that we can set the child offset to some
       // useful data in leaf nodes 
@@ -82,7 +82,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
       //===--------------------------------------------------------------------===//
       // Transform nodes into SOA fashion 
       //===--------------------------------------------------------------------===//
-      node_soa_ptr = transformer::Transformer::Transform(node_ptr, total_node_count);
+      node_soa_ptr = transformer::Transformer::Transform(node_ptr, device_node_count);
       assert(node_soa_ptr);
 
       // free the node_ptr
@@ -90,16 +90,16 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
       node_ptr = nullptr;
 
       node_soa_ptr_backup[partition_itr] = node_soa_ptr;
-      node_soa_ptr_size.emplace_back(total_node_count);
-      root_offset[partition_itr] = tmp_total_node_count;
-      tmp_total_node_count += total_node_count;
+      node_soa_ptr_size.emplace_back(device_node_count);
+      root_offset[partition_itr] = tmp_device_node_count;
+      tmp_device_node_count += device_node_count;
 
       start_offset = end_offset;
       end_offset += chunk_size;
     }
-    total_node_count = tmp_total_node_count;
+    device_node_count = tmp_device_node_count;
 
-    node_soa_ptr = new node::Node_SOA[total_node_count];
+    node_soa_ptr = new node::Node_SOA[device_node_count];
     for(ui range(partition_itr, 0, number_of_partition)) {
       memcpy(&node_soa_ptr[root_offset[partition_itr]], node_soa_ptr_backup[partition_itr],
              sizeof(node::Node_SOA)*node_soa_ptr_size[partition_itr]);
@@ -123,8 +123,8 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   // copy the entire tree  to the GPU
   // Get Chunk Manager and initialize it
   auto& chunk_manager = manager::ChunkManager::GetInstance();
-  chunk_manager.Init(sizeof(node::Node_SOA)*total_node_count);
-  chunk_manager.CopyNode(node_soa_ptr, 0, total_node_count);
+  chunk_manager.Init(sizeof(node::Node_SOA)*device_node_count);
+  chunk_manager.CopyNode(node_soa_ptr, 0, device_node_count);
 
     // deallocate tree on the host
   delete node_soa_ptr;
@@ -154,11 +154,11 @@ bool MPHR::DumpFromFile(std::string index_name){
   fread(&root_offset, sizeof(ll), number_of_partition, index_file);
 
   // read total node count
-  fread(&total_node_count, sizeof(ui), 1, index_file);
+  fread(&device_node_count, sizeof(ui), 1, index_file);
 
-  node_soa_ptr = new node::Node_SOA[total_node_count];
+  node_soa_ptr = new node::Node_SOA[device_node_count];
   // read nodes
-  fread(node_soa_ptr, sizeof(node::Node_SOA), total_node_count, index_file);
+  fread(node_soa_ptr, sizeof(node::Node_SOA), device_node_count, index_file);
 
   fclose(index_file);
 
@@ -185,10 +185,10 @@ bool MPHR::DumpToFile(std::string index_name) {
   fwrite(&root_offset, sizeof(ll), number_of_partition, index_file);
 
   // write total node count
-  fwrite(&total_node_count, sizeof(ui), 1, index_file);
+  fwrite(&device_node_count, sizeof(ui), 1, index_file);
 
   // write nodes
-  fwrite(node_soa_ptr, sizeof(node::Node_SOA), total_node_count, index_file);
+  fwrite(node_soa_ptr, sizeof(node::Node_SOA), device_node_count, index_file);
   fclose(index_file);
 
   auto elapsed_time = recorder.TimeRecordEnd();

@@ -25,8 +25,6 @@ Hybrid::Hybrid() {
  */
 bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
-  SetNumberOfNodeSOA(input_data_set->GetNumberOfData());
-
   LOG_INFO("Build Hybrid Tree");
   bool ret = false;
 
@@ -72,18 +70,19 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     assert(ret);
 
     //===--------------------------------------------------------------------===//
-    // Build the last two level nodes in a bottom-up fashion 
+    // Build the tree in a bottop-up fashion on the GPU
     //===--------------------------------------------------------------------===//
-    node_soa_ptr = new node::Node_SOA[GetNumberOfNodeSOA()];
+    level_node_count = GetLevelNodeCount(branches);
+    ret = Bottom_Up(branches/*, tree_type*/);
+    assert(ret);
+
+    //===--------------------------------------------------------------------===//
+    // Transform nodes into SOA fashion 
+    //===--------------------------------------------------------------------===//
+    node_soa_ptr = transformer::Transformer::Transform(b_node_ptr, GetNumberOfNodeSOA());
     assert(node_soa_ptr);
 
-    // Copy leaf nodes 
-    ret = CopyBranchToNodeSOA(branches, NODE_TYPE_LEAF, 1, 
-                             GetNumberOfExtendLeafNodeSOA()/*offset*/);
-    assert(ret);
-
-    ret = BuildExtendLeafNodeOnCPU();
-    assert(ret);
+    delete b_node_ptr;
 
     // Dump an index to the file
     DumpToFile(index_name);
@@ -96,26 +95,22 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
   ui offset = 0;
   ui count = 0;
-  
-  if(scan_type == SCAN_TYPE_LEAF){
+
+  if(scan_level == 1){
     // Move leaf nodes on the GPU
-    offset = GetNumberOfExtendLeafNodeSOA();
+    offset = GetNumberOfNodeSOA() - GetNumberOfLeafNodeSOA();
     count = GetNumberOfLeafNodeSOA();
-  }else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+  }else if(scan_level == 2) {
     // Move extend and leaf nodes on the GPU
     offset = 0;
     count = GetNumberOfNodeSOA();
   }else {
-    LOG_INFO("scan type %s", (ScanTypeToString(scan_type)).c_str());
     assert(0);
   }
 
   // Get Chunk Manager and initialize it
   chunk_manager.Init(sizeof(node::Node_SOA)*count);
   chunk_manager.CopyNode(node_soa_ptr+offset, 0, count);
-
-  LOG_INFO("Extend Leaf Node Count %u", GetNumberOfExtendLeafNodeSOA());
-  LOG_INFO("Leaf Node Count %u", GetNumberOfLeafNodeSOA());
 
   return true;
 }
@@ -222,27 +217,31 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
-  // read total node count
-  fread(&total_node_count, sizeof(ui), 1, index_file);
+  // read host node count
+  fread(&host_node_count, sizeof(ui), 1, index_file);
 
-  // read node soa count
-  fread(&extend_leaf_node_soa_count, sizeof(ui), 1, index_file);
+  // read device count for GPU
+  fread(&device_node_count, sizeof(ui), 1, index_file);
 
-  // read node soa count
-  fread(&leaf_node_soa_count, sizeof(ui), 1, index_file);
+  ui height;
+  fread(&height, sizeof(ui), 1, index_file);
+  level_node_count.resize(height);
 
-  //===--------------------------------------------------------------------===//
-  // Internal nodes
-  //===--------------------------------------------------------------------===//
-  node_ptr = new node::Node[total_node_count];
-  fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
-
+  for(ui range(i, 0, height)){
+    fread(&level_node_count[i], sizeof(ui), 1, index_file);
+  }
 
   //===--------------------------------------------------------------------===//
-  // Extend & leaf nodes
+  // Nodes for CPU
   //===--------------------------------------------------------------------===//
-  node_soa_ptr = new node::Node_SOA[GetNumberOfNodeSOA()];
-  fread(node_soa_ptr, sizeof(node::Node_SOA), GetNumberOfNodeSOA(), index_file);
+  node_ptr = new node::Node[host_node_count];
+  fread(node_ptr, sizeof(node::Node), host_node_count, index_file);
+
+  //===--------------------------------------------------------------------===//
+  // Nodes for GPU
+  //===--------------------------------------------------------------------===//
+  node_soa_ptr = new node::Node_SOA[device_node_count];
+  fread(node_soa_ptr, sizeof(node::Node_SOA), device_node_count, index_file);
 
   fclose(index_file);
 
@@ -265,15 +264,19 @@ bool Hybrid::DumpToFile(std::string index_name) {
   //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
-  // write total node count
-  fwrite(&total_node_count, sizeof(ui), 1, index_file);
+  // write node count for CPU
+  fwrite(&host_node_count, sizeof(ui), 1, index_file);
 
-  // write extend leaf node soa count 
-  fwrite(&extend_leaf_node_soa_count, sizeof(ui), 1, index_file);
+  // write node count for GPU
+  fwrite(&device_node_count, sizeof(ui), 1, index_file);
 
-  // write leaf node soa count 
-  fwrite(&leaf_node_soa_count, sizeof(ui), 1, index_file);
+  ui height = level_node_count.size();
+  fwrite(&height, sizeof(ui), 1, index_file);
 
+  //for(ui range(i, 0, height)){
+  for(auto node_count : level_node_count){
+    fwrite(&node_count, sizeof(ui), 1, index_file);
+  }
 
   //===--------------------------------------------------------------------===//
   // Internal nodes
@@ -335,28 +338,20 @@ bool Hybrid::DumpToFile(std::string index_name) {
   return true;
 }
 
-void Hybrid::SetNumberOfNodeSOA(ui number_of_data) {
-  leaf_node_soa_count = std::ceil((float)number_of_data/(float)GetNumberOfDegrees());
-  assert(leaf_node_soa_count);
-
-  extend_leaf_node_soa_count = std::ceil((float)leaf_node_soa_count/(float)GetNumberOfDegrees());
-  assert(extend_leaf_node_soa_count);
-}
-
-ui Hybrid::GetNumberOfNodeSOA() const {
-  assert(GetNumberOfLeafNodeSOA());
-  assert(GetNumberOfExtendLeafNodeSOA());
-  return GetNumberOfLeafNodeSOA() + GetNumberOfExtendLeafNodeSOA();
+ui Hybrid::GetNumberOfNodeSOA() const{
+  assert(device_node_count);
+  return device_node_count;
 }
 
 ui Hybrid::GetNumberOfLeafNodeSOA() const {
-  assert(leaf_node_soa_count);
-  return leaf_node_soa_count;
+  assert(level_node_count.back());
+  return level_node_count.back();
 }
 
 ui Hybrid::GetNumberOfExtendLeafNodeSOA() const {
-  assert(extend_leaf_node_soa_count);
-  return extend_leaf_node_soa_count;
+  auto height = level_node_count.size();
+  assert(height>1);
+  return level_node_count[level_node_count.size()-2];;
 }
 
 int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
@@ -399,9 +394,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     // chunk size should be equal or larger than number of blocks per cpu
     
     // otherwise, just wasting GPU resources.
-    if(scan_type == SCAN_TYPE_LEAF) {
+    if(scan_level == 1) {
       assert(chunk_size >= number_of_blocks_per_cpu);
-    } else if(scan_type == SCAN_TYPE_LEAF) {
+    } else if(scan_level == 2) {
       assert(chunk_size >= number_of_blocks_per_cpu*GetNumberOfDegrees());
     }
 
@@ -506,7 +501,7 @@ void Hybrid::Thread_CollectStartNodeIndex(std::vector<Point>& query,
   ui node_visit_count = 0;
 
   auto number_of_nodes = GetNumberOfLeafNodeSOA();
-  if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+  if(scan_level == 2) {
     number_of_nodes = GetNumberOfExtendLeafNodeSOA();
   }
 
@@ -530,7 +525,7 @@ void Hybrid::Thread_CollectStartNodeIndex(std::vector<Point>& query,
       }
 
       auto start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-      if(scan_type == SCAN_TYPE_EXTENDLEAF)  {
+      if(scan_level == 2)  {
         start_node_offset /= GetNumberOfDegrees(); 
       }
 
@@ -542,7 +537,7 @@ void Hybrid::Thread_CollectStartNodeIndex(std::vector<Point>& query,
 
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
 
-      if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+      if(scan_level == 2) {
         visited_leafIndex *= GetNumberOfDegrees();
       }
     }
@@ -571,7 +566,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   ui query_offset = start_offset*GetNumberOfDims()*2;
 
   auto number_of_nodes = GetNumberOfLeafNodeSOA();
-  if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+  if(scan_level == 2) {
     number_of_nodes = GetNumberOfExtendLeafNodeSOA();
   }
 
@@ -592,7 +587,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       }
 
       start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
-      if(scan_type == SCAN_TYPE_EXTENDLEAF)  {
+      if(scan_level == 2)  {
         start_node_offset /= GetNumberOfDegrees(); 
       }
 
@@ -605,20 +600,20 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       //===--------------------------------------------------------------------===//
       // Parallel Scanning Leaf Nodes on the GPU 
       //===--------------------------------------------------------------------===//
-      if(scan_type == SCAN_TYPE_LEAF) {
+      if(scan_level == 1) {
         //chunk_manager.CopyNode(node_soa_ptr+GetNumberOfExtendLeafNodeSOA(), 
         //                       start_node_offset, chunk_size);
         global_ParallelScan_Leafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                       (&d_query[query_offset], start_node_offset, chunk_size,
                                        bid_offset, number_of_blocks_per_cpu );
-      } else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+      } else if(scan_level == 2) {
         global_ParallelScan_ExtendLeafnodes<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
                                             (&d_query[query_offset], start_node_offset, chunk_size,
                                             bid_offset, number_of_blocks_per_cpu );
       }
       visited_leafIndex = (start_node_offset+chunk_size)*GetNumberOfDegrees();
 
-      if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+      if(scan_level == 2) {
         visited_leafIndex *= GetNumberOfDegrees();
       }
 
@@ -632,9 +627,9 @@ void Hybrid::SetChunkSize(ui _chunk_size){
   chunk_size = _chunk_size;
 }
 
-void Hybrid::SetScanType(ScanType _scan_type){
-  scan_type = _scan_type;
-  assert(scan_type);
+void Hybrid::SetScanLevel(ui _scan_level){
+  scan_level = _scan_level;
+  assert(scan_level);
 }
 
 void Hybrid::SetNumberOfCPUThreads(ui _number_of_cpu_threads){
@@ -666,14 +661,14 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     }
   } // leaf nodes
   else {
-    if(scan_type == SCAN_TYPE_LEAF) {
+    if(scan_level == 1) {
       for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
         if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex ) {
           start_node_index = node_ptr->GetBranchIndex(branch_itr);
           break;
         }
       }
-    } else if(scan_type == SCAN_TYPE_EXTENDLEAF) {
+    } else if(scan_level == 2) {
       start_node_index = node_ptr->GetBranchIndex(0);
       if( start_node_index <= visited_leafIndex) {
         start_node_index = visited_leafIndex+1;

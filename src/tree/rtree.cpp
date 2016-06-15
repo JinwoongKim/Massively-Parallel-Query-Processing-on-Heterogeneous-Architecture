@@ -80,13 +80,13 @@ bool Rtree::DumpFromFile(std::string index_name) {
   // Node counts
   //===--------------------------------------------------------------------===//
   // read total node count
-  fread(&total_node_count, sizeof(ui), 1, index_file);
+  fread(&host_node_count, sizeof(ui), 1, index_file);
 
   //===--------------------------------------------------------------------===//
   // Internal nodes
   //===--------------------------------------------------------------------===//
-  node_ptr = new node::Node[total_node_count];
-  fread(node_ptr, sizeof(node::Node), total_node_count, index_file);
+  node_ptr = new node::Node[host_node_count];
+  fread(node_ptr, sizeof(node::Node), host_node_count, index_file);
 
   fclose(index_file);
 
@@ -110,7 +110,7 @@ bool Rtree::DumpToFile(std::string index_name) {
   // Node counts
   //===--------------------------------------------------------------------===//
   // write total node count
-  fwrite(&total_node_count, sizeof(ui), 1, index_file);
+  fwrite(&host_node_count, sizeof(ui), 1, index_file);
 
   //===--------------------------------------------------------------------===//
   // Internal nodes
