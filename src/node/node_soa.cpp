@@ -88,6 +88,7 @@ void Node_SOA::SetLevel(int _level) {
 void Node_SOA::SetBranchCount(ui _branch_count) {
   assert(_branch_count <= GetNumberOfDegrees());
   branch_count = _branch_count;
+  assert(branch_count);
 }
 
 __both__  

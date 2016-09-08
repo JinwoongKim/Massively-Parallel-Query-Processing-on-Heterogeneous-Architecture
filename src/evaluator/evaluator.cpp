@@ -157,7 +157,9 @@ bool Evaluator::Search(void) {
   std::vector<ui> cpu_thread_vec = {1,2,4,8,16,32};
   std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256,
                                     512, 768, 1024};
-  std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
+  //std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
+  std::vector<ui> cuda_block_vec = {128};
+  LOG_INFO("Now, we only use 128 CUDA blocks");
 
   for(auto& tree : trees) {
     switch(tree->GetTreeType()) {
@@ -165,6 +167,7 @@ bool Evaluator::Search(void) {
         if( EvaluationMode ) {
           std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
 
+          // with various cpu thread and chunk size
           if( EvaluationMode == 2 ||
               EvaluationMode == 3) {
             for(auto cpu_thread_itr : cpu_thread_vec) {
@@ -181,6 +184,7 @@ bool Evaluator::Search(void) {
             }
           }
 
+          // with various CUDA Block and chunk size
           if( EvaluationMode == 1 ||
               EvaluationMode == 3 ) {
             for(auto cuda_block_itr : cuda_block_vec) {

@@ -1,7 +1,7 @@
-#define DFN_NumberOfClusters 20000 // for real dataset it takes 1 hour
-//#define DFN_NumberOfClusters 200000 // for synthetic dataset
+//#define DFN_NumberOfClusters 20000 // for real dataset it takes 1 hour
+#define DFN_NumberOfClusters 10000 // for synthetic dataset
 
-#define kMeansLoopIteration 5000
+#define kMeansLoopIteration 1000
 #define DFN_KmeansThreashhold 0.00001
 
 #define err(format, ...) do { fprintf(stderr, format, ##__VA_ARGS__); exit(1); } while (0)

@@ -73,11 +73,12 @@ class Hybrid : public Tree {
   //===--------------------------------------------------------------------===//
   // Members
   //===--------------------------------------------------------------------===//
-  ui chunk_size;
+  // const : *ONLY* 'SetChunkSize' can modify the value 
+  const ui chunk_size=128;
 
-  ui scan_level;
-
-  ui number_of_cpu_threads;
+  const ui scan_level=1;
+  // basically, use single cpu thread
+  const ui number_of_cpu_threads=1;
   
   std::vector<ui> level_node_count;
   std::vector<std::queue<ll>> thread_start_node_index;
@@ -89,12 +90,16 @@ class Hybrid : public Tree {
 
 extern __device__ ui g_hit[GetNumberOfMAXBlocks()]; 
 extern __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 
+extern __device__ ui g_monitor[GetNumberOfMAXBlocks()]; 
 
 __global__
 void global_SetHitCount(ui init_value);
 
 __global__
 void global_GetHitCount(ui* hit, ui* node_visit_count);
+
+__global__
+void global_GetMonitor(ui* monitor);
 
 __global__ 
 void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset, 

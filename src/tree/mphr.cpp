@@ -17,8 +17,8 @@ MPHR::MPHR() {
 }
 
 MPHR::~MPHR() {
-  if( node_ptr != nullptr) {
-    delete node_ptr;
+  if( b_node_ptr != nullptr) {
+    delete b_node_ptr;
   }
   if( node_soa_ptr != nullptr) {
     delete node_soa_ptr;
@@ -82,12 +82,12 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
       //===--------------------------------------------------------------------===//
       // Transform nodes into SOA fashion 
       //===--------------------------------------------------------------------===//
-      node_soa_ptr = transformer::Transformer::Transform(node_ptr, device_node_count);
+      node_soa_ptr = transformer::Transformer::Transform(b_node_ptr, device_node_count);
       assert(node_soa_ptr);
 
-      // free the node_ptr
-      delete node_ptr;
-      node_ptr = nullptr;
+      // free the b_node_ptr
+      delete b_node_ptr;
+      b_node_ptr = nullptr;
 
       node_soa_ptr_backup[partition_itr] = node_soa_ptr;
       node_soa_ptr_size.emplace_back(device_node_count);

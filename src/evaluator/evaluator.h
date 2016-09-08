@@ -94,7 +94,7 @@ class Evaluator{
   ui number_of_cuda_blocks = 128;
 
   // # of cpu threads to process query concurrently 
-  ui number_of_cpu_threads = 0;
+  ui number_of_cpu_threads = 1;
 
   // scan type
   ui  scan_level = 1;

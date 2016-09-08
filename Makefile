@@ -1,4 +1,3 @@
-DEBUG=
 export NVCC=nvcc
 export NVCCFLAGS= -default-stream per-thread -arch=sm_35 -std=c++11 -w -ltbb $(DEBUG)
 OBJECTS=./src/*/*.o

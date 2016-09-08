@@ -123,6 +123,7 @@ void Node::SetBranch(Branch _branch, ui offset) {
 __both__
 void Node::SetBranchCount(ui _branch_count) {
   branch_count = _branch_count;
+  assert(branch_count);
 }
 
 __both__

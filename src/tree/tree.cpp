@@ -48,7 +48,7 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
 
   std::string index_name =
   "./index_files/"+DataTypeToString(data_type)+"_"+DataSetTypeToString(dataset_type)+
-  "_DATA_"+"_"+ClusterTypeToString(cluster_type)+"_" +
+  "_DATA_"+ClusterTypeToString(cluster_type)+"_" +
   std::to_string(dimensions)+"DIMS_"+number_of_data_str+"_"+
   TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
 
@@ -547,10 +547,12 @@ bool Tree::CopyBranchToNode(std::vector<node::Branch> &branches, NodeType node_t
       thread.join();
     }
 
-    ui node_offset = leaf_node_offset + branches.size()/GetNumberOfDegrees();
-    _node_ptr[node_offset].SetNodeType(node_type);
-    _node_ptr[node_offset].SetLevel(level);
-    _node_ptr[node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
+    if(branches.size()%GetNumberOfDegrees()) {
+      ui last_node_offset = leaf_node_offset + branches.size()/GetNumberOfDegrees();
+      _node_ptr[last_node_offset].SetNodeType(node_type);
+      _node_ptr[last_node_offset].SetLevel(level);
+      _node_ptr[last_node_offset].SetBranchCount(branches.size()%GetNumberOfDegrees());
+    }
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();

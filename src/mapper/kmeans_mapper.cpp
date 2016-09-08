@@ -1,6 +1,7 @@
 #include "hilbert_mapper.h"
 
 #include "common/macro.h"
+#include "common/logger.h"
 #include "sort/sorter.h"
 #include "kmeans_macro.h"
 #include "kmeans_mapper.h"
@@ -31,6 +32,7 @@ KmeansMapper::cuda_kmeans(const std::vector<node::Branch> &objects,
   int *tempIndexes;
 
   int numObjs = objects.size();
+
 
   //  Copy objects given in [numObjs][number_of_dims] layout to new
   //  [number_of_dims][numObjs] layout
@@ -91,8 +93,7 @@ KmeansMapper::cuda_kmeans(const std::vector<node::Branch> &objects,
   const unsigned int clusterBlockSharedDataSize =
     numThreadsPerClusterBlock * sizeof(unsigned char);
 
-  const unsigned int numReductionThreads =
-    nextPowerOfTwo(numClusterBlocks);
+  const unsigned int numReductionThreads = nextPowerOfTwo(numClusterBlocks);
   cudaErrCheck(cudaMalloc(&deviceObjects, numObjs*number_of_dims*sizeof(Point)));
   cudaErrCheck(cudaMalloc(&deviceClusters, number_of_clusters*number_of_dims*sizeof(Point)));
   cudaErrCheck(cudaMalloc(&deviceMembership, numObjs*sizeof(int)));
@@ -164,6 +165,7 @@ KmeansMapper::cuda_kmeans(const std::vector<node::Branch> &objects,
     }
 
     delta /= numObjs;
+    LOG_INFO("Loop : %d", loop);
     //printf("%*d - delta = %.4f\n", 4, loop, delta);
   } while (delta > DFN_KmeansThreashhold && loop++ < kMeansLoopIteration);
 
