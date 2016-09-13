@@ -268,7 +268,7 @@ cudaProfilerStop();
     // Show Results
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
-    LOG_INFO("Avg. Search Time on the GPU = \n%.6fms", elapsed_time/(float)number_of_search);
+    LOG_INFO("Avg. Search Time on the GPU(ms) = \n%.6f", elapsed_time/(float)number_of_search);
     LOG_INFO("Avg. Root visit count : \n%f", total_root_visit_count/(float)number_of_search);
     LOG_INFO("Avg. Node visit count : \n%f\n", total_node_visit_count/(float)number_of_search);
   }
