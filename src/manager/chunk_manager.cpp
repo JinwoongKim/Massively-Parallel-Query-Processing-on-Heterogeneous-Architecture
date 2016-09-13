@@ -35,6 +35,7 @@ bool ChunkManager::InitInPinnedMemory(size_t size) {
 bool ChunkManager::CopyNode(node::Node_SOA* node_soa_ptr, ll offset, ui number_of_nodes) {
   cudaErrCheck(cudaMemcpy(&d_node_soa_ptr[offset], &node_soa_ptr[offset], 
                sizeof(node::Node_SOA)*number_of_nodes, cudaMemcpyHostToDevice));
+  return true;
 }
 
 //===--------------------------------------------------------------------===//

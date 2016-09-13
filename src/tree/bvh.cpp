@@ -1,4 +1,4 @@
-#include "tree/rtree.h"
+#include "tree/bvh.h"
 
 #include "common/macro.h"
 #include "common/logger.h"
@@ -13,8 +13,8 @@
 namespace ursus {
 namespace tree {
 
-Rtree::Rtree() { 
-  tree_type = TREE_TYPE_RTREE;
+BVH::BVH() { 
+  tree_type = TREE_TYPE_BVH;
 }
 
 /**
@@ -22,9 +22,9 @@ Rtree::Rtree() {
  * @param input_data_set 
  * @return true if success to build otherwise false
  */
-bool Rtree::Build(std::shared_ptr<io::DataSet> input_data_set){
+bool BVH::Build(std::shared_ptr<io::DataSet> input_data_set){
 
-  LOG_INFO("Build Rtree");
+  LOG_INFO("Build BVH");
   bool ret = false;
 
   // Load an index from file it exists
@@ -61,7 +61,7 @@ bool Rtree::Build(std::shared_ptr<io::DataSet> input_data_set){
   return true;
 }
 
-bool Rtree::DumpFromFile(std::string index_name) {
+bool BVH::DumpFromFile(std::string index_name) {
 
   FILE* index_file;
   index_file = fopen(index_name.c_str(),"rb");
@@ -96,7 +96,7 @@ bool Rtree::DumpFromFile(std::string index_name) {
   return true;
 }
 
-bool Rtree::DumpToFile(std::string index_name) {
+bool BVH::DumpToFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
 
   LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
@@ -168,7 +168,7 @@ bool Rtree::DumpToFile(std::string index_name) {
   return true;
 }
 
-int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set, 
+int BVH::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search, ui number_of_repeat){
 
   auto& recorder = evaluator::Recorder::GetInstance();
@@ -204,7 +204,7 @@ int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set,
       auto end_offset = start_offset + search_chunk_size + number_of_search%number_of_cpu_threads;
   
       for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-        threads.push_back(std::thread(&Rtree::Thread_Search, this, 
+        threads.push_back(std::thread(&BVH::Thread_Search, this, 
                           std::ref(query), thread_itr,  
                           std::ref(thread_hit[thread_itr]), 
                           std::ref(thread_node_visit_count[thread_itr]),
@@ -226,24 +226,25 @@ int Rtree::Search(std::shared_ptr<io::DataSet> query_data_set,
     }
   
     auto elapsed_time = recorder.TimeRecordEnd();
-    LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
-    LOG_INFO("Search Time on the CPU = %.6fms", elapsed_time);
+    LOG_INFO("%u threads processing queries concurrently", number_of_cpu_threads);
   
     //===--------------------------------------------------------------------===//
     // Show Results
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
-    LOG_INFO("Node visit count : %u", total_node_visit_count);
+    LOG_INFO("Avg. Search Time on the CPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
+    LOG_INFO("Avg. Node visit count : %f", total_node_visit_count/(float)number_of_search);
     LOG_INFO("\n");
   }
+  return 1;
 }
 
-void Rtree::SetNumberOfCPUThreads(ui _number_of_cpu_threads) {
+void BVH::SetNumberOfCPUThreads(ui _number_of_cpu_threads) {
   number_of_cpu_threads = _number_of_cpu_threads;
   assert(number_of_cpu_threads);
 }
 
-void Rtree::Thread_Search(std::vector<Point>& query, ui tid,
+void BVH::Thread_Search(std::vector<Point>& query, ui tid,
                            ui& hit, ui& node_visit_count, ui start_offset, ui end_offset) {
   hit = 0;
   node_visit_count = 0;
@@ -256,7 +257,7 @@ void Rtree::Thread_Search(std::vector<Point>& query, ui tid,
   }
 }
 
-ui Rtree::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
+ui BVH::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                                  ui *node_visit_count) {
   ui hit = 0;
   (*node_visit_count)++;

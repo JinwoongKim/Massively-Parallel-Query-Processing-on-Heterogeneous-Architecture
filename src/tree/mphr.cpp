@@ -9,6 +9,8 @@
 
 #include <cassert>
 
+#include "cuda_profiler_api.h"
+
 namespace ursus {
 namespace tree {
 
@@ -198,6 +200,7 @@ bool MPHR::DumpToFile(std::string index_name) {
 
 int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search, ui number_of_repeat) {
+cudaProfilerStart();
   auto& recorder = evaluator::Recorder::GetInstance();
 
   //===--------------------------------------------------------------------===//
@@ -259,14 +262,15 @@ int MPHR::Search(std::shared_ptr<io::DataSet> query_data_set,
       }
     }
     auto elapsed_time = recorder.TimeRecordEnd();
-    LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
+cudaProfilerStop();
 
     //===--------------------------------------------------------------------===//
     // Show Results
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
-    LOG_INFO("Root visit count : %u", total_root_visit_count);
-    LOG_INFO("Node visit count : %u\n", total_node_visit_count);
+    LOG_INFO("Avg. Search Time on the GPU = \n%.6fms", elapsed_time/(float)number_of_search);
+    LOG_INFO("Avg. Root visit count : \n%f", total_root_visit_count/(float)number_of_search);
+    LOG_INFO("Avg. Node visit count : \n%f\n", total_node_visit_count/(float)number_of_search);
   }
 
   return true;

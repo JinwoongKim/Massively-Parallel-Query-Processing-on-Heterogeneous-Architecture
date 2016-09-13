@@ -11,6 +11,8 @@
 #include <thread>
 #include <algorithm>
 
+#include "cuda_profiler_api.h"
+
 namespace ursus {
 namespace tree {
 
@@ -412,6 +414,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     // Collect Start Node Index in Advance
     //===--------------------------------------------------------------------===//
     /*
+#define USE_QUEUE
     // NOTE : Collect start node index in advance to measure GPU kernel launching time
     thread_start_node_index.resize(number_of_cpu_threads);
     // parallel for loop using c++ std 11 
@@ -439,6 +442,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     // Execute Search Function
     //===--------------------------------------------------------------------===//
+cudaProfilerStart();
     recorder.TimeRecordStart();
 
     // parallel for loop using c++ std 11 
@@ -486,6 +490,8 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     }
 
     auto elapsed_time = recorder.TimeRecordEnd();
+
+cudaProfilerStop();
 
     //===--------------------------------------------------------------------===//
     // Autu-Tuning Chunk Size
@@ -538,16 +544,17 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   LOG_INFO("total dist %u", total_dist);
   */
 
-    LOG_INFO("%zu threads processing queries concurrently", number_of_cpu_threads);
-    LOG_INFO("Search Time on the GPU = %.6fms", elapsed_time);
+    LOG_INFO("%u threads processing queries concurrently", number_of_cpu_threads);
+    LOG_INFO("Avg. Search Time on the GPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
 
     //===--------------------------------------------------------------------===//
     // Show Results
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
-    LOG_INFO("Node visit count on CPU : %u", total_node_visit_count_cpu);
-    LOG_INFO("Node visit count on GPU : %u\n\n", total_node_visit_count_gpu);
+    LOG_INFO("Avg. Node visit count on CPU : \n%f", total_node_visit_count_cpu/(float)number_of_search);
+    LOG_INFO("Avg. Node visit count on GPU : \n%f\n\n", total_node_visit_count_gpu/(float)number_of_search);
   }
+  return 1;
 }
 
 void Hybrid::Thread_CollectStartNodeIndex(std::vector<Point>& query,
@@ -639,8 +646,11 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       //===--------------------------------------------------------------------===//
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
+#ifndef USE_QUEUE
       start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset], visited_leafIndex, &node_visit_count);
-      //start_node_index = GetNextStartNodeIndex(tid);
+#else
+      start_node_index = GetNextStartNodeIndex(tid);
+#endif
 
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {

@@ -129,7 +129,7 @@ class Tree {
 
   TreeType tree_type = TREE_TYPE_INVALID;
 
-  // For Rtree and Hybrid trees
+  // For BVH and Hybrid trees
   ui host_node_count = 0;
 
   // For MPHR and Hybrid Trees

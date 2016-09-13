@@ -4,7 +4,7 @@
 #include "common/logger.h"
 #include "tree/mphr.h"
 #include "tree/hybrid.h"
-#include "tree/rtree.h"
+#include "tree/bvh.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -134,9 +134,9 @@ bool Evaluator::Build(void) {
         mphr->SetNumberOfPartition(number_of_partition);
         tree->Build(input_data_set);
         } break;
-      case  TREE_TYPE_RTREE: {
-        std::shared_ptr<tree::Rtree> rtree = std::dynamic_pointer_cast<tree::Rtree>(tree);
-        rtree->SetNumberOfCPUThreads(number_of_cpu_threads);
+      case  TREE_TYPE_BVH: {
+        std::shared_ptr<tree::BVH> bvh = std::dynamic_pointer_cast<tree::BVH>(tree);
+        bvh->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
         } break;
       default:
@@ -157,9 +157,8 @@ bool Evaluator::Search(void) {
   std::vector<ui> cpu_thread_vec = {1,2,4,8,16,32};
   std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256,
                                     512, 768, 1024};
-  //std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
-  std::vector<ui> cuda_block_vec = {128};
-  LOG_INFO("Now, we only use 128 CUDA blocks");
+  std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
+  //std::vector<ui> cuda_block_vec = {128}; LOG_INFO("Now, we only use 128 CUDA blocks");
 
   for(auto& tree : trees) {
     switch(tree->GetTreeType()) {
@@ -219,12 +218,12 @@ bool Evaluator::Search(void) {
           tree->Search(query_data_set, number_of_search, number_of_repeat);
         }
       } break;
-      case TREE_TYPE_RTREE: {
+      case TREE_TYPE_BVH: {
         if( EvaluationMode ) {
-          std::shared_ptr<tree::Rtree> rtree = std::dynamic_pointer_cast<tree::Rtree>(tree);
+          std::shared_ptr<tree::BVH> bvh = std::dynamic_pointer_cast<tree::BVH>(tree);
 
           for(auto cpu_thread_itr : cpu_thread_vec) {
-            rtree->SetNumberOfCPUThreads(cpu_thread_itr);
+            bvh->SetNumberOfCPUThreads(cpu_thread_itr);
             LOG_INFO("Evaluation Mode On CPU Thread %u", cpu_thread_itr);
             tree->Search(query_data_set, number_of_search, number_of_repeat);
           }
@@ -378,9 +377,9 @@ void Evaluator::AddTrees(std::string _index_type) {
               index_type == "m") {
     std::shared_ptr<tree::Tree> tree (new tree::MPHR());
     trees.push_back(tree);
-  } else if ( index_type == "rtree" ||
-              index_type == "r") {
-    std::shared_ptr<tree::Tree> tree (new tree::Rtree());
+  } else if ( index_type == "bvh" ||
+              index_type == "b") {
+    std::shared_ptr<tree::Tree> tree (new tree::BVH());
     trees.push_back(tree);
   }
 }

@@ -167,6 +167,21 @@ bool Node::IsOverlap(Point* query, ui branch_offset) {
   return true;
 }
 
+// This is for disjoint BVH
+bool Node::IsOverlap(ui branch_offset, ui branch_offset2) {
+
+  for(ui range(lower_boundary, 0, GetNumberOfDims())) {
+    int upper_boundary = lower_boundary+GetNumberOfDims();  
+
+    if (branches[branch_offset].GetPoint(lower_boundary) > branches[branch_offset2].GetPoint(upper_boundary) ||
+        branches[branch_offset].GetPoint(upper_boundary) < branches[branch_offset2].GetPoint(lower_boundary)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Get a string representation
 std::ostream &operator<<(std::ostream &os, const Node &node) {
   os << " Node : " << std::endl;

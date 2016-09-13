@@ -1,5 +1,6 @@
 export NVCC=nvcc
-export NVCCFLAGS= -default-stream per-thread -arch=sm_35 -std=c++11 -w -ltbb $(DEBUG)
+#export NVCCFLAGS= -default-stream per-thread -arch=sm_35 -std=c++11 -w -ltbb $(OPTION)
+export NVCCFLAGS= -arch=sm_35 -std=c++11 -ltbb $(OPTION)
 OBJECTS=./src/*/*.o
 
 all: 

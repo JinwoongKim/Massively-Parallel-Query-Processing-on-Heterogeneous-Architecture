@@ -39,6 +39,7 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
   auto number_of_data = input_data_set->GetNumberOfData();
   auto dimensions = GetNumberOfDims();
   auto degrees = GetNumberOfDegrees();
+  auto degrees2 = GetNumberOfDegrees2();
   std::string number_of_data_str = std::to_string(number_of_data);
 
   if(number_of_data >= 1000000) {
@@ -50,7 +51,8 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
   "./index_files/"+DataTypeToString(data_type)+"_"+DataSetTypeToString(dataset_type)+
   "_DATA_"+ClusterTypeToString(cluster_type)+"_" +
   std::to_string(dimensions)+"DIMS_"+number_of_data_str+"_"+
-  TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES";
+  TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES"
+  +std::to_string(degrees2)+"_DEGREES2";
 
   return index_name;
 }
@@ -63,7 +65,7 @@ bool Tree::Top_Down(std::vector<node::Branch> &branches) {
   node_ptr = CreateNode(branches, 0, branches.size()-1, 0, level_node_count);
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
-    LOG_INFO("Level[%u] %zd", level_itr, level_node_count[level_itr]);
+    LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
@@ -132,7 +134,7 @@ std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches,
   // find split position as long as offset_queue isn't empty or 
   // need more split positions
   while( !offset_queue.empty() &&
-         split_position.size() < GetNumberOfDegrees()) {
+         split_position.size() < GetNumberOfDegrees2()) {
 
     // dequeue the offset
     auto offset = offset_queue.front();
@@ -152,10 +154,10 @@ std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches,
 
     // enqueue to split nodes
     // Do not split when it doesn't have child nodes enough
-    if( split_offset-offset.first >= GetNumberOfDegrees()) {
+    if( split_offset-offset.first >= GetNumberOfDegrees2()) {
       offset_queue.push(std::make_pair(offset.first, split_offset));
     }
-    if( (offset.second-split_offset+1) >= GetNumberOfDegrees()) {
+    if( (offset.second-split_offset+1) >= GetNumberOfDegrees2()) {
       offset_queue.push(std::make_pair(split_offset+1, offset.second));
     }
   }
@@ -183,7 +185,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
   // Create a leaf node
   //===--------------------------------------------------------------------===//
   auto number_of_data = (end_offset-start_offset)+1;
-  if( number_of_data <= GetNumberOfDegrees() )  {
+  if( number_of_data <= GetNumberOfDegrees2() )  {
     for(ui range(branch_itr, 0, number_of_data)) {
       auto offset = start_offset+branch_itr;
       node->SetBranch(branches[offset], branch_itr);
@@ -241,7 +243,7 @@ bool Tree::Bottom_Up(std::vector<node::Branch> &branches) {
   auto leaf_node_offset = device_node_count - leaf_node_count;
 
   for(ui range( level_itr, 0, level_node_count.size() )) {
-    LOG_INFO("Level %zd", level_node_count[level_itr]);
+    LOG_INFO("Level %u", level_node_count[level_itr]);
   }
 
   b_node_ptr = new node::Node[device_node_count];
@@ -793,7 +795,7 @@ ui Tree::BruteForceSearchOnCPU(Point* query) {
   LOG_INFO("Hit on CPU : %u", hit);
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("BruteForce Scanning on the CPU (%u threads) = %.6fs", number_of_cpu_threads, elapsed_time/1000.0f);
+  LOG_INFO("BruteForce Scanning on the CPU (%zd threads) = %.6fs", number_of_cpu_threads, elapsed_time/1000.0f);
 
   return hit;
 }
