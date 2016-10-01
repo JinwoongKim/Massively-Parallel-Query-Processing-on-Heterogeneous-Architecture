@@ -68,13 +68,20 @@ class Hybrid : public Tree {
                                     std::queue<ll> &start_node_indice,
                                     ui start_offset, ui end_offset);
 
+  void Thread_Monitoring(ui update_interval);
+
   ll GetNextStartNodeIndex(ui tid);
+
 
   //===--------------------------------------------------------------------===//
   // Members
   //===--------------------------------------------------------------------===//
   // const : *ONLY* 'SetChunkSize' can modify the value 
   const ui chunk_size=128;
+
+  bool chunk_updated=false;
+
+  bool search_finish=false;
 
   const ui scan_level=1;
   // basically, use single cpu thread

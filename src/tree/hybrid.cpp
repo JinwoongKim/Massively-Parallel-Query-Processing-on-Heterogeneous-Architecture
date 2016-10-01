@@ -10,6 +10,7 @@
 #include <cassert>
 #include <thread>
 #include <algorithm>
+#include <chrono> // for sleep
 
 #include "cuda_profiler_api.h"
 
@@ -385,7 +386,6 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     ui h_hit[GetNumberOfBlocks()];
     ui h_node_visit_count[GetNumberOfBlocks()];
-    ui h_monitor[GetNumberOfMAXBlocks()];
 
     ui total_hit = 0;
     ui total_jump_count = 0;
@@ -396,8 +396,6 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     cudaErrCheck(cudaMalloc((void**) &d_hit, sizeof(ui)*GetNumberOfBlocks()));
     ui* d_node_visit_count;
     cudaErrCheck(cudaMalloc((void**) &d_node_visit_count, sizeof(ui)*GetNumberOfBlocks()));
-    ui* d_monitor;
-    cudaErrCheck(cudaMalloc((void**) &d_monitor, sizeof(ui)*GetNumberOfBlocks()));
 
     // initialize hit and node visit variables to zero
     global_SetHitCount<<<1,GetNumberOfBlocks()>>>(0);
@@ -413,6 +411,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     // Collect Start Node Index in Advance
     //===--------------------------------------------------------------------===//
+    // NOTE : this code is for performance breakdown
     /*
 #define USE_QUEUE
     // NOTE : Collect start node index in advance to measure GPU kernel launching time
@@ -442,7 +441,11 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     // Execute Search Function
     //===--------------------------------------------------------------------===//
-cudaProfilerStart();
+    cudaProfilerStart();
+
+    // launch the thread for monitoring as a background
+    std::thread m_thread(&Hybrid::Thread_Monitoring, this, 1);
+
     recorder.TimeRecordStart();
 
     // parallel for loop using c++ std 11 
@@ -491,58 +494,11 @@ cudaProfilerStart();
 
     auto elapsed_time = recorder.TimeRecordEnd();
 
-cudaProfilerStop();
+    // terminate the monitoring
+    search_finish = true;
+    m_thread.join();
 
-    //===--------------------------------------------------------------------===//
-    // Autu-Tuning Chunk Size
-    //===--------------------------------------------------------------------===//
-    std::vector<ll> monitor;
-
-    // get the monitoring hits
-    global_GetMonitor<<<1,GetNumberOfBlocks()>>>(d_monitor);
-    cudaMemcpy(h_monitor, d_monitor, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
-    ui monitor_sum=0;
-    ui number_of_zero=0;
-    for(ui range(i, 0, GetNumberOfBlocks())){
-      monitor_sum+=h_monitor[i];
-    }
-    monitor.emplace_back(monitor_sum);
-
-/*
-  ui total_monitor;
-  ll total_dist;
-  ui d_cnt=0;
-  ui total_d_cnt=0;
-  ui m_cnt=0;
-  ui total_m_cnt=0;
-  for(auto m : monitor){
-    //LOG_INFO("monitor : %u", m);
-    if( m == 0) {
-      m_cnt++;
-    }
-    total_monitor+=m;
-    total_m_cnt++;
-  }
-  for(auto d : dist){
-    //LOG_INFO("dist : %u", d);
-    if( d == 0) {
-      d_cnt++;
-    }
-    total_dist+=d;
-    total_d_cnt++;
-  }
-  LOG_INFO("d cnt %u", d_cnt);
-  LOG_INFO("total d cnt %u", total_d_cnt);
-
-  LOG_INFO("m cnt %u", m_cnt);
-  LOG_INFO("total m cnt %u", total_m_cnt);
-
-  LOG_INFO("avg monitor %.2f", total_monitor/(float)jump_count);
-  LOG_INFO("total monitor %u", total_monitor);
-
-  LOG_INFO("avg dist %.2f", total_dist/(float)jump_count);
-  LOG_INFO("total dist %u", total_dist);
-  */
+    cudaProfilerStop();
 
     LOG_INFO("%u threads processing queries concurrently", number_of_cpu_threads);
     LOG_INFO("Avg. Search Time on the GPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
@@ -615,6 +571,75 @@ ll Hybrid::GetNextStartNodeIndex(ui tid) {
   return start_node_index;
 }
 
+
+void Hybrid::Thread_Monitoring(ui update_interval){
+
+    ui h_monitor[GetNumberOfMAXBlocks()];
+    ui* d_monitor;
+    cudaErrCheck(cudaMalloc((void**) &d_monitor, sizeof(ui)*GetNumberOfBlocks()));
+
+    //===--------------------------------------------------------------------===//
+    // Autu-Tuning Chunk Size
+    //===--------------------------------------------------------------------===//
+    std::vector<ll> monitor;
+
+
+      // TODO:: terminate this loop when we finish the search operation
+    while(!search_finish) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(update_interval));
+      // get the monitoring hits
+      global_GetMonitor<<<1,GetNumberOfBlocks()>>>(d_monitor);
+      cudaMemcpy(h_monitor, d_monitor, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
+
+      ui monitor_sum=0;
+      ui number_of_zero=0;
+      for(ui range(i, 0, GetNumberOfBlocks())){
+        monitor_sum+=h_monitor[i];
+      }
+      monitor.emplace_back(monitor_sum);
+
+//      chunk_updated = true;
+    }
+
+   /*
+       ui total_monitor;
+       ll total_dist;
+       ui d_cnt=0;
+       ui total_d_cnt=0;
+       ui m_cnt=0;
+       ui total_m_cnt=0;
+       for(auto m : monitor){
+//LOG_INFO("monitor : %u", m);
+if( m == 0) {
+m_cnt++;
+}
+total_monitor+=m;
+total_m_cnt++;
+}
+for(auto d : dist){
+//LOG_INFO("dist : %u", d);
+if( d == 0) {
+d_cnt++;
+}
+total_dist+=d;
+total_d_cnt++;
+}
+LOG_INFO("d cnt %u", d_cnt);
+LOG_INFO("total d cnt %u", total_d_cnt);
+
+LOG_INFO("m cnt %u", m_cnt);
+LOG_INFO("total m cnt %u", total_m_cnt);
+
+LOG_INFO("avg monitor %.2f", total_monitor/(float)jump_count);
+LOG_INFO("total monitor %u", total_monitor);
+
+LOG_INFO("avg dist %.2f", total_dist/(float)jump_count);
+LOG_INFO("total dist %u", total_dist);
+     */
+}
+
+
+
 void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                            ui number_of_blocks_per_cpu, ui& jump_count, 
                            ui& node_visit_count, 
@@ -631,7 +656,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
 
   ll start_node_index;
   ll start_node_offset;
-  const ui chunk_size_bak = chunk_size;
+  ui chunk_size_bak = chunk_size;
 
   auto number_of_nodes = level_node_count[level_node_count.size()-scan_level];
 
@@ -647,7 +672,8 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
 #ifndef USE_QUEUE
-      start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset], visited_leafIndex, &node_visit_count);
+      start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset], 
+                                               visited_leafIndex, &node_visit_count);
 #else
       start_node_index = GetNextStartNodeIndex(tid);
 #endif
@@ -672,6 +698,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       // resize chunk_size if the sum of start node offset and chunk size is
       // larger than number of leaf nodes
       if(start_node_offset+chunk_size > number_of_nodes) {
+        chunk_size_bak = chunk_size;
         SetChunkSize(number_of_nodes - start_node_offset);
       }
 
@@ -701,6 +728,9 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
     if(chunk_size != chunk_size_bak){
       SetChunkSize(chunk_size_bak);
     }
+//    if( chunk_updated ){
+//      chunk_updated = false;
+//    }
   }
 }
 

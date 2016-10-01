@@ -424,7 +424,7 @@ std::string Evaluator::GetDataPath(const DataType data_type) const {
     data_path+="/real/NOAA0.bin";
   } else if( data_type == DATA_TYPE_SYNTHETIC) {
     data_path+="/synthetic/synthetic_200m_3d_data.bin";
-    //TODO data_path+="/synthetic/synthetic_200m_"+std::to_string(GetNumberOfDims())+"d_data.bin";
+    //data_path+="/synthetic/synthetic_100m_"+std::to_string(GetNumberOfDims())+"d_data.bin";
   } else {
     assert(0);
   }
@@ -459,6 +459,7 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   os << " Evaluator : " << std::endl
      << " number of data = " << evaluator.number_of_data << std::endl
      << " number of degrees = " << GetNumberOfDegrees() << std::endl
+     << " number of degrees for internal nodes = " << GetNumberOfDegrees2() << std::endl
      << " number of thread blocks = " << evaluator.number_of_cuda_blocks << std::endl
      << " number of threads = " << GetNumberOfThreads() << std::endl
      << " number of searches = " << evaluator.number_of_search << std::endl
