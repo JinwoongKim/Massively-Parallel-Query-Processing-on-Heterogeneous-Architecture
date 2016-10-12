@@ -34,7 +34,7 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
   // Load an index from file it exists
   // otherwise, build an index and dump it to file
   auto index_name = GetIndexName(input_data_set);
-  if(!DumpFromFile(index_name)) {
+  if(input_data_set->IsRebuild() || !DumpFromFile(index_name)) {
     //===--------------------------------------------------------------------===//
     // Create branches
     //===--------------------------------------------------------------------===//
@@ -72,6 +72,9 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = Top_Down(branches); 
     assert(ret);
 
+    ret = RTree_Top_Down(branches); 
+    assert(ret);
+
     //===--------------------------------------------------------------------===//
     // Build the tree in a bottop-up fashion on the GPU
     //===--------------------------------------------------------------------===//
@@ -90,14 +93,6 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     // Dump an index to the file
     DumpToFile(index_name);
   } 
-
-  if(index_name.find("home")){
-    FILE* index_file = fopen(index_name.c_str(),"rb");
-    // if index file exists, exit
-    if(!index_file){
-      DumpToFile(index_name);
-    }
-  }
 
   //===--------------------------------------------------------------------===//
   // Move Trees to the GPU in advance

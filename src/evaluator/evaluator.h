@@ -107,7 +107,7 @@ class Evaluator{
 
   std::string s_cluster_type= "hilbert";
 
-  std::string s_file_path= "scratch";
+  std::string s_force_rebuild= "no";
 
   // To control chunk_size in Hybrid indexing 
   ui chunk_size = GetNumberOfDegrees();

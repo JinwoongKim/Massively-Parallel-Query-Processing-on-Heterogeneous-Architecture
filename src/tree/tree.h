@@ -31,6 +31,8 @@ class Tree {
    */
   bool Top_Down(std::vector<node::Branch> &branches);
 
+  bool RTree_Top_Down(std::vector<node::Branch> &branches);
+
   bool Bottom_Up(std::vector<node::Branch> &branches);
 
   /**

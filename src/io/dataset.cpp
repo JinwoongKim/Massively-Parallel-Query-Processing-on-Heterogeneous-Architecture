@@ -9,10 +9,10 @@ namespace io {
 
 DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
                  std::string data_set_path, DataSetType data_set_type, DataType data_type,
-                 ClusterType cluster_type, std::string file_path)
+                 ClusterType cluster_type, std::string force_rebuild)
   : number_of_dimensions(number_of_dimensions), number_of_data(number_of_data),
     data_set_path(data_set_path), data_set_type(data_set_type), 
-    data_type(data_type), cluster_type(cluster_type), file_path(file_path) {
+    data_type(data_type), cluster_type(cluster_type), force_rebuild(force_rebuild) {
 
   // read data from data_set_path
   std::ifstream input_stream; 
@@ -71,8 +71,12 @@ std::vector<Point> DataSet::GetPoints(void) const{
   return points; 
 }
 
-std::string DataSet::GetFilePath(void) const{ 
-  return file_path; 
+bool DataSet::IsRebuild(void) const{ 
+  if(force_rebuild=="yes") {
+    return true;
+  } else {
+    return false;
+  }
 }
 
 Point* DataSet::GetDeviceQuery(ui number_of_search) const{ 

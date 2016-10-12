@@ -20,7 +20,7 @@ class DataSet{
           DataSetType data_set_type,
           DataType data_type,
           ClusterType cluster_type,
-          std::string file_path);
+          std::string force_rebuild);
 
   ~DataSet(){
   }
@@ -44,7 +44,7 @@ class DataSet{
 
   Point* GetDeviceQuery(ui number_of_search) const;
 
-  std::string GetFilePath(void) const;
+  bool IsRebuild(void) const;
 
   // Get a string representation for debugging
   friend std::ostream &operator<<(std::ostream &os, const DataSet &dataset);
@@ -74,7 +74,7 @@ class DataSet{
   std::vector<Point> points;
 
   // dumped file path
-  std::string file_path;
+  std::string force_rebuild;
 };
 
 } // End of io namespace

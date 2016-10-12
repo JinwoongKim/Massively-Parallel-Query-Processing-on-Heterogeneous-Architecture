@@ -50,7 +50,7 @@ bool Evaluator::ReadDataSet(void){
   auto data_path = GetDataPath(data_type);
 
   input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-                       data_path, DATASET_TYPE_BINARY, data_type, cluster_type, s_file_path)); 
+                       data_path, DATASET_TYPE_BINARY, data_type, cluster_type, s_force_rebuild)); 
 
   return true;
 }
@@ -62,7 +62,7 @@ bool Evaluator::ReadQuerySet(void){
   auto query_path = GetQueryPath(data_type);
 
   query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-                       query_path, DATASET_TYPE_BINARY, data_type, cluster_type, s_file_path)); 
+                       query_path, DATASET_TYPE_BINARY, data_type, cluster_type, s_force_rebuild)); 
 
   return true;
 }
@@ -320,7 +320,7 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'u':
       case 'U': s_cluster_type = std::string(optarg);  break;
       case 'f':
-      case 'F': s_file_path = std::string(optarg);  break;
+      case 'F': s_force_rebuild = "yes";  break;
      default: break;
     } // end of switch
   } // end of while
