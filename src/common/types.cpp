@@ -122,6 +122,8 @@ std::string TreeTypeToString(TreeType type) {
       return "TREE_TYPE_HYBRID";
     case (TREE_TYPE_BVH):
       return "TREE_TYPE_BVH";
+    case (TREE_TYPE_RTREE):
+      return "TREE_TYPE_RTREE";
     default: {
       char buffer[32];
       ::snprintf(buffer, 32, "UNKNOWN[%d] ", type);
@@ -142,6 +144,8 @@ TreeType StringToTreeType(std::string str) {
     return TREE_TYPE_HYBRID;
   } else if (str == "TREE_TYPE_BVH") {
     return TREE_TYPE_BVH;
+  } else if (str == "TREE_TYPE_RTREE") {
+    return TREE_TYPE_RTREE;
   }
   return TREE_TYPE_INVALID;
 }

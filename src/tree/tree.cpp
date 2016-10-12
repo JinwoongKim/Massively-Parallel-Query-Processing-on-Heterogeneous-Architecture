@@ -37,9 +37,11 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
   auto cluster_type = input_data_set->GetClusterType();
   auto dataset_type = input_data_set->GetDataSetType();
   auto number_of_data = input_data_set->GetNumberOfData();
+  auto file_path = input_data_set->GetFilePath();
+
   auto dimensions = GetNumberOfDims();
   auto degrees = GetNumberOfDegrees();
-  auto degrees2 = GetNumberOfDegrees2();
+  auto degrees2 = GetNumberOfUpperTreeDegrees();
   std::string number_of_data_str = std::to_string(number_of_data);
 
   if(number_of_data >= 1000000) {
@@ -48,15 +50,42 @@ std::string Tree::GetIndexName(std::shared_ptr<io::DataSet> input_data_set){
   }
 
   std::string index_name =
-  "/scratch/jwkim/index_files/"+DataTypeToString(data_type)+"_"+DataSetTypeToString(dataset_type)+
+  "/"+file_path+"/jwkim/index_files/"+DataTypeToString(data_type)+"_"+DataSetTypeToString(dataset_type)+
   "_DATA_"+ClusterTypeToString(cluster_type)+"_" +
   std::to_string(dimensions)+"DIMS_"+number_of_data_str+"_"+
-  TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES"
+  TreeTypeToString(tree_type)+"_"+std::to_string(degrees)+"_DEGREES_"
   +std::to_string(degrees2)+"_DEGREES2";
 
   return index_name;
 }
 
+FILE* Tree::OpenIndexFile(std::string index_name){
+  FILE* index_file = nullptr;
+  index_file = fopen(index_name.c_str(),"rb");
+
+  if(!index_file) {
+    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
+
+    if(index_name.find("home")){
+      // try to find in scratch directory as well
+      index_name.replace(1, 4, "scratch");
+
+      index_file = fopen(index_name.c_str(),"rb");
+      if(!index_file) {
+        LOG_INFO("An index file(%s) doesn't exist in scratch as well", index_name.c_str());
+        return nullptr;
+      }
+    } else {
+      return nullptr;
+    }
+  }
+
+  LOG_INFO("Load an index file (%s)", index_name.c_str());
+  return index_file;
+}
+
+
+// BVH
 bool Tree::Top_Down(std::vector<node::Branch> &branches) {
   std::vector<ui> level_node_count;
   auto& recorder = evaluator::Recorder::GetInstance();
@@ -73,6 +102,25 @@ bool Tree::Top_Down(std::vector<node::Branch> &branches) {
 
   return true;
 }
+
+/*
+bool Tree::Top_Down(std::vector<node::Branch> &branches) {
+  std::vector<ui> level_node_count;
+  auto& recorder = evaluator::Recorder::GetInstance();
+  recorder.TimeRecordStart();
+
+  node_ptr = CreateNode(branches, 0, branches.size()-1, 0, level_node_count);
+
+  for(ui range( level_itr, 0, level_node_count.size() )) {
+    LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
+  }
+
+  auto elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Top-Down Construction Time on the CPU = %.6fs", elapsed_time/1000.0f);
+
+  return true;
+}
+*/
 
 /**
  * @brief : find the split position between start/end offsets base on the
@@ -134,7 +182,7 @@ std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches,
   // find split position as long as offset_queue isn't empty or 
   // need more split positions
   while( !offset_queue.empty() &&
-         split_position.size() < GetNumberOfDegrees2()) {
+         split_position.size() < GetNumberOfUpperTreeDegrees()) {
 
     // dequeue the offset
     auto offset = offset_queue.front();
@@ -154,10 +202,10 @@ std::vector<ui> Tree::GetSplitPosition(std::vector<node::Branch> &branches,
 
     // enqueue to split nodes
     // Do not split when it doesn't have child nodes enough
-    if( split_offset-offset.first >= GetNumberOfDegrees2()) {
+    if( split_offset-offset.first >= GetNumberOfUpperTreeDegrees()) {
       offset_queue.push(std::make_pair(offset.first, split_offset));
     }
-    if( (offset.second-split_offset+1) >= GetNumberOfDegrees2()) {
+    if( (offset.second-split_offset+1) >= GetNumberOfUpperTreeDegrees()) {
       offset_queue.push(std::make_pair(split_offset+1, offset.second));
     }
   }
@@ -185,7 +233,7 @@ node::Node* Tree::CreateNode(std::vector<node::Branch> &branches,
   // Create a leaf node
   //===--------------------------------------------------------------------===//
   auto number_of_data = (end_offset-start_offset)+1;
-  if( number_of_data <= GetNumberOfDegrees2() )  {
+  if( number_of_data <= GetNumberOfUpperTreeDegrees() )  {
     for(ui range(branch_itr, 0, number_of_data)) {
       auto offset = start_offset+branch_itr;
       node->SetBranch(branches[offset], branch_itr);

@@ -50,7 +50,7 @@ bool Evaluator::ReadDataSet(void){
   auto data_path = GetDataPath(data_type);
 
   input_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_data,
-                       data_path, DATASET_TYPE_BINARY, data_type, cluster_type)); 
+                       data_path, DATASET_TYPE_BINARY, data_type, cluster_type, s_file_path)); 
 
   return true;
 }
@@ -62,7 +62,7 @@ bool Evaluator::ReadQuerySet(void){
   auto query_path = GetQueryPath(data_type);
 
   query_data_set.reset(new io::DataSet(GetNumberOfDims(), number_of_search*2,
-                       query_path, DATASET_TYPE_BINARY, data_type, cluster_type)); 
+                       query_path, DATASET_TYPE_BINARY, data_type, cluster_type, s_file_path)); 
 
   return true;
 }
@@ -157,8 +157,8 @@ bool Evaluator::Search(void) {
   std::vector<ui> cpu_thread_vec = {1,2,4,8,16,32};
   std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256,
                                     512, 768, 1024};
-  std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
-  //std::vector<ui> cuda_block_vec = {128}; LOG_INFO("Now, we only use 128 CUDA blocks");
+  //std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
+  std::vector<ui> cuda_block_vec = {128}; LOG_INFO("Now, we only use 128 CUDA blocks");
 
   for(auto& tree : trees) {
     switch(tree->GetTreeType()) {
@@ -176,7 +176,8 @@ bool Evaluator::Search(void) {
                   hybrid->SetChunkSize(chunk_size_itr);
                   hybrid->SetNumberOfCPUThreads(cpu_thread_itr);
                   hybrid->SetNumberOfCUDABlocks(128);
-                  LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", cpu_thread_itr, cuda_block_per_cpu, chunk_size_itr);
+                  LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", 
+                  cpu_thread_itr, cuda_block_per_cpu, chunk_size_itr);
                   tree->Search(query_data_set, number_of_search, number_of_repeat);
                 }
               }
@@ -286,10 +287,9 @@ size_t Evaluator::GetTotalMem(void) {
 bool Evaluator::ParseArgs(int argc, char **argv)  {
 
   // TODO scrubbing
-  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:y:Y:u:U:";
+  static const char *options="c:C:i:I:d:D:q:Q:b:B:p:P:s:S:l:L:r:R:e:E:t:T:y:Y:u:U:f:F:";
   std::string number_of_data_str;
   int current_option;
-
  
   while ((current_option = getopt(argc, argv, options)) != -1) {
     switch (current_option) {
@@ -319,6 +319,8 @@ bool Evaluator::ParseArgs(int argc, char **argv)  {
       case 'Y': s_data_type = std::string(optarg);  break;
       case 'u':
       case 'U': s_cluster_type = std::string(optarg);  break;
+      case 'f':
+      case 'F': s_file_path = std::string(optarg);  break;
      default: break;
     } // end of switch
   } // end of while
@@ -459,7 +461,7 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   os << " Evaluator : " << std::endl
      << " number of data = " << evaluator.number_of_data << std::endl
      << " number of degrees = " << GetNumberOfDegrees() << std::endl
-     << " number of degrees for internal nodes = " << GetNumberOfDegrees2() << std::endl
+     << " number of degrees for upper tree = " << GetNumberOfUpperTreeDegrees() << std::endl
      << " number of thread blocks = " << evaluator.number_of_cuda_blocks << std::endl
      << " number of threads = " << GetNumberOfThreads() << std::endl
      << " number of searches = " << evaluator.number_of_search << std::endl
@@ -471,7 +473,6 @@ std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
      << " chunk size = " << evaluator.chunk_size << std::endl
      << " selectivity = " << evaluator.selectivity << std::endl
      << " query size = " << evaluator.query_size << std::endl;
-
   return os;
 }
 

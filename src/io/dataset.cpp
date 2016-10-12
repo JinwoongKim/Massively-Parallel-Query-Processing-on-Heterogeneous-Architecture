@@ -9,10 +9,10 @@ namespace io {
 
 DataSet::DataSet(unsigned int number_of_dimensions, unsigned int number_of_data,
                  std::string data_set_path, DataSetType data_set_type, DataType data_type,
-                 ClusterType cluster_type)
+                 ClusterType cluster_type, std::string file_path)
   : number_of_dimensions(number_of_dimensions), number_of_data(number_of_data),
     data_set_path(data_set_path), data_set_type(data_set_type), 
-    data_type(data_type), cluster_type(cluster_type){
+    data_type(data_type), cluster_type(cluster_type), file_path(file_path) {
 
   // read data from data_set_path
   std::ifstream input_stream; 
@@ -69,6 +69,10 @@ ClusterType DataSet::GetClusterType(void) const{
 
 std::vector<Point> DataSet::GetPoints(void) const{ 
   return points; 
+}
+
+std::string DataSet::GetFilePath(void) const{ 
+  return file_path; 
 }
 
 Point* DataSet::GetDeviceQuery(ui number_of_search) const{ 

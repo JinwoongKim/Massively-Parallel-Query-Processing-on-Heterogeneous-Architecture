@@ -7,6 +7,7 @@
 *.bak
 core
 out*
+local*
 config*
 exp*
 

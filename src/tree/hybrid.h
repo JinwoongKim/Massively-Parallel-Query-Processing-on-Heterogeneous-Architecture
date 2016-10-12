@@ -3,6 +3,7 @@
 #include "tree/tree.h"
 
 #include <queue>
+#include <mutex>
 
 namespace ursus {
 namespace tree {
@@ -38,6 +39,8 @@ class Hybrid : public Tree {
 
   ui GetNumberOfExtendLeafNodeSOA() const;
 
+  ui GetChunkSize() const;
+
   /**
    * Search the data 
    */
@@ -50,6 +53,8 @@ class Hybrid : public Tree {
                      ui start_offset, ui end_offset) ;
 
   void SetChunkSize(ui chunk_size);
+
+  void SetChunkUpdated(bool updated);
 
   // level to scan on the GPU
   // 1 : leaf nodes, 2 : extend and leaf nodes
@@ -67,6 +72,12 @@ class Hybrid : public Tree {
   void Thread_CollectStartNodeIndex(std::vector<Point>& query,
                                     std::queue<ll> &start_node_indice,
                                     ui start_offset, ui end_offset);
+
+  void Thread_OracleV(ui* unit_cnt, int weight);
+  void Thread_OracleV2(ui* unit_cnt, int weight);
+
+  void Thread_OracleS(ui* unit_cnt, bool& up, int weight);
+  void Thread_OracleS2(ui* unit_cnt, bool& up, int weight);
 
   void Thread_Monitoring(ui update_interval);
 
@@ -88,7 +99,10 @@ class Hybrid : public Tree {
   const ui number_of_cpu_threads=1;
   
   std::vector<ui> level_node_count;
+
   std::vector<std::queue<ll>> thread_start_node_index;
+
+  std::mutex chunk_updated_mutex;
 };
 
 //===--------------------------------------------------------------------===//

@@ -5,6 +5,7 @@
 namespace ursus {
 namespace tree {
 
+// TODO : Rename to Linear BVH later
 class BVH : public Tree {
  public:
  //===--------------------------------------------------------------------===//

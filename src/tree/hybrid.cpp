@@ -91,6 +91,14 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     DumpToFile(index_name);
   } 
 
+  if(index_name.find("home")){
+    FILE* index_file = fopen(index_name.c_str(),"rb");
+    // if index file exists, exit
+    if(!index_file){
+      DumpToFile(index_name);
+    }
+  }
+
   //===--------------------------------------------------------------------===//
   // Move Trees to the GPU in advance
   //===--------------------------------------------------------------------===//
@@ -200,15 +208,11 @@ bool Hybrid::BuildExtendLeafNodeOnCPU() {
 
 bool Hybrid::DumpFromFile(std::string index_name) {
 
-  FILE* index_file;
-  index_file = fopen(index_name.c_str(),"rb");
-
-  if(!index_file) {
-    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
+  FILE* index_file = OpenIndexFile(index_name);
+  if(index_file == nullptr) {
     return false;
   }
 
-  LOG_INFO("Load an index file (%s)", index_name.c_str());
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
@@ -251,7 +255,6 @@ bool Hybrid::DumpFromFile(std::string index_name) {
 
 bool Hybrid::DumpToFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
-
   LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
 
   recorder.TimeRecordStart();
@@ -444,7 +447,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     cudaProfilerStart();
 
     // launch the thread for monitoring as a background
-    std::thread m_thread(&Hybrid::Thread_Monitoring, this, 1);
+    std::thread m_thread(&Hybrid::Thread_Monitoring, this, 0);
 
     recorder.TimeRecordStart();
 
@@ -500,7 +503,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
     cudaProfilerStop();
 
-    LOG_INFO("%u threads processing queries concurrently", number_of_cpu_threads);
+    LOG_INFO("Processing %uquery(ies) concurrently", number_of_cpu_threads);
     LOG_INFO("Avg. Search Time on the GPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
 
     //===--------------------------------------------------------------------===//
@@ -574,6 +577,9 @@ ll Hybrid::GetNextStartNodeIndex(ui tid) {
 
 void Hybrid::Thread_Monitoring(ui update_interval){
 
+    // Do not run monitoring when update_interval is 0
+    if(!update_interval) return;
+
     ui h_monitor[GetNumberOfMAXBlocks()];
     ui* d_monitor;
     cudaErrCheck(cudaMalloc((void**) &d_monitor, sizeof(ui)*GetNumberOfBlocks()));
@@ -583,10 +589,15 @@ void Hybrid::Thread_Monitoring(ui update_interval){
     //===--------------------------------------------------------------------===//
     std::vector<ll> monitor;
 
-
-      // TODO:: terminate this loop when we finish the search operation
+    // terminate the monitoring when search is done
     while(!search_finish) {
+
       std::this_thread::sleep_for(std::chrono::milliseconds(update_interval));
+
+      // if threads still have not update their chunk size for the previous monitoring
+      // skip monitoring
+      if(chunk_updated) continue;
+
       // get the monitoring hits
       global_GetMonitor<<<1,GetNumberOfBlocks()>>>(d_monitor);
       cudaMemcpy(h_monitor, d_monitor, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
@@ -598,7 +609,9 @@ void Hybrid::Thread_Monitoring(ui update_interval){
       }
       monitor.emplace_back(monitor_sum);
 
-//      chunk_updated = true;
+      //SetChunkSize(xx);
+      // make a chunk_updates as a true
+      //SetChunkUpdated(true);
     }
 
    /*
@@ -638,6 +651,153 @@ LOG_INFO("total dist %u", total_dist);
      */
 }
 
+/*
+void Hybrid::Thread_OracleV(ui* unit_cnt, int weight){
+    if(unit_cnt[0]) {
+      unit_cnt[0]--;
+      if( !unit_cnt[0]){
+        unit_cnt[4] = 625*weight;
+        SetChunkSize(1024);
+      }
+    } else if(unit_cnt[4]) {
+      unit_cnt[4]--;
+      if( !unit_cnt[4]){
+        unit_cnt[0] = 25000*weight;
+        SetChunkSize(256);
+      }
+    }
+}
+
+
+//for worst case
+void Hybrid::Thread_OracleV2(ui* unit_cnt, int weight){
+    if(unit_cnt[0]) {
+      unit_cnt[0]--;
+      if( !unit_cnt[0]){
+        unit_cnt[4] = 1000*weight;
+        SetChunkSize(128);
+      }
+    } else if(unit_cnt[4]) {
+      unit_cnt[4]--;
+      if( !unit_cnt[4]){
+        unit_cnt[0] = 25000*weight;
+        SetChunkSize(1024);
+      }
+    }
+}
+
+void Hybrid::Thread_OracleS(ui* unit_cnt, bool& up, int weight){
+    if(unit_cnt[0]) {
+      unit_cnt[0]-=1000;
+      if( !unit_cnt[0]){
+        unit_cnt[1] = 10000*weight;
+        SetChunkSize(256);
+        up = false; // down
+      }
+    } else if(unit_cnt[1]) {
+      unit_cnt[1]-=1000;
+
+      if( !unit_cnt[1]){
+        if(up) {
+          unit_cnt[0] = 25000*weight;
+          SetChunkSize(256);
+        } else {
+          unit_cnt[2] = 5000*weight;
+          SetChunkSize(512);
+        }
+      }
+    } else if(unit_cnt[2]) {
+      unit_cnt[2]-=1000;
+
+      if( !unit_cnt[2]){
+        if(up) {
+          unit_cnt[1] = 10000*weight;
+          SetChunkSize(256);
+        } else {
+          unit_cnt[3] = 2500*weight;
+          SetChunkSize(1024);
+        }
+      }
+    } else if(unit_cnt[3]) {
+      unit_cnt[3]-=1000;
+
+      if( !unit_cnt[3]){
+        if(up) {
+          unit_cnt[2] = 5000*weight;
+          SetChunkSize(512);
+        } else {
+          unit_cnt[4] = 1000*weight;
+          SetChunkSize(1024);
+        }
+      }
+    } else if(unit_cnt[4]) {
+      unit_cnt[4]-=1000;
+      if( !unit_cnt[4]){
+        unit_cnt[3] = 2500*weight;
+        SetChunkSize(1024);
+        up = true;
+      }
+    }
+}
+
+
+
+// for worst case
+void Hybrid::Thread_OracleS2(ui* unit_cnt, bool& up, int weight){
+    if(unit_cnt[0]) {
+      unit_cnt[0]--;
+      if( !unit_cnt[0]){
+        unit_cnt[1] = 10000*weight;
+        SetChunkSize(128);
+        up = false; // down
+      }
+    } else if(unit_cnt[1]) {
+      unit_cnt[1]--;
+
+      if( !unit_cnt[1]){
+        if(up) {
+          unit_cnt[0] = 25000*weight;
+          SetChunkSize(1024);
+        } else {
+          unit_cnt[2] = 5000*weight;
+          SetChunkSize(128);
+        }
+      }
+    } else if(unit_cnt[2]) {
+      unit_cnt[2]--;
+
+      if( !unit_cnt[2]){
+        if(up) {
+          unit_cnt[1] = 10000*weight;
+          SetChunkSize(128);
+        } else {
+          unit_cnt[3] = 2500*weight;
+          SetChunkSize(128);
+        }
+      }
+    } else if(unit_cnt[3]) {
+      unit_cnt[3]--;
+
+      if( !unit_cnt[3]){
+        if(up) {
+          unit_cnt[2] = 5000*weight;
+          SetChunkSize(128);
+        } else {
+          unit_cnt[4] = 1000*weight;
+          SetChunkSize(128);
+        }
+      }
+    } else if(unit_cnt[4]) {
+      unit_cnt[4]--;
+      if( !unit_cnt[4]){
+        unit_cnt[3] = 2500*weight;
+        SetChunkSize(128);
+        up = true;
+      }
+    }
+}
+*/
+
 
 
 void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
@@ -656,7 +816,8 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
 
   ll start_node_index;
   ll start_node_offset;
-  ui chunk_size_bak = chunk_size;
+  ui chunk_size_bak = 0;
+  bool chunk_size_dirty = false;
 
   auto number_of_nodes = level_node_count[level_node_count.size()-scan_level];
 
@@ -700,6 +861,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       if(start_node_offset+chunk_size > number_of_nodes) {
         chunk_size_bak = chunk_size;
         SetChunkSize(number_of_nodes - start_node_offset);
+        chunk_size_dirty = true;
       }
 
       //===--------------------------------------------------------------------===//
@@ -724,20 +886,42 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
     }
     query_offset += GetNumberOfDims()*2;
 
+    // TODO integrate follow two if statements
     // rollback the chunk size if it is updated
-    if(chunk_size != chunk_size_bak){
+    if(chunk_size_dirty){
       SetChunkSize(chunk_size_bak);
+      chunk_size_dirty = false;
     }
-//    if( chunk_updated ){
-//      chunk_updated = false;
-//    }
+
+    // if chunk has been updated, do update progress
+/*    if( chunk_updated ){
+      // get updated chunk size
+      current_chunk_size = GetChunkSize();
+
+      // FIXME last thread change this one
+      SetChunkUpdated(false);
+    }
+    */
+    //Thread_OracleS(unit_cnt, up, weight);
+    //Thread_OracleV2(unit_cnt, weight);
   }
+}
+
+ui Hybrid::GetChunkSize() const{
+  return chunk_size;
 }
 
 void Hybrid::SetChunkSize(ui _chunk_size){
   ui* p_chunk_size = (ui*)&chunk_size;
   *p_chunk_size = _chunk_size;
   assert(chunk_size);
+}
+
+void Hybrid::SetChunkUpdated(bool updated){
+  {
+    std::lock_guard<std::mutex> lock(chunk_updated_mutex);
+    chunk_updated = updated;
+  }
 }
 
 void Hybrid::SetScanLevel(ui _scan_level){

@@ -63,16 +63,10 @@ bool BVH::Build(std::shared_ptr<io::DataSet> input_data_set){
 
 bool BVH::DumpFromFile(std::string index_name) {
 
-  FILE* index_file;
-  index_file = fopen(index_name.c_str(),"rb");
-
-  if(!index_file) {
-    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
+  FILE* index_file = OpenIndexFile(index_name);
+  if(index_file == nullptr) {
     return false;
   }
-
-
-  LOG_INFO("Load an index file (%s)", index_name.c_str());
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
@@ -98,7 +92,6 @@ bool BVH::DumpFromFile(std::string index_name) {
 
 bool BVH::DumpToFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
-
   LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
 
   recorder.TimeRecordStart();

@@ -50,6 +50,8 @@ class Tree {
 
   std::string GetIndexName(std::shared_ptr<io::DataSet> input_data_set);
 
+  FILE* OpenIndexFile(std::string index_name);
+
  //===--------------------------------------------------------------------===//
  // Utility Function
  //===--------------------------------------------------------------------===//
