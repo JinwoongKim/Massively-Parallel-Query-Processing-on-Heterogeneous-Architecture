@@ -1,5 +1,9 @@
 export NVCC=nvcc
 export NVCCFLAGS= -default-stream per-thread -arch=sm_35 -std=c++11 -w -ltbb $(OPTION)
+
+# (nvprof)
+#export NVCCFLAGS= -arch=sm_35 -std=c++11 -w -ltbb $(OPTION)
+
 # (by_passing) cache off : -Xptxas -dlcm=cg
 #export NVCCFLAGS= -default-stream per-thread -arch=sm_35 -Xptxas -dlcm=cg -std=c++11 -w -ltbb $(OPTION)
 
