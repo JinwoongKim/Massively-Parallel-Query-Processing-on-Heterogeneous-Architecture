@@ -5,7 +5,7 @@ namespace ursus {
 
   __host__ __device__ constexpr unsigned int GetNumberOfDegrees() { return 128; }
 
-  __host__ __device__ constexpr unsigned int GetNumberOfUpperTreeDegrees() { return 128; }
+  __host__ __device__ constexpr unsigned int GetNumberOfUpperTreeDegrees() { return 32; }
 
   __host__ __device__ constexpr unsigned int GetNumberOfThreads() { return 128; }
 

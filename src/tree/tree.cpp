@@ -1,6 +1,6 @@
 #include "tree/tree.h"
 
-#include "tree/rtree_ori.h"
+#include "tree/rtree.h"
 #include "common/macro.h"
 #include "common/logger.h"
 #include "evaluator/evaluator.h"
@@ -97,7 +97,7 @@ bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  typedef RTree<float, float, GetNumberOfDims(), float> RTrees;
+  typedef ursus::RTree<float, float, GetNumberOfDims(), float> RTrees;
   RTrees tree;
 
   float min[GetNumberOfDims()];
@@ -118,14 +118,14 @@ bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
   recorder.TimeRecordStart();
 
   level_node_count = tree.GetNodeCount();
-  int node_count=0;
+  host_node_count=0;
   for(ui range( level_itr, 0, level_node_count.size() )) {
     LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
-    node_count += level_node_count[level_itr];
+    host_node_count += level_node_count[level_itr];
   }
-  printf("node count %d\n", node_count);
+  printf("host node count %d\n", host_node_count);
 
-  node_ptr = new node::Node[node_count];
+  node_ptr = new node::Node[host_node_count];
 
   tree.Transpose(node_ptr);
 
