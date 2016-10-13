@@ -224,7 +224,6 @@ bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
       max[d] = branch.GetPoint(d+GetNumberOfDims());
     }
     tree.Insert(min, max, i++); // Note, all values including zero are fine in this version
-    //std::cout << branch << std::endl;
   }
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Top-Down Construction Time on the CPU = %.6fs", elapsed_time/1000.0f);
@@ -246,11 +245,19 @@ bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
   long node_index = 1;
   SetNodeIndex(node_ptr, node_index);
 
-/*
-  for(int p=0; p<node_count; p++){
-    std::cout << node_ptr[p] << std::endl;
+
+  // rearrange branches here
+  auto leaf_node_count = level_node_count.back();
+  auto internal_node_count = host_node_count - leaf_node_count;
+
+  // TODO: Find, more efficient way to do this...
+  int branch_offset=0;
+  for(ui range( leaf_itr, internal_node_count, host_node_count)){
+    for(ui range( branch_itr, 0,  node_ptr[leaf_itr].GetBranchCount())){
+      branches[branch_offset] = node_ptr[leaf_itr].GetBranch(branch_itr);
+      branch_offset++;
+    }
   }
-  */
 
   elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Transpose Time on the CPU = %.6fs", elapsed_time/1000.0f);

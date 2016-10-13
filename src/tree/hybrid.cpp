@@ -223,20 +223,22 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   auto pos = upper_tree_name.find("HYBRID");
 
   switch(UPPER_TREE_TYPE){
-    case TREE_TYPE_BVH:
+    case TREE_TYPE_BVH:{
       upper_tree_name.replace(pos, 6, "BVH");
-      break;
-    case TREE_TYPE_RTREE:
+      flat_array_name.replace(pos, 6, "HYBRIDBVH");
+      }break;
+    case TREE_TYPE_RTREE:{
       upper_tree_name.replace(pos, 6, "RTREE"); 
-      break;
+      flat_array_name.replace(pos, 6, "HYBRIDRTREE");
+      }break;
     default:
       LOG_INFO("Something's wrong!");
       break;
   }
 
 
-  FILE* upper_tree_index_file;
-  FILE* flat_array_index_file;
+  FILE* upper_tree_index_file=nullptr;
+  FILE* flat_array_index_file=nullptr;
 
   // check file exists
   if(IsExist(upper_tree_name)){
@@ -245,7 +247,7 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   }
   if(IsExist(flat_array_name)){
     flat_array_exists = true;
-    flat_array_index_file = OpenIndexFile(index_name);
+    flat_array_index_file = OpenIndexFile(flat_array_name);
   }
 
 
@@ -318,12 +320,14 @@ bool Hybrid::DumpToFile(std::string index_name) {
   auto pos = upper_tree_name.find("HYBRID");
 
   switch(UPPER_TREE_TYPE){
-    case TREE_TYPE_BVH:
+    case TREE_TYPE_BVH:{
       upper_tree_name.replace(pos, 6, "BVH");
-      break;
-    case TREE_TYPE_RTREE:
+      flat_array_name.replace(pos, 6, "HYBRIDBVH");
+      } break;
+    case TREE_TYPE_RTREE:{
       upper_tree_name.replace(pos, 6, "RTREE"); 
-      break;
+      flat_array_name.replace(pos, 6, "HYBRIDRTREE");
+      } break;
     default:
       LOG_INFO("Something's wrong!");
       break;
@@ -776,21 +780,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   for(ui range(query_itr, start_offset, end_offset)) {
     ll visited_leafIndex = 0;
     ll prev_start_node_offset=0;
-
-//    if(query_itr==632){
-/*
-      for(ui range(dim, 0, GetNumberOfDims())) {
-        printf("query[%u] %.6f\n", dim, query[query_offset+dim]);
-      }
-      for(ui range(dim, 0, GetNumberOfDims())) {
-        printf("query[%u] %.6f\n", dim+GetNumberOfDims(), query[query_offset+GetNumberOfDims()+dim]);
-      }
-      */
-//    }
-   // else{
-   //   continue;
-    //}
-
 
 
     while(1) {
