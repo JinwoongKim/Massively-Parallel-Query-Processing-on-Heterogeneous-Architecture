@@ -5,6 +5,7 @@
 #include "tree/mphr.h"
 #include "tree/hybrid.h"
 #include "tree/bvh.h"
+#include "tree/rtree.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -139,6 +140,11 @@ bool Evaluator::Build(void) {
         bvh->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
         } break;
+      case  TREE_TYPE_RTREE: {
+        std::shared_ptr<tree::RTree> rtree = std::dynamic_pointer_cast<tree::RTree>(tree);
+        rtree->SetNumberOfCPUThreads(number_of_cpu_threads);
+        tree->Build(input_data_set);
+        } break;
       default:
         assert(0);
         break;
@@ -225,6 +231,18 @@ bool Evaluator::Search(void) {
 
           for(auto cpu_thread_itr : cpu_thread_vec) {
             bvh->SetNumberOfCPUThreads(cpu_thread_itr);
+            LOG_INFO("Evaluation Mode On CPU Thread %u", cpu_thread_itr);
+            tree->Search(query_data_set, number_of_search, number_of_repeat);
+          }
+        } else {
+          tree->Search(query_data_set, number_of_search, number_of_repeat);
+        }
+      } break;
+      case TREE_TYPE_RTREE: {
+        if( EvaluationMode ) {
+          std::shared_ptr<tree::RTree> rtree = std::dynamic_pointer_cast<tree::RTree>(tree);
+          for(auto cpu_thread_itr : cpu_thread_vec) {
+            rtree->SetNumberOfCPUThreads(cpu_thread_itr);
             LOG_INFO("Evaluation Mode On CPU Thread %u", cpu_thread_itr);
             tree->Search(query_data_set, number_of_search, number_of_repeat);
           }
@@ -382,6 +400,10 @@ void Evaluator::AddTrees(std::string _index_type) {
   } else if ( index_type == "bvh" ||
               index_type == "b") {
     std::shared_ptr<tree::Tree> tree (new tree::BVH());
+    trees.push_back(tree);
+  } else if ( index_type == "rtree" ||
+              index_type == "r") {
+    std::shared_ptr<tree::Tree> tree (new tree::RTree());
     trees.push_back(tree);
   }
 }

@@ -1,5 +1,6 @@
 #include "tree/tree.h"
 
+#include "tree/rtree_ori.h"
 #include "common/macro.h"
 #include "common/logger.h"
 #include "evaluator/evaluator.h"
@@ -91,67 +92,72 @@ bool Tree::Top_Down(std::vector<node::Branch> &branches) {
   return true;
 }
 
-#include "tree/rtree_ori.h"
-
-typedef int ValueType;
-
-struct Rect
-{
-  Rect()  {}
-
-  Rect(int a_minX, int a_minY, int a_maxX, int a_maxY)
-  {
-    min[0] = a_minX;
-    min[1] = a_minY;
-
-    max[0] = a_maxX;
-    max[1] = a_maxY;
-  }
-
-
-  int min[2];
-  int max[2];
-};
-
-struct Rect rects[] =
-{
-  Rect(0, 0, 2, 2), // xmin, ymin, xmax, ymax (for 2 dimensional RTree)
-  Rect(5, 5, 7, 7),
-  Rect(8, 5, 9, 6),
-  Rect(7, 1, 9, 2),
-};
-
-int nrects = sizeof(rects) / sizeof(rects[0]);
-
 bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
-/*
   std::vector<ui> level_node_count;
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  node_ptr = CreateNode(branches, 0, branches.size()-1, 0, level_node_count);
+  typedef RTree<float, float, GetNumberOfDims(), float> RTrees;
+  RTrees tree;
 
-  for(ui range( level_itr, 0, level_node_count.size() )) {
-    LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
+  float min[GetNumberOfDims()];
+  float max[GetNumberOfDims()];
+
+  int i=0;
+  for(auto branch : branches){
+    for(int d=0; d<GetNumberOfDims(); d++){
+      min[d] = branch.GetPoint(d);
+      max[d] = branch.GetPoint(d+GetNumberOfDims());
+    }
+    tree.Insert(min, max, i++); // Note, all values including zero are fine in this version
+    //std::cout << branch << std::endl;
   }
-
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Top-Down Construction Time on the CPU = %.6fs", elapsed_time/1000.0f);
-*/
 
-  typedef RTree<ValueType, int, 2, float> MyTree;
-  MyTree tree;
+  recorder.TimeRecordStart();
 
-  int i, nhits;
-  std::cout << "nrects = " << nrects << "\n";
-
-  for(i=0; i<nrects; i++)
-  {
-    tree.Insert(rects[i].min, rects[i].max, i); // Note, all values including zero are fine in this version
+  level_node_count = tree.GetNodeCount();
+  int node_count=0;
+  for(ui range( level_itr, 0, level_node_count.size() )) {
+    LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
+    node_count += level_node_count[level_itr];
   }
+  printf("node count %d\n", node_count);
+
+  node_ptr = new node::Node[node_count];
+
+  tree.Transpose(node_ptr);
+
+  long node_index = 1;
+  SetNodeIndex(node_ptr, node_index);
+
+/*
+  for(int p=0; p<node_count; p++){
+    std::cout << node_ptr[p] << std::endl;
+  }
+  */
+
+  elapsed_time = recorder.TimeRecordEnd();
+  LOG_INFO("Transpose Time on the CPU = %.6fs", elapsed_time/1000.0f);
 
   return true;
 }
+
+void Tree::SetNodeIndex(node::Node *node, long& node_index){
+  if(node->GetNodeType() == NODE_TYPE_INTERNAL ) {
+    for(ui range(branch_itr, 0, node->GetBranchCount())) {
+      SetNodeIndex(node->GetBranchChildNode(branch_itr), node_index); 
+      --node_index;
+      node->SetBranchIndex(branch_itr, node_index++);
+    }
+  } else {
+    for(ui range(branch_itr, 0, node->GetBranchCount())) {
+      node->SetBranchIndex(branch_itr, node_index++);
+    }
+  }
+}
+
 
 /**
  * @brief : find the split position between start/end offsets base on the

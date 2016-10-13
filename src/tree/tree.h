@@ -57,6 +57,8 @@ class Tree {
  //===--------------------------------------------------------------------===//
  // Utility Function
  //===--------------------------------------------------------------------===//
+  void SetNodeIndex(node::Node *node, long& node_index);
+
   std::vector<node::Branch> CreateBranches(std::shared_ptr<io::DataSet> input_data_set) ;
 
   node::Node* CreateNode(std::vector<node::Branch> &branches, 

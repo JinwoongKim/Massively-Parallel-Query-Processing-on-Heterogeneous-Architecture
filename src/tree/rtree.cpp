@@ -53,7 +53,7 @@ bool RTree::Build(std::shared_ptr<io::DataSet> input_data_set){
     //===--------------------------------------------------------------------===//
     // Build the internal nodes in a top-down fashion 
     //===--------------------------------------------------------------------===//
-    ret = Top_Down(branches); 
+    ret = RTree_Top_Down(branches); 
     assert(ret);
 
     // Dump an index to the file
@@ -236,7 +236,9 @@ int RTree::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Avg. Search Time on the CPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
+    LOG_INFO("Total Search Time on the CPU (ms)\n%.6f", elapsed_time);
     LOG_INFO("Avg. Node visit count : %f", total_node_visit_count/(float)number_of_search);
+    LOG_INFO("Total Node visit count : %u", total_node_visit_count);
     LOG_INFO("\n");
   }
   return 1;

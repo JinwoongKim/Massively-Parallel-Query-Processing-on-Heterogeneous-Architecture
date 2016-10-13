@@ -39,7 +39,7 @@ bool MPHR::Build(std::shared_ptr<io::DataSet> input_data_set) {
   // Load an index from file it exists
   // otherwise, build an index and dump it to file
   auto index_name = GetIndexName(input_data_set);
-  if(!DumpFromFile(index_name)) { 
+  if(input_data_set->IsRebuild() || !DumpFromFile(index_name))  {
     //===--------------------------------------------------------------------===//
     // Create branches
     //===--------------------------------------------------------------------===//

@@ -1,5 +1,6 @@
 #pragma once 
 
+
 //#ifndef RTREE_H
 //#define RTREE_H
 
@@ -12,6 +13,13 @@
 #include <stdlib.h>
 
 #include <algorithm>
+#include <queue>
+
+#include "common/config.h"
+#include "node/node.h"
+
+namespace ursus {
+namespace tree {
 
 #define ASSERT assert // RTree uses ASSERT( condition )
 #ifndef Min
@@ -52,7 +60,7 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 ///        array similar to MFC CArray or STL Vector for returning search query result.
 ///
 template<class DATATYPE, class ELEMTYPE, int NUMDIMS, 
-         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = 8, int TMINNODES = TMAXNODES / 2>
+         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = GetNumberOfUpperTreeDegrees(), int TMINNODES = TMAXNODES / 2>
 class RTree
 {
 protected: 
@@ -113,6 +121,99 @@ public:
   bool Save(const char* a_fileName);
   /// Save tree contents to stream
   bool Save(RTFileStream& a_stream);
+
+  //===--------------------------------------------------------------------===//
+  // MODIFICATION 
+  //===--------------------------------------------------------------------===//
+  std::vector<unsigned int> GetNodeCount(){
+
+    //===--------------------------------------------------------------------===//
+    // Count nodes
+    //===--------------------------------------------------------------------===//
+    std::queue<Node*> bfs_queue;
+    std::vector<unsigned int> level_node_count;
+
+    // push the root node
+    bfs_queue.emplace(m_root);
+
+    // if the queue is not empty,
+    while(!bfs_queue.empty()) {
+      // pop the first element 
+      Node* node = bfs_queue.front();
+      bfs_queue.pop();
+
+      auto level = (m_root->m_level)-(node->m_level);
+      if( level_node_count.size() <= level ) {
+        level_node_count.emplace_back(1);
+      } else {
+        level_node_count[level]++;
+      }
+
+      if( node->IsInternalNode()){
+        for(int child_itr=0; child_itr<node->m_count; child_itr++){
+          struct Node* child_node = node->m_branch[child_itr].m_child;
+          bfs_queue.emplace(child_node);
+        }
+      }
+    }
+    return level_node_count;
+  }
+
+  void Transpose(node::Node* node_ptr){
+
+    //===--------------------------------------------------------------------===//
+    // Now, transpose the tree
+    //===--------------------------------------------------------------------===//
+    // push the root node
+    std::queue<Node*> bfs_queue;
+    bfs_queue.emplace(m_root);
+    int node_count=0;
+
+    // if the queue is not empty,
+    while(!bfs_queue.empty()) {
+      // pop the first element 
+      Node* node = bfs_queue.front();
+      bfs_queue.pop();
+
+      // copy branch count
+      node_ptr[node_count].SetBranchCount(node->m_count);
+      // reserver level
+      node_ptr[node_count].SetLevel((m_root->m_level)-(node->m_level));
+
+      if( node->IsInternalNode()){
+        // set node type
+        node_ptr[node_count].SetNodeType(NODE_TYPE_INTERNAL);
+
+        for(int child_itr=0; child_itr<node->m_count; child_itr++){
+          struct Node* child_node = node->m_branch[child_itr].m_child;
+          bfs_queue.emplace(child_node);
+
+          ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+          node_ptr[node_count].SetBranchChildOffset(child_itr, child_offset);
+          node_ptr[node_count].SetBranchIndex(child_itr, 0);
+          
+          for(int d=0; d<GetNumberOfDims(); d++){
+            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
+            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+          }
+        }
+      } else {
+        // set node type
+        node_ptr[node_count].SetNodeType(NODE_TYPE_LEAF);
+
+        for(int child_itr=0; child_itr<node->m_count; child_itr++){
+          node_ptr[node_count].SetBranchChildOffset(child_itr, 0);
+          node_ptr[node_count].SetBranchIndex(child_itr, 0);
+
+          for(int d=0; d<GetNumberOfDims(); d++){
+            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
+            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+          }
+        }
+      }
+      ++node_count;
+    }
+  }
 
   /// Iterator is not remove safe.
   class Iterator
@@ -1601,3 +1702,5 @@ bool RTREE_QUAL::Search(Node* a_node, Rect* a_rect, int& a_foundCount, t_resultC
 #undef RTREE_QUAL
 
 //#endif //RTREE_H
+} // End of tree namespace
+} // End of ursus namespace

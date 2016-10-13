@@ -72,8 +72,8 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     ret = Top_Down(branches); 
     assert(ret);
 
-    ret = RTree_Top_Down(branches); 
-    assert(ret);
+    //ret = RTree_Top_Down(branches); 
+    //assert(ret);
 
     //===--------------------------------------------------------------------===//
     // Build the tree in a bottop-up fashion on the GPU
@@ -475,6 +475,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
       }
     }
     LOG_INFO("Avg. Jump Count %f", total_jump_count/(float)number_of_search);
+    LOG_INFO("Total Jump Count %f", total_jump_count);
 
     // A problem with using host-device synchronization points, such as
     // cudaDeviceSynchronize(), is that they stall the GPU pipeline
@@ -500,13 +501,16 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
     LOG_INFO("Processing %uquery(ies) concurrently", number_of_cpu_threads);
     LOG_INFO("Avg. Search Time on the GPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
+    LOG_INFO("Total Search Time on the GPU (ms)%.6f", elapsed_time);
 
     //===--------------------------------------------------------------------===//
     // Show Results
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Avg. Node visit count on CPU : \n%f", total_node_visit_count_cpu/(float)number_of_search);
+    LOG_INFO("Total Node visit count on CPU : %u\n", total_node_visit_count_cpu);
     LOG_INFO("Avg. Node visit count on GPU : \n%f\n\n", total_node_visit_count_gpu/(float)number_of_search);
+    LOG_INFO("Total Node visit count on GPU : %d\n\n", total_node_visit_count_gpu);
   }
   return 1;
 }
@@ -646,155 +650,6 @@ LOG_INFO("total dist %u", total_dist);
      */
 }
 
-/*
-void Hybrid::Thread_OracleV(ui* unit_cnt, int weight){
-    if(unit_cnt[0]) {
-      unit_cnt[0]--;
-      if( !unit_cnt[0]){
-        unit_cnt[4] = 625*weight;
-        SetChunkSize(1024);
-      }
-    } else if(unit_cnt[4]) {
-      unit_cnt[4]--;
-      if( !unit_cnt[4]){
-        unit_cnt[0] = 25000*weight;
-        SetChunkSize(256);
-      }
-    }
-}
-
-
-//for worst case
-void Hybrid::Thread_OracleV2(ui* unit_cnt, int weight){
-    if(unit_cnt[0]) {
-      unit_cnt[0]--;
-      if( !unit_cnt[0]){
-        unit_cnt[4] = 1000*weight;
-        SetChunkSize(128);
-      }
-    } else if(unit_cnt[4]) {
-      unit_cnt[4]--;
-      if( !unit_cnt[4]){
-        unit_cnt[0] = 25000*weight;
-        SetChunkSize(1024);
-      }
-    }
-}
-
-void Hybrid::Thread_OracleS(ui* unit_cnt, bool& up, int weight){
-    if(unit_cnt[0]) {
-      unit_cnt[0]-=1000;
-      if( !unit_cnt[0]){
-        unit_cnt[1] = 10000*weight;
-        SetChunkSize(256);
-        up = false; // down
-      }
-    } else if(unit_cnt[1]) {
-      unit_cnt[1]-=1000;
-
-      if( !unit_cnt[1]){
-        if(up) {
-          unit_cnt[0] = 25000*weight;
-          SetChunkSize(256);
-        } else {
-          unit_cnt[2] = 5000*weight;
-          SetChunkSize(512);
-        }
-      }
-    } else if(unit_cnt[2]) {
-      unit_cnt[2]-=1000;
-
-      if( !unit_cnt[2]){
-        if(up) {
-          unit_cnt[1] = 10000*weight;
-          SetChunkSize(256);
-        } else {
-          unit_cnt[3] = 2500*weight;
-          SetChunkSize(1024);
-        }
-      }
-    } else if(unit_cnt[3]) {
-      unit_cnt[3]-=1000;
-
-      if( !unit_cnt[3]){
-        if(up) {
-          unit_cnt[2] = 5000*weight;
-          SetChunkSize(512);
-        } else {
-          unit_cnt[4] = 1000*weight;
-          SetChunkSize(1024);
-        }
-      }
-    } else if(unit_cnt[4]) {
-      unit_cnt[4]-=1000;
-      if( !unit_cnt[4]){
-        unit_cnt[3] = 2500*weight;
-        SetChunkSize(1024);
-        up = true;
-      }
-    }
-}
-
-
-
-// for worst case
-void Hybrid::Thread_OracleS2(ui* unit_cnt, bool& up, int weight){
-    if(unit_cnt[0]) {
-      unit_cnt[0]--;
-      if( !unit_cnt[0]){
-        unit_cnt[1] = 10000*weight;
-        SetChunkSize(128);
-        up = false; // down
-      }
-    } else if(unit_cnt[1]) {
-      unit_cnt[1]--;
-
-      if( !unit_cnt[1]){
-        if(up) {
-          unit_cnt[0] = 25000*weight;
-          SetChunkSize(1024);
-        } else {
-          unit_cnt[2] = 5000*weight;
-          SetChunkSize(128);
-        }
-      }
-    } else if(unit_cnt[2]) {
-      unit_cnt[2]--;
-
-      if( !unit_cnt[2]){
-        if(up) {
-          unit_cnt[1] = 10000*weight;
-          SetChunkSize(128);
-        } else {
-          unit_cnt[3] = 2500*weight;
-          SetChunkSize(128);
-        }
-      }
-    } else if(unit_cnt[3]) {
-      unit_cnt[3]--;
-
-      if( !unit_cnt[3]){
-        if(up) {
-          unit_cnt[2] = 5000*weight;
-          SetChunkSize(128);
-        } else {
-          unit_cnt[4] = 1000*weight;
-          SetChunkSize(128);
-        }
-      }
-    } else if(unit_cnt[4]) {
-      unit_cnt[4]--;
-      if( !unit_cnt[4]){
-        unit_cnt[3] = 2500*weight;
-        SetChunkSize(128);
-        up = true;
-      }
-    }
-}
-*/
-
-
-
 void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                            ui number_of_blocks_per_cpu, ui& jump_count, 
                            ui& node_visit_count, 
@@ -810,7 +665,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   ui query_offset = start_offset*GetNumberOfDims()*2;
 
   ll start_node_index;
-  ll start_node_offset;
+  ll start_node_offset=0;
   ui chunk_size_bak = 0;
   bool chunk_size_dirty = false;
 
@@ -822,6 +677,22 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   for(ui range(query_itr, start_offset, end_offset)) {
     ll visited_leafIndex = 0;
     ll prev_start_node_offset=0;
+
+//    if(query_itr==632){
+/*
+      for(ui range(dim, 0, GetNumberOfDims())) {
+        printf("query[%u] %.6f\n", dim, query[query_offset+dim]);
+      }
+      for(ui range(dim, 0, GetNumberOfDims())) {
+        printf("query[%u] %.6f\n", dim+GetNumberOfDims(), query[query_offset+GetNumberOfDims()+dim]);
+      }
+      */
+//    }
+   // else{
+   //   continue;
+    //}
+
+
 
     while(1) {
       //===--------------------------------------------------------------------===//
@@ -840,6 +711,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       }
 
       start_node_offset = (start_node_index-1)/GetNumberOfDegrees(); 
+//      printf("start node offset %lu\n", start_node_offset);
       if(scan_level == 2)  {
         start_node_offset /= GetNumberOfDegrees(); 
       }
@@ -969,6 +841,7 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
       }
     }
   }
+//  printf("start node index %lu\n", start_node_index);
   return start_node_index;
 }
 

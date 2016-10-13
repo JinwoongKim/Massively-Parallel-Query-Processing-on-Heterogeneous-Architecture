@@ -30,7 +30,7 @@ bool BVH::Build(std::shared_ptr<io::DataSet> input_data_set){
   // Load an index from file it exists
   // otherwise, build an index and dump it to file
   auto index_name = GetIndexName(input_data_set);
-  if(!DumpFromFile(index_name))  {
+  if(input_data_set->IsRebuild() || !DumpFromFile(index_name))  {
     //===--------------------------------------------------------------------===//
     // Create branches
     //===--------------------------------------------------------------------===//
@@ -52,6 +52,7 @@ bool BVH::Build(std::shared_ptr<io::DataSet> input_data_set){
     // Build the internal nodes in a top-down fashion 
     //===--------------------------------------------------------------------===//
     ret = Top_Down(branches); 
+    //ret = Top_Down(branches); 
     assert(ret);
 
     // Dump an index to the file
@@ -226,7 +227,9 @@ int BVH::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Avg. Search Time on the CPU (ms)\n%.6f", elapsed_time/(float)number_of_search);
+    LOG_INFO("Total Search Time on the CPU (ms)%.6f", elapsed_time);
     LOG_INFO("Avg. Node visit count : %f", total_node_visit_count/(float)number_of_search);
+    LOG_INFO("Total Node visit count : %u", total_node_visit_count);
     LOG_INFO("\n");
   }
   return 1;
