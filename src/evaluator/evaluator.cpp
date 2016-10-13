@@ -123,6 +123,7 @@ bool Evaluator::Build(void) {
       case TREE_TYPE_HYBRID:  {
         // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
         std::shared_ptr<tree::Hybrid> hybrid = std::dynamic_pointer_cast<tree::Hybrid>(tree);
+        hybrid->SetUpperTreeType(UPPER_TREE_TYPE);
         hybrid->SetScanLevel(scan_level);
         hybrid->SetChunkSize(chunk_size);
         hybrid->SetNumberOfCUDABlocks(number_of_cuda_blocks);
@@ -389,8 +390,16 @@ void Evaluator::AddTrees(std::string _index_type) {
   // Make it lower case
   auto index_type = ToLowerCase(_index_type);
 
-  if( index_type == "hybrid" ||
-      index_type == "h") {
+  if( index_type == "hybrid" || index_type == "h" || 
+      index_type == "hr" || index_type == "hb") {
+
+    if( index_type == "hb"){
+      UPPER_TREE_TYPE = TREE_TYPE_BVH;
+    }
+    if( index_type == "hr"){
+      UPPER_TREE_TYPE = TREE_TYPE_RTREE;
+    }
+
     std::shared_ptr<tree::Tree> tree (new tree::Hybrid());
     trees.push_back(tree);
   } else if ( index_type == "mphr" ||

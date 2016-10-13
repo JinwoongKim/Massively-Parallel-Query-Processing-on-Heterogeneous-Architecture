@@ -70,11 +70,19 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     // Build the internal nodes in a top-down fashion 
     //===--------------------------------------------------------------------===//
     if(!upper_tree_exists){
-      LOG_INFO("LBVH !!! FIXME dynamically select upper tree!!");
-      ret = RTree_Top_Down(branches); 
-      //ret = Top_Down(branches); 
-      assert(ret);
+      switch(UPPER_TREE_TYPE){
+        case TREE_TYPE_BVH:
+          ret = Top_Down(branches); 
+          break;
+        case TREE_TYPE_RTREE:
+          ret = RTree_Top_Down(branches); 
+          break;
+        default:
+          LOG_INFO("Something's wrong!");
+          break;
+      }
     }
+    assert(ret);
 
 
     //===--------------------------------------------------------------------===//
@@ -213,8 +221,19 @@ bool Hybrid::DumpFromFile(std::string index_name) {
   std::string upper_tree_name = index_name;
   std::string flat_array_name = index_name;
   auto pos = upper_tree_name.find("HYBRID");
-  upper_tree_name.replace(pos, 6, "RTREE"); // FIXME it can be BVH
-  LOG_INFO("FIXME HERE!!");
+
+  switch(UPPER_TREE_TYPE){
+    case TREE_TYPE_BVH:
+      upper_tree_name.replace(pos, 6, "BVH");
+      break;
+    case TREE_TYPE_RTREE:
+      upper_tree_name.replace(pos, 6, "RTREE"); 
+      break;
+    default:
+      LOG_INFO("Something's wrong!");
+      break;
+  }
+
 
   FILE* upper_tree_index_file;
   FILE* flat_array_index_file;
@@ -297,8 +316,18 @@ bool Hybrid::DumpToFile(std::string index_name) {
   std::string upper_tree_name = index_name;
   std::string flat_array_name = index_name;
   auto pos = upper_tree_name.find("HYBRID");
-  upper_tree_name.replace(pos, 6, "RTREE"); // FIXME it can be BVH
-  LOG_INFO("FIXME HERE!!");
+
+  switch(UPPER_TREE_TYPE){
+    case TREE_TYPE_BVH:
+      upper_tree_name.replace(pos, 6, "BVH");
+      break;
+    case TREE_TYPE_RTREE:
+      upper_tree_name.replace(pos, 6, "RTREE"); 
+      break;
+    default:
+      LOG_INFO("Something's wrong!");
+      break;
+  }
 
   // NOTE :: Use fwrite as it is fast
 
@@ -846,6 +875,11 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
 
 ui Hybrid::GetChunkSize() const{
   return chunk_size;
+}
+
+void Hybrid::SetUpperTreeType(TreeType _UPPER_TREE_TYPE){
+  UPPER_TREE_TYPE = _UPPER_TREE_TYPE;
+  assert(UPPER_TREE_TYPE);
 }
 
 void Hybrid::SetChunkSize(ui _chunk_size){

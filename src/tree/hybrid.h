@@ -60,6 +60,8 @@ class Hybrid : public Tree {
   // 1 : leaf nodes, 2 : extend and leaf nodes
   void SetScanLevel(ui scan_level);
 
+  void SetUpperTreeType(TreeType UPPER_TREE_TYPE);
+
   void SetNumberOfCPUThreads(ui number_of_cpu_threads);
 
   void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
@@ -107,6 +109,8 @@ class Hybrid : public Tree {
   std::vector<std::queue<ll>> thread_start_node_index;
 
   std::mutex chunk_updated_mutex;
+
+  TreeType UPPER_TREE_TYPE;
 };
 
 //===--------------------------------------------------------------------===//

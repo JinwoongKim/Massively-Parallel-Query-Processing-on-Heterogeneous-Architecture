@@ -109,6 +109,8 @@ class Evaluator{
 
   std::string s_force_rebuild= "no";
 
+  TreeType UPPER_TREE_TYPE=TREE_TYPE_RTREE;
+
   // To control chunk_size in Hybrid indexing 
   ui chunk_size = GetNumberOfDegrees();
 
