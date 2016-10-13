@@ -22,9 +22,9 @@ class Tree {
    */
   virtual bool Build(std::shared_ptr<io::DataSet> input_data_set) =0;
 
-  virtual bool DumpFromFile(std::string index_name) =0;
+  virtual bool DumpFromFile(std::string index_name);
 
-  virtual bool DumpToFile(std::string index_name) =0;
+  virtual bool DumpToFile(std::string index_name);
 
   /**
    * Build the internal nodes
@@ -53,6 +53,8 @@ class Tree {
   std::string GetIndexName(std::shared_ptr<io::DataSet> input_data_set);
 
   FILE* OpenIndexFile(std::string index_name);
+
+  bool IsExist (const std::string& name);
 
  //===--------------------------------------------------------------------===//
  // Utility Function

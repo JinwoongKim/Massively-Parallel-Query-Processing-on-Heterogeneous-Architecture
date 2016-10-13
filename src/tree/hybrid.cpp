@@ -69,26 +69,30 @@ bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
     //===--------------------------------------------------------------------===//
     // Build the internal nodes in a top-down fashion 
     //===--------------------------------------------------------------------===//
-    ret = Top_Down(branches); 
-    assert(ret);
+    if(!upper_tree_exists){
+      LOG_INFO("LBVH !!! FIXME dynamically select upper tree!!");
+      ret = RTree_Top_Down(branches); 
+      //ret = Top_Down(branches); 
+      assert(ret);
+    }
 
-    //ret = RTree_Top_Down(branches); 
-    //assert(ret);
 
     //===--------------------------------------------------------------------===//
     // Build the tree in a bottop-up fashion on the GPU
     //===--------------------------------------------------------------------===//
-    level_node_count = GetLevelNodeCount(branches);
-    ret = Bottom_Up(branches/*, tree_type*/);
-    assert(ret);
+    if(!flat_array_exists){
+      level_node_count = GetLevelNodeCount(branches);
+      ret = Bottom_Up(branches/*, tree_type*/);
+      assert(ret);
 
-    //===--------------------------------------------------------------------===//
-    // Transform nodes into SOA fashion 
-    //===--------------------------------------------------------------------===//
-    node_soa_ptr = transformer::Transformer::Transform(b_node_ptr, GetNumberOfNodeSOA());
-    assert(node_soa_ptr);
+      //===--------------------------------------------------------------------===//
+      // Transform nodes into SOA fashion 
+      //===--------------------------------------------------------------------===//
+      node_soa_ptr = transformer::Transformer::Transform(b_node_ptr, GetNumberOfNodeSOA());
+      assert(node_soa_ptr);
 
-    delete b_node_ptr;
+      delete b_node_ptr;
+    }
 
     // Dump an index to the file
     DumpToFile(index_name);
@@ -202,76 +206,129 @@ bool Hybrid::BuildExtendLeafNodeOnCPU() {
 }
 
 bool Hybrid::DumpFromFile(std::string index_name) {
-
-  FILE* index_file = OpenIndexFile(index_name);
-  if(index_file == nullptr) {
-    return false;
-  }
-
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
+
+  // naming
+  std::string upper_tree_name = index_name;
+  std::string flat_array_name = index_name;
+  auto pos = upper_tree_name.find("HYBRID");
+  upper_tree_name.replace(pos, 6, "RTREE"); // FIXME it can be BVH
+  LOG_INFO("FIXME HERE!!");
+
+  FILE* upper_tree_index_file;
+  FILE* flat_array_index_file;
+
+  // check file exists
+  if(IsExist(upper_tree_name)){
+    upper_tree_exists = true;
+    upper_tree_index_file = OpenIndexFile(upper_tree_name);
+  }
+  if(IsExist(flat_array_name)){
+    flat_array_exists = true;
+    flat_array_index_file = OpenIndexFile(index_name);
+  }
+
 
   //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
   // read host node count
-  fread(&host_node_count, sizeof(ui), 1, index_file);
+  if(upper_tree_exists){
+    fread(&host_node_count, sizeof(ui), 1, upper_tree_index_file);
+  }
 
   // read device count for GPU
-  fread(&device_node_count, sizeof(ui), 1, index_file);
+  if(flat_array_exists){
+    fread(&device_node_count, sizeof(ui), 1, flat_array_index_file);
 
-  ui height;
-  fread(&height, sizeof(ui), 1, index_file);
-  level_node_count.resize(height);
+    ui height;
+    fread(&height, sizeof(ui), 1, flat_array_index_file);
+    level_node_count.resize(height);
 
-  for(ui range(i, 0, height)){
-    fread(&level_node_count[i], sizeof(ui), 1, index_file);
+    for(ui range(i, 0, height)){
+      fread(&level_node_count[i], sizeof(ui), 1, flat_array_index_file);
+    }
   }
 
   //===--------------------------------------------------------------------===//
   // Nodes for CPU
   //===--------------------------------------------------------------------===//
-  node_ptr = new node::Node[host_node_count];
-  fread(node_ptr, sizeof(node::Node), host_node_count, index_file);
+  if(upper_tree_exists){
+    node_ptr = new node::Node[host_node_count];
+    fread(node_ptr, sizeof(node::Node), host_node_count, upper_tree_index_file);
+  }
 
   //===--------------------------------------------------------------------===//
   // Nodes for GPU
   //===--------------------------------------------------------------------===//
-  node_soa_ptr = new node::Node_SOA[device_node_count];
-  fread(node_soa_ptr, sizeof(node::Node_SOA), device_node_count, index_file);
+  if(flat_array_exists){
+    node_soa_ptr = new node::Node_SOA[device_node_count];
+    fread(node_soa_ptr, sizeof(node::Node_SOA), device_node_count, flat_array_index_file);
+  }
 
-  fclose(index_file);
+  if(upper_tree_index_file) {
+    LOG_INFO("DumpFromFile %s", upper_tree_name.c_str());
+    fclose(upper_tree_index_file);
+  }
+  if(flat_array_index_file) {
+    LOG_INFO("DumpFromFile %s", flat_array_name.c_str());
+    fclose(flat_array_index_file);
+  }
 
   auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
 
-  return true;
+   LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
+
+  // return true all of them exist
+  if(upper_tree_exists && flat_array_exists){
+    return true;
+  }
+  // otherwise, dump an index to file what we create now
+
+  return false;
 }
 
 bool Hybrid::DumpToFile(std::string index_name) {
   auto& recorder = evaluator::Recorder::GetInstance();
-  LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
-
   recorder.TimeRecordStart();
-  // NOTE :: Use fwrite since it is fast
-  FILE* index_file;
-  index_file = fopen(index_name.c_str(),"wb");
+
+  // naming
+  std::string upper_tree_name = index_name;
+  std::string flat_array_name = index_name;
+  auto pos = upper_tree_name.find("HYBRID");
+  upper_tree_name.replace(pos, 6, "RTREE"); // FIXME it can be BVH
+  LOG_INFO("FIXME HERE!!");
+
+  // NOTE :: Use fwrite as it is fast
+
+  FILE* upper_tree_index_file;
+  FILE* flat_array_index_file;
+  if(!upper_tree_exists){
+    upper_tree_index_file = fopen(upper_tree_name.c_str(),"wb");
+  }
+  if(!flat_array_exists){
+    flat_array_index_file = fopen(flat_array_name.c_str(),"wb");
+  }
 
   //===--------------------------------------------------------------------===//
   // Node counts
   //===--------------------------------------------------------------------===//
   // write node count for CPU
-  fwrite(&host_node_count, sizeof(ui), 1, index_file);
+  if(!upper_tree_exists){
+    fwrite(&host_node_count, sizeof(ui), 1, upper_tree_index_file);
+  }
 
   // write node count for GPU
-  fwrite(&device_node_count, sizeof(ui), 1, index_file);
+  if(!flat_array_exists){
+    fwrite(&device_node_count, sizeof(ui), 1, flat_array_index_file);
 
-  ui height = level_node_count.size();
-  fwrite(&height, sizeof(ui), 1, index_file);
+    ui height = level_node_count.size();
+    fwrite(&height, sizeof(ui), 1, flat_array_index_file);
 
-  //for(ui range(i, 0, height)){
-  for(auto node_count : level_node_count){
-    fwrite(&node_count, sizeof(ui), 1, index_file);
+    for(auto node_count : level_node_count){
+      fwrite(&node_count, sizeof(ui), 1, flat_array_index_file);
+    }
   }
 
   //===--------------------------------------------------------------------===//
@@ -281,53 +338,66 @@ bool Hybrid::DumpToFile(std::string index_name) {
   // Unlike dump function in MPHR class, we use the queue structure to dump the
   // tree onto an index file since the nodes are allocated here and there in a
   // Top-Down fashion
-  std::queue<node::Node*> bfs_queue;
-  std::vector<ll> original_child_offset; // for backup
+  if(!upper_tree_exists){
+    std::queue<node::Node*> bfs_queue;
+    std::vector<ll> original_child_offset; // for backup
 
-  // push the root node
-  bfs_queue.emplace(node_ptr);
+    // push the root node
+    bfs_queue.emplace(node_ptr);
 
-  // if the queue is not empty,
-  while(!bfs_queue.empty()) {
-    // pop the first element 
-    node::Node* node = bfs_queue.front();
-    bfs_queue.pop();
+    // if the queue is not empty,
+    while(!bfs_queue.empty()) {
+      // pop the first element 
+      node::Node* node = bfs_queue.front();
+      bfs_queue.pop();
 
-    // NOTE : Backup the child offsets in order to recover node's child offset later
-    // I believe accessing memory is faster than accesing disk,
-    // I don't use another fwrite for this job.
-    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
-      for(ui range(child_itr, 0, node->GetBranchCount())) {
-        node::Node* child_node = node->GetBranchChildNode(child_itr);
-        bfs_queue.emplace(child_node);
+      // NOTE : Backup the child offsets in order to recover node's child offset later
+      // I believe accessing memory is faster than accesing disk,
+      // I don't use another fwrite for this job.
+      if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
+        for(ui range(child_itr, 0, node->GetBranchCount())) {
+          node::Node* child_node = node->GetBranchChildNode(child_itr);
+          bfs_queue.emplace(child_node);
 
-        // backup current child offset
-        original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
+          // backup current child offset
+          original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
 
-        // reassign child offset
-        ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
-        node->SetBranchChildOffset(child_itr, child_offset);
+          // reassign child offset
+          ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+          node->SetBranchChildOffset(child_itr, child_offset);
+        }
       }
-    }
 
-    // write an internal node on disk
-    fwrite(node, sizeof(node::Node), 1, index_file);
+      // write an internal node on disk
+      fwrite(node, sizeof(node::Node), 1, upper_tree_index_file);
 
-    // Recover child offset
-    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
-      for(ui range(child_itr, 0, node->GetBranchCount())) {
-        // reassign child offset
-        node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
+      // Recover child offset
+      if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
+        for(ui range(child_itr, 0, node->GetBranchCount())) {
+          // reassign child offset
+          node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
+        }
       }
+      original_child_offset.clear();
     }
-    original_child_offset.clear();
   }
 
   //===--------------------------------------------------------------------===//
   // Extend & leaf nodes
   //===--------------------------------------------------------------------===//
-  fwrite(node_soa_ptr, sizeof(node::Node_SOA), GetNumberOfNodeSOA(), index_file);
-  fclose(index_file);
+  if(!flat_array_exists){
+    fwrite(node_soa_ptr, sizeof(node::Node_SOA), GetNumberOfNodeSOA(), flat_array_index_file);
+  }
+
+
+  if(upper_tree_index_file){
+    LOG_INFO("DumpToFile %s", upper_tree_name.c_str());
+    fclose(upper_tree_index_file);
+  }
+  if(flat_array_index_file){
+    LOG_INFO("DumpToFile %s", flat_array_name.c_str());
+    fclose(flat_array_index_file);
+  }
 
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);

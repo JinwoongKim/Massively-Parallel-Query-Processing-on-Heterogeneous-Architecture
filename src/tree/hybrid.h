@@ -94,6 +94,10 @@ class Hybrid : public Tree {
 
   bool search_finish=false;
 
+  bool upper_tree_exists=false;
+
+  bool flat_array_exists=false;
+
   const ui scan_level=1;
   // basically, use single cpu thread
   const ui number_of_cpu_threads=1;
