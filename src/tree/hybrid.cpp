@@ -611,9 +611,9 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     LOG_INFO("Hit : %u", total_hit);
     LOG_INFO("Avg. Node visit count on CPU : \n%f", total_node_visit_count_cpu/(float)number_of_search);
-    LOG_INFO("Total Node visit count on CPU : %u\n", total_node_visit_count_cpu);
-    LOG_INFO("Avg. Node visit count on GPU : \n%f\n\n", total_node_visit_count_gpu/(float)number_of_search);
-    LOG_INFO("Total Node visit count on GPU : %d\n\n", total_node_visit_count_gpu);
+    LOG_INFO("Total Node visit count on CPU : %u", total_node_visit_count_cpu);
+    LOG_INFO("Avg. Node visit count on GPU : \n%f", total_node_visit_count_gpu/(float)number_of_search);
+    LOG_INFO("Total Node visit count on GPU : %d\n", total_node_visit_count_gpu);
   }
   return 1;
 }
