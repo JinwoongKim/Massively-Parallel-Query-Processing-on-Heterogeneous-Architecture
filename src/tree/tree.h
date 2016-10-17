@@ -3,6 +3,7 @@
 #include "common/types.h"
 #include "io/dataset.h"
 #include "node/node.h"
+#include "node/leaf_node.h"
 #include "node/node_soa.h"
 
 #include <memory>
@@ -27,11 +28,16 @@ class Tree {
   virtual bool DumpToFile(std::string index_name);
 
   /**
-   * Build the internal nodes
+   * Tree Build 
    */
-  bool Top_Down(std::vector<node::Branch> &branches);
+  // These guys should return node pointer...
+  bool Top_Down(std::vector<node::Branch> &branches, TreeType tree_type);
+
+  bool BVH_Top_Down(std::vector<node::Branch> &branches);
 
   bool RTree_Top_Down(std::vector<node::Branch> &branches);
+
+  bool RTree_LS_Top_Down(std::vector<node::Branch> &branches);
 
   bool Bottom_Up(std::vector<node::Branch> &branches);
 
@@ -89,8 +95,8 @@ class Tree {
 
   ui GetNumberOfBlocks(void) const;
 
-  void Thread_CopyBranchToNode(std::vector<node::Branch> &branches, 
-                               node::Node* node_ptr, NodeType node_type,
+  void Thread_CopyBranchToLeafNode(std::vector<node::Branch> &branches, 
+                               node::LeafNode* node_ptr, NodeType node_type,
                                int level, ui node_offset, 
                                ui start_offset, ui end_offset);
 
@@ -98,9 +104,9 @@ class Tree {
                                NodeType node_type,int level, ui node_offset, 
                                ui start_offset, ui end_offset);
 
-  bool CopyBranchToNode(std::vector<node::Branch> &branches,
+  bool CopyBranchToLeafNode(std::vector<node::Branch> &branches,
                         NodeType node_type, int level, ui node_offset,
-                        node::Node* node_ptr);
+                        node::LeafNode* node_ptr);
 
   bool CopyBranchToNodeSOA(std::vector<node::Branch> &branches, 
                            NodeType node_type,int level, ui node_offset);
@@ -116,10 +122,10 @@ class Tree {
     /**
    * wrapper function for Cuda 
    */
-  void BottomUpBuild_ILP(ul offset, ul parent_offset, ui number_of_node, node::Node* root);
+  void BottomUpBuild_ILP(ul offset, ul parent_offset, ui number_of_node, node::LeafNode* root);
 
   void BottomUpBuildonCPU(ul current_offset, ul parent_offset, ui number_of_node, 
-                         node::Node* root, ui tid, ui number_of_threads);
+                         node::LeafNode* root, ui tid, ui number_of_threads);
 
  //===--------------------------------------------------------------------===//
  // Members
@@ -131,7 +137,7 @@ class Tree {
   node::Node* node_ptr = nullptr;
 
   // TODO tmp node ptr for bottom up construnction
-  node::Node* b_node_ptr = nullptr;
+  node::LeafNode* b_node_ptr = nullptr;
 
   node::Node_SOA* node_soa_ptr = nullptr;
 
@@ -149,7 +155,7 @@ class Tree {
 //===--------------------------------------------------------------------===//
 __global__ 
 void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
-                              ui number_of_node, node::Node* root,
+                              ui number_of_node, node::LeafNode* root,
                               ui number_of_cuda_blocks);
 } // End of tree namespace
 } // End of ursus namespace

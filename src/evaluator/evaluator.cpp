@@ -6,6 +6,7 @@
 #include "tree/hybrid.h"
 #include "tree/bvh.h"
 #include "tree/rtree.h"
+#include "tree/rtree_ls.h"
 
 #include <cassert>
 #include <unistd.h>
@@ -130,6 +131,17 @@ bool Evaluator::Build(void) {
         hybrid->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
         } break;
+      case TREE_TYPE_RTREE_LS:  {
+        // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
+        std::shared_ptr<tree::RTree_LS> rtree_ls = std::dynamic_pointer_cast<tree::RTree_LS>(tree);
+        rtree_ls->SetUpperTreeType(UPPER_TREE_TYPE);
+        rtree_ls->SetScanLevel(scan_level);
+        rtree_ls->SetChunkSize(chunk_size);
+        rtree_ls->SetNumberOfCUDABlocks(number_of_cuda_blocks);
+        rtree_ls->SetNumberOfCPUThreads(number_of_cpu_threads);
+        tree->Build(input_data_set);
+        } break;
+ 
       case  TREE_TYPE_MPHR: {
         std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
         mphr->SetNumberOfCUDABlocks(number_of_cuda_blocks);
@@ -164,8 +176,8 @@ bool Evaluator::Search(void) {
   std::vector<ui> cpu_thread_vec = {1,2,4,8,16,32};
   std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256,
                                     512, 768, 1024};
-  //std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
-  std::vector<ui> cuda_block_vec = {128}; LOG_INFO("Now, we only use 128 CUDA blocks");
+  std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
+  //std::vector<ui> cuda_block_vec = {128}; LOG_INFO("Now, we only use 128 CUDA blocks");
 
   for(auto& tree : trees) {
     switch(tree->GetTreeType()) {
@@ -251,6 +263,18 @@ bool Evaluator::Search(void) {
           tree->Search(query_data_set, number_of_search, number_of_repeat);
         }
       } break;
+      case TREE_TYPE_RTREE_LS: {
+        if( EvaluationMode ) {
+          std::shared_ptr<tree::RTree_LS> rtree_ls = std::dynamic_pointer_cast<tree::RTree_LS>(tree);
+          for(auto cpu_thread_itr : cpu_thread_vec) {
+            rtree_ls->SetNumberOfCPUThreads(cpu_thread_itr);
+            LOG_INFO("Evaluation Mode On CPU Thread %u", cpu_thread_itr);
+            tree->Search(query_data_set, number_of_search, number_of_repeat);
+          }
+        } else {
+          tree->Search(query_data_set, number_of_search, number_of_repeat);
+        }
+      } break;
     }
   }
 
@@ -264,7 +288,7 @@ void Evaluator::PrintHelp(char **argv) const {
   " [ -q number of queries, default : 0]\n" 
   " [ -b number of CUDA blocks, default 128]\n" 
   " [ -p number of CPU threads, default number of CPU cores]\n" 
-  " [ -c chunk size(for hybrid), default : " << GetNumberOfDegrees() << "(number of degrees)]\n"
+  " [ -c chunk size(for hybrid), default : " << GetNumberOfLeafNodeDegrees() << "(number of degrees)]\n"
   " [ -s selection ratio(%), default : 0.01 (%) ]\n"
   " [ -l scan type(1: leaf, 2: extend leaf, 3: combine), default : leaf]\n"
   " [ -i index type(should be last), default : Hybrid-tree]\n"
@@ -402,6 +426,10 @@ void Evaluator::AddTrees(std::string _index_type) {
 
     std::shared_ptr<tree::Tree> tree (new tree::Hybrid());
     trees.push_back(tree);
+  } else if( index_type == "rtree_ls" || index_type == "rls"){ 
+    UPPER_TREE_TYPE = TREE_TYPE_RTREE;
+    std::shared_ptr<tree::Tree> tree (new tree::RTree_LS());
+    trees.push_back(tree);
   } else if ( index_type == "mphr" ||
               index_type == "m") {
     std::shared_ptr<tree::Tree> tree (new tree::MPHR());
@@ -491,7 +519,7 @@ std::string Evaluator::ToLowerCase(std::string str) {
 std::ostream &operator<<(std::ostream &os, const Evaluator &evaluator) {
   os << " Evaluator : " << std::endl
      << " number of data = " << evaluator.number_of_data << std::endl
-     << " number of degrees = " << GetNumberOfDegrees() << std::endl
+     << " number of degrees for leaf node = " << GetNumberOfLeafNodeDegrees() << std::endl
      << " number of degrees for upper tree = " << GetNumberOfUpperTreeDegrees() << std::endl
      << " number of thread blocks = " << evaluator.number_of_cuda_blocks << std::endl
      << " number of threads = " << GetNumberOfThreads() << std::endl

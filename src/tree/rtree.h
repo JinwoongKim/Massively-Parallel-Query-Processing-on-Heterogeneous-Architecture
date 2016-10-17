@@ -60,7 +60,7 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 ///        array similar to MFC CArray or STL Vector for returning search query result.
 ///
 template<class DATATYPE, class ELEMTYPE, int NUMDIMS, 
-         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = GetNumberOfUpperTreeDegrees(), int TMINNODES = TMAXNODES / 2>
+         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = 128, int TMINNODES = TMAXNODES / 2>
 class RTree
 {
 protected: 
@@ -212,6 +212,66 @@ public:
         }
       }
       ++node_count;
+    }
+  }
+
+  // Transpose function for Rtree LS
+  void Transpose2(node::Node* node_ptr, node::Node* b_node_ptr){
+
+    //===--------------------------------------------------------------------===//
+    // Now, transpose the tree
+    //===--------------------------------------------------------------------===//
+    // push the root node
+    std::queue<Node*> bfs_queue;
+    bfs_queue.emplace(m_root);
+    int node_count=0;
+    int b_node_count=0;
+
+    // if the queue is not empty,
+    while(!bfs_queue.empty()) {
+      // pop the first element 
+      Node* node = bfs_queue.front();
+      bfs_queue.pop();
+
+      // copy branch count
+      node_ptr[node_count].SetBranchCount(node->m_count);
+      // reserver level
+      node_ptr[node_count].SetLevel((m_root->m_level)-(node->m_level));
+
+      if( node->IsInternalNode()){
+        // set node type
+        node_ptr[node_count].SetNodeType(NODE_TYPE_INTERNAL);
+
+        for(int child_itr=0; child_itr<node->m_count; child_itr++){
+          struct Node* child_node = node->m_branch[child_itr].m_child;
+          bfs_queue.emplace(child_node);
+
+          ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+          node_ptr[node_count].SetBranchChildOffset(child_itr, child_offset);
+          node_ptr[node_count].SetBranchIndex(child_itr, 0);
+          
+          for(int d=0; d<GetNumberOfDims(); d++){
+            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
+            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+          }
+        }
+        ++node_count;
+      } else {
+        // set node type
+        b_node_ptr[b_node_count].SetNodeType(NODE_TYPE_LEAF);
+
+        for(int child_itr=0; child_itr<node->m_count; child_itr++){
+          b_node_ptr[b_node_count].SetBranchChildOffset(child_itr, 0);
+          b_node_ptr[b_node_count].SetBranchIndex(child_itr, 0);
+
+          for(int d=0; d<GetNumberOfDims(); d++){
+            b_node_ptr[b_node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
+            b_node_ptr[b_node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+          }
+        }
+        ++b_node_count;
+      }
+
     }
   }
 
@@ -1109,15 +1169,28 @@ bool RTREE_QUAL::AddBranch(const Branch* a_branch, Node* a_node, Node** a_newNod
 {
   ASSERT(a_branch);
   ASSERT(a_node);
+  bool split = true;
+  
+  
+  //RTree_LS
+  if(a_node->IsInternalNode()){
+    if(a_node->m_count < (MAXNODES)){
+      split = false;
+    }
+  }else{
+    if(a_node->m_count < MAXNODES){
+      split = false;
+    }
+  }
 
-  if(a_node->m_count < MAXNODES)  // Split won't be necessary
+  if(!split)  // Split won't be necessary
   {
     a_node->m_branch[a_node->m_count] = *a_branch;
     ++a_node->m_count;
 
     return false;
   }
-  else
+  else // split
   {
     ASSERT(a_newNode);
     
@@ -1306,7 +1379,12 @@ void RTREE_QUAL::GetBranches(Node* a_node, const Branch* a_branch, PartitionVars
   ASSERT(a_node);
   ASSERT(a_branch);
 
-  ASSERT(a_node->m_count == MAXNODES);
+  //RTree_LS
+  if(a_node->IsInternalNode()){
+    ASSERT(a_node->m_count == MAXNODES);
+  }else{
+    ASSERT(a_node->m_count == MAXNODES);
+  }
     
   // Load the branch buffer
   for(int index=0; index < MAXNODES; ++index)

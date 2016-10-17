@@ -112,7 +112,7 @@ class Evaluator{
   TreeType UPPER_TREE_TYPE=TREE_TYPE_RTREE;
 
   // To control chunk_size in Hybrid indexing 
-  ui chunk_size = GetNumberOfDegrees();
+  ui chunk_size = GetNumberOfLeafNodeDegrees();
 
   std::shared_ptr<io::DataSet> input_data_set;
 

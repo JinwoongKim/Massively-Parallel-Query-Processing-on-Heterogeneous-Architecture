@@ -53,7 +53,7 @@ bool RTree::Build(std::shared_ptr<io::DataSet> input_data_set){
     //===--------------------------------------------------------------------===//
     // Build the internal nodes in a top-down fashion 
     //===--------------------------------------------------------------------===//
-    ret = RTree_Top_Down(branches); 
+    ret = Top_Down(branches, GetTreeType()); 
     assert(ret);
 
     // Dump an index to the file

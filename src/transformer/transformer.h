@@ -1,6 +1,7 @@
 #pragma once
 
 #include "node/node.h"
+#include "node/leaf_node.h"
 #include "node/node_soa.h"
 
 namespace ursus {
@@ -22,7 +23,7 @@ class Transformer{
  //===--------------------------------------------------------------------===//
  // Transform Function
  //===--------------------------------------------------------------------===//
-  static node::Node_SOA* Transform(node::Node* node,
+  static node::Node_SOA* Transform(node::LeafNode* node,
                                    ui number_of_nodes);
 
  private:

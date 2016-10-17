@@ -40,9 +40,9 @@ class Node_SOA{
  //===--------------------------------------------------------------------===//
  private:
   // transformed branches
-  Point points[GetNumberOfDims()*2*GetNumberOfDegrees()];
-  ll index[GetNumberOfDegrees()];
-  ll child_offset[GetNumberOfDegrees()];
+  Point points[GetNumberOfDims()*2*GetNumberOfLeafNodeDegrees()];
+  ll index[GetNumberOfLeafNodeDegrees()];
+  ll child_offset[GetNumberOfLeafNodeDegrees()];
 
   // node type
   NodeType node_type = NODE_TYPE_INVALID;

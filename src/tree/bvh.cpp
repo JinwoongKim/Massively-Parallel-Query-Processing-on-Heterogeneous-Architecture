@@ -51,7 +51,7 @@ bool BVH::Build(std::shared_ptr<io::DataSet> input_data_set){
     //===--------------------------------------------------------------------===//
     // Build the internal nodes in a top-down fashion 
     //===--------------------------------------------------------------------===//
-    ret = Top_Down(branches); 
+    ret = Top_Down(branches, GetTreeType()); 
     //ret = Top_Down(branches); 
     assert(ret);
 

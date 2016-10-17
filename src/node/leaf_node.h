@@ -8,7 +8,7 @@
 namespace ursus {
 namespace node {
 
-class Node {
+class LeafNode {
  public:
  //===--------------------------------------------------------------------===//
  // Accessor
@@ -21,7 +21,7 @@ class Node {
  __both__ ll GetBranchIndex(ui branch_offset) const;
  __both__ ll GetLastBranchIndex(void) const;
  __both__ ll GetBranchChildOffset(ui branch_offset) const;
- __both__ Node* GetBranchChildNode(ui branch_offset) const;
+ __both__ LeafNode* GetBranchChildLeafNode(ui branch_offset) const;
  __both__ NodeType GetNodeType(void) const;
  __both__ int GetLevel(void) const;
 
@@ -37,13 +37,13 @@ class Node {
  bool IsOverlap(ui branch_offset, ui branch_offset2);
 
   // Get a string representation for debugging
-  friend std::ostream &operator<<(std::ostream &os, const Node &node);
+  friend std::ostream &operator<<(std::ostream &os, const LeafNode &node);
  //===--------------------------------------------------------------------===//
  // Members
  //===--------------------------------------------------------------------===//
  private:
   // branches
-  Branch branches[GetNumberOfUpperTreeDegrees()];
+  Branch branches[GetNumberOfLeafNodeDegrees()];
 
   // # of branch
   ui branch_count=0;

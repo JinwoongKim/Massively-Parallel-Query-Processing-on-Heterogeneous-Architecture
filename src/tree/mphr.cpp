@@ -307,7 +307,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
-  __shared__ ui childOverlap[GetNumberOfDegrees()];
+  __shared__ ui childOverlap[GetNumberOfLeafNodeDegrees()];
   __shared__ ui t_hit[GetNumberOfThreads()]; 
   __shared__ bool isHit;
 
@@ -347,17 +347,17 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
           (node_soa_ptr->IsOverlap(query, tid))) {
         childOverlap[tid] = tid;
       } else {
-        childOverlap[tid] = GetNumberOfDegrees()+1;
+        childOverlap[tid] = GetNumberOfLeafNodeDegrees()+1;
       }
       __syncthreads();
 
 
       // check if I am the leftmost
       // Gather the Overlap idex and compare
-      FindMinOnGPU(childOverlap, GetNumberOfDegrees());
+      FindMinOnGPU(childOverlap, GetNumberOfLeafNodeDegrees());
 
       // none of the branches overlapped the query
-      if( childOverlap[0] == ( GetNumberOfDegrees()+1)) {
+      if( childOverlap[0] == ( GetNumberOfLeafNodeDegrees()+1)) {
 
         visited_leafIndex = node_soa_ptr->GetLastIndex();
         node_soa_ptr = root;
@@ -422,7 +422,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
 
   __syncthreads();
 
-  ParallelReduction(t_hit, GetNumberOfDegrees());
+  ParallelReduction(t_hit, GetNumberOfLeafNodeDegrees());
 
   MasterThreadOnly {
     if(N==1) {

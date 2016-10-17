@@ -10,7 +10,7 @@
 namespace ursus {
 namespace transformer {
 
-void Thread_Transform(node::Node *node, node::Node_SOA *node_soa,
+void Thread_Transform(node::LeafNode *node, node::Node_SOA *node_soa,
                       ui start_offset, ui end_offset) {
 
   for(ui range(node_offset, start_offset, end_offset)) {
@@ -26,7 +26,7 @@ void Thread_Transform(node::Node *node, node::Node_SOA *node_soa,
 
       // set points in Node_SOA
       for(ui range(dim_itr, 0, GetNumberOfDims()*2)) {
-        auto offset = dim_itr*GetNumberOfDegrees()+branch_itr;
+        auto offset = dim_itr*GetNumberOfLeafNodeDegrees()+branch_itr;
         node_soa[node_offset].SetPoint(offset, points[dim_itr]);
       }
 
@@ -44,12 +44,12 @@ void Thread_Transform(node::Node *node, node::Node_SOA *node_soa,
 }
 
 /**
- * @brief Transform the Node into Node_SOA
+ * @brief Transform the LeafNode into Node_SOA
  * @param node node pointer
  * @param number_of_nodes
  * @return Node_SOA pointer if success otherwise nullptr
  */
-node::Node_SOA* Transformer::Transform(node::Node* node,
+node::Node_SOA* Transformer::Transform(node::LeafNode* node,
                                         ui number_of_nodes) {
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();

@@ -1,4 +1,4 @@
-#include "node/node.h"
+#include "node/leaf_node.h"
 
 #include "common/macro.h"
 #include "node/branch.h"
@@ -16,16 +16,16 @@ namespace node {
  *@brief : return current node's minimum bounding rectangle
  */
 __both__  
-std::vector<Point> Node::GetMBB() const {
+std::vector<Point> LeafNode::GetMBB() const {
   std::vector<Point> mbb(GetNumberOfDims()*2);
 
   for(ui range(dim, 0, GetNumberOfDims())) {
     ui high_dim = dim+GetNumberOfDims();
 
-    float lower_boundary[GetNumberOfUpperTreeDegrees()];
-    float upper_boundary[GetNumberOfUpperTreeDegrees()];
+    float lower_boundary[GetNumberOfLeafNodeDegrees()];
+    float upper_boundary[GetNumberOfLeafNodeDegrees()];
 
-    for( ui range(thread, 0, GetNumberOfUpperTreeDegrees())) {
+    for( ui range(thread, 0, GetNumberOfLeafNodeDegrees())) {
       if( thread < branch_count){
         lower_boundary[ thread ] = branches[thread].GetPoint(dim);
         upper_boundary[ thread ] = branches[thread].GetPoint(high_dim);
@@ -37,7 +37,7 @@ std::vector<Point> Node::GetMBB() const {
 
     //threads in half get lower boundary
 
-    int N = GetNumberOfUpperTreeDegrees()/2 + GetNumberOfUpperTreeDegrees()%2;
+    int N = GetNumberOfLeafNodeDegrees()/2 + GetNumberOfLeafNodeDegrees()%2;
     while(N > 1){
       for( ui range(thread, 0, N)) {
         if(lower_boundary[thread] > lower_boundary[thread+N])
@@ -50,7 +50,7 @@ std::vector<Point> Node::GetMBB() const {
         lower_boundary[0] = lower_boundary[1];
     }
     //other half threads get upper boundary
-    N = GetNumberOfUpperTreeDegrees()/2 + GetNumberOfUpperTreeDegrees()%2;
+    N = GetNumberOfLeafNodeDegrees()/2 + GetNumberOfLeafNodeDegrees()%2;
     while(N > 1){
       for( ui range(thread, 0, N )) {
         if(upper_boundary[thread] < upper_boundary[thread+N])
@@ -70,90 +70,90 @@ std::vector<Point> Node::GetMBB() const {
 }
 
 __both__
-Branch Node::GetBranch(ui offset) const {
+Branch LeafNode::GetBranch(ui offset) const {
   assert(offset < branch_count);
   return branches[offset];
 }
 
 __both__
-ui Node::GetBranchCount(void) const {
+ui LeafNode::GetBranchCount(void) const {
   return branch_count;
 }
 
 __both__
-Point Node::GetBranchPoint(ui branch_offset, ui point_offset) const{
+Point LeafNode::GetBranchPoint(ui branch_offset, ui point_offset) const{
   return branches[branch_offset].GetPoint(point_offset);
 }
 
 __both__
-ll Node::GetBranchIndex(ui branch_offset) const{
+ll LeafNode::GetBranchIndex(ui branch_offset) const{
   return branches[branch_offset].GetIndex();
 }
 
 __both__
-ll Node::GetLastBranchIndex(void) const{
+ll LeafNode::GetLastBranchIndex(void) const{
   return branches[branch_count-1].GetIndex();
 }
 
 __both__
-ll Node::GetBranchChildOffset(ui branch_offset) const{
+ll LeafNode::GetBranchChildOffset(ui branch_offset) const{
   return branches[branch_offset].GetChildOffset();
 }
 
 __both__
-Node* Node::GetBranchChildNode(ui branch_offset) const{
-  return (Node*)((char*)this+branches[branch_offset].GetChildOffset());
+LeafNode* LeafNode::GetBranchChildLeafNode(ui branch_offset) const{
+  return (LeafNode*)((char*)this+branches[branch_offset].GetChildOffset());
 }
 
 __both__
-NodeType Node::GetNodeType(void) const {
+NodeType LeafNode::GetNodeType(void) const {
   return node_type;
 }
 
 __both__
-int Node::GetLevel(void) const {
+int LeafNode::GetLevel(void) const {
   return level;
 }
 
 __both__
-void Node::SetBranch(Branch _branch, ui offset) {
+void LeafNode::SetBranch(Branch _branch, ui offset) {
   branches[offset] = _branch;
 }
 
 __both__
-void Node::SetBranchCount(ui _branch_count) {
+void LeafNode::SetBranchCount(ui _branch_count) {
   branch_count = _branch_count;
   assert(branch_count);
 }
 
 __both__
-void Node::SetBranchPoint(ui branch_offset, Point point, 
+void LeafNode::SetBranchPoint(ui branch_offset, Point point, 
                           ui point_offset) {
   branches[branch_offset].SetPoint(point, point_offset);
 }
 
 __both__
-void Node::SetBranchIndex(ui branch_offset, ll index) {
+void LeafNode::SetBranchIndex(ui branch_offset, ll index) {
   branches[branch_offset].SetIndex(index);
 }
 
 __both__
-void Node::SetBranchChildOffset(ui branch_offset, ll child_offset) {
+void LeafNode::SetBranchChildOffset(ui branch_offset, ll child_offset) {
   branches[branch_offset].SetChildOffset(child_offset);
 }
 
 __both__
-void Node::SetNodeType(NodeType type) {
+void LeafNode::SetNodeType(NodeType type) {
   assert(type);
   node_type = type;
 }
 
 __both__
-void Node::SetLevel(int _level) {
+void LeafNode::SetLevel(int _level) {
   level = _level;
 }
 
-bool Node::IsOverlap(Point* query, ui branch_offset) {
+bool LeafNode::IsOverlap(Point* query, ui branch_offset) {
 
   for(ui range(lower_boundary, 0, GetNumberOfDims())) {
     int upper_boundary = lower_boundary+GetNumberOfDims();  
@@ -168,7 +168,7 @@ bool Node::IsOverlap(Point* query, ui branch_offset) {
 }
 
 // This is for disjoint BVH
-bool Node::IsOverlap(ui branch_offset, ui branch_offset2) {
+bool LeafNode::IsOverlap(ui branch_offset, ui branch_offset2) {
 
   for(ui range(lower_boundary, 0, GetNumberOfDims())) {
     int upper_boundary = lower_boundary+GetNumberOfDims();  
@@ -183,10 +183,10 @@ bool Node::IsOverlap(ui branch_offset, ui branch_offset2) {
 }
 
 // Get a string representation
-std::ostream &operator<<(std::ostream &os, const Node &node) {
-  os << " Node : " << std::endl;
+std::ostream &operator<<(std::ostream &os, const LeafNode &node) {
+  os << " LeafNode : " << std::endl;
   os << " NodeType = " << NodeTypeToString(node.GetNodeType()) << std::endl;
-  os << " NodeLevel = " << node.GetLevel() << std::endl;
+  os << " LeafNodeLevel = " << node.GetLevel() << std::endl;
   os << " Branch Count = " << node.GetBranchCount() << std::endl;
   for( ui range(i, 0, node.GetBranchCount())) {
     os << " Branch["<< i << "] : " << node.GetBranch(i) << std::endl;

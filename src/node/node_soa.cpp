@@ -45,34 +45,34 @@ Node_SOA* Node_SOA::GetChildNode(ui offset) const {
 }
 
 Point Node_SOA::GetPoint(ui offset) const {
-  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  assert(offset < GetNumberOfDims()*2*GetNumberOfLeafNodeDegrees());
   return points[offset];
 }
 
 Point Node_SOA::GetBranchPoint(ui branch_offset, ui dim) const {
-  auto offset = dim*GetNumberOfDegrees()+branch_offset;
-  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  auto offset = dim*GetNumberOfLeafNodeDegrees()+branch_offset;
+  assert(offset < GetNumberOfDims()*2*GetNumberOfLeafNodeDegrees());
   return points[offset];
 }
 
 void Node_SOA::SetPoint(ui offset, Point point) {
-  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  assert(offset < GetNumberOfDims()*2*GetNumberOfLeafNodeDegrees());
   points[offset] = point;
 }
 
 void Node_SOA::SetBranchPoint(ui branch_offset, Point point, ui dim) {
-  auto offset = dim*GetNumberOfDegrees() + branch_offset;
-  assert(offset < GetNumberOfDims()*2*GetNumberOfDegrees());
+  auto offset = dim*GetNumberOfLeafNodeDegrees() + branch_offset;
+  assert(offset < GetNumberOfDims()*2*GetNumberOfLeafNodeDegrees());
   points[offset] = point;
 }
 
 void Node_SOA::SetIndex(ui offset, ll _index) {
-  assert(offset < GetNumberOfDegrees());
+  assert(offset < GetNumberOfLeafNodeDegrees());
   index[offset] = _index;
 }
 
 void Node_SOA::SetChildOffset(ui offset, ll _child_offset) {
-  assert(offset < GetNumberOfDegrees());
+  assert(offset < GetNumberOfLeafNodeDegrees());
   child_offset[offset] = _child_offset;
 }
 
@@ -86,7 +86,7 @@ void Node_SOA::SetLevel(int _level) {
 }
 
 void Node_SOA::SetBranchCount(ui _branch_count) {
-  assert(_branch_count <= GetNumberOfDegrees());
+  assert(_branch_count <= GetNumberOfLeafNodeDegrees());
   branch_count = _branch_count;
   assert(branch_count);
 }
@@ -97,8 +97,8 @@ bool Node_SOA::IsOverlap(Point* query, ui child_offset) {
   for(ui range(lower_boundary, 0, GetNumberOfDims())) {
     ui upper_boundary = lower_boundary+GetNumberOfDims();
 
-    ui node_soa_lower_boundary = lower_boundary*GetNumberOfDegrees()+child_offset;
-    ui node_soa_upper_boundary = upper_boundary*GetNumberOfDegrees()+child_offset;
+    ui node_soa_lower_boundary = lower_boundary*GetNumberOfLeafNodeDegrees()+child_offset;
+    ui node_soa_upper_boundary = upper_boundary*GetNumberOfLeafNodeDegrees()+child_offset;
 
     // Either the query's lower boundary is greather than node's upper boundary
     // or query's upper boundary is less than node's lower boundary, returns
@@ -125,7 +125,7 @@ std::ostream &operator<<(std::ostream &os, const Node_SOA &node_soa) {
     os << " Branch["<< i << "] : " << std::endl;
 
     for( ui range(d, 0, 2*GetNumberOfDims())) {
-      os << " Point[" << d << "] : " << node_soa.points[(d*GetNumberOfDegrees())+i] << std::endl;
+      os << " Point[" << d << "] : " << node_soa.points[(d*GetNumberOfLeafNodeDegrees())+i] << std::endl;
     }
 
     os << " index : " << node_soa.index[i] << std::endl;

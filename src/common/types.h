@@ -48,7 +48,8 @@ enum TreeType  {
   TREE_TYPE_MPHR = 2,
   TREE_TYPE_MPHR_PARTITION = 3,
   TREE_TYPE_BVH = 4,
-  TREE_TYPE_RTREE = 5
+  TREE_TYPE_RTREE = 5,
+  TREE_TYPE_RTREE_LS = 6
 };
 
 //===--------------------------------------------------------------------===//
