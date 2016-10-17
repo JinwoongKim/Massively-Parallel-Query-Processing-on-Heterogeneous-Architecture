@@ -28,11 +28,6 @@ class RTree_LS : public Tree {
 
   bool DumpToFile(std::string index_name);
 
-  bool BuildExtendLeafNodeOnCPU();
-
-  void Thread_BuildExtendLeafNodeOnCPU(ul current_offset, ul parent_offset, 
-                                       ui number_of_node, ui tid, ui number_of_threads);
-
   ui GetNumberOfNodeSOA() const;
 
   ui GetNumberOfLeafNodeSOA() const;
@@ -56,27 +51,21 @@ class RTree_LS : public Tree {
 
   void SetChunkUpdated(bool updated);
 
-  // level to scan on the GPU
-  // 1 : leaf nodes, 2 : extend and leaf nodes
-  void SetScanLevel(ui scan_level);
-
   void SetUpperTreeType(TreeType UPPER_TREE_TYPE);
 
   void SetNumberOfCPUThreads(ui number_of_cpu_threads);
 
   void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
 
-  void RTree_LS_Search();//node::Node *node_ptr, Point* query, Point* d_query);
-                       //ui query_offset, ui bid_offset, ui number_of_blocks_per_cpu, 
-                       //ui *node_visit_count);
-
-  ll GetNextStartNodeIndex(ui tid);
+  void RTree_LS_Search(node::Node *node_ptr, Point* query, Point* d_query,
+                       ui query_offset, ui bid_offset, ui number_of_blocks_per_cpu, 
+                       ui *node_visit_count);
 
   //===--------------------------------------------------------------------===//
   // Members
   //===--------------------------------------------------------------------===//
   // const : *ONLY* 'SetChunkSize' can modify the value 
-  const ui chunk_size=128;
+  const ui chunk_size=4;
 
   bool chunk_updated=false;
 
@@ -86,12 +75,9 @@ class RTree_LS : public Tree {
 
   bool flat_array_exists=false;
 
-  const ui scan_level=1;
   // basically, use single cpu thread
   const ui number_of_cpu_threads=1;
   
-  std::vector<ui> level_node_count;
-
   std::vector<std::queue<ll>> thread_start_node_index;
 
   std::mutex chunk_updated_mutex;

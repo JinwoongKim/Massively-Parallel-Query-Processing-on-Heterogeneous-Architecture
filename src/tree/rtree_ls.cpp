@@ -40,15 +40,12 @@ bool RTree_LS::Build(std::shared_ptr<io::DataSet> input_data_set) {
     //===--------------------------------------------------------------------===//
     std::vector<node::Branch> branches = CreateBranches(input_data_set);
 
-LOG_INFO("");
     ret = RTree_LS_Top_Down(branches); 
     assert(ret);
 
     //===--------------------------------------------------------------------===//
     // Transform nodes into SOA fashion 
     //===--------------------------------------------------------------------===//
-    
-LOG_INFO("");
     node_soa_ptr = transformer::Transformer::Transform(b_node_ptr, GetNumberOfNodeSOA());
     assert(node_soa_ptr);
 
@@ -58,110 +55,17 @@ LOG_INFO("");
     DumpToFile(index_name);
   } 
 
-LOG_INFO("");
   //===--------------------------------------------------------------------===//
   // Move Trees to the GPU in advance
   //===--------------------------------------------------------------------===//
   auto& chunk_manager = manager::ChunkManager::GetInstance();
 
   ui offset = 0;
-  ui count = 0;
-
-  assert(scan_level <= level_node_count.size());
-
-  for(ui range(i, 0, level_node_count.size()-scan_level)) {
-    offset += level_node_count[i];
-  }
-  count = GetNumberOfNodeSOA()-offset;
+  ui count = GetNumberOfNodeSOA();
 
   // Get Chunk Manager and initialize it
   chunk_manager.Init(sizeof(node::Node_SOA)*count);
   chunk_manager.CopyNode(node_soa_ptr+offset, 0, count);
-
-  return true;
-}
-
-void RTree_LS::Thread_BuildExtendLeafNodeOnCPU(ul current_offset, ul parent_offset, 
-                                             ui number_of_node, ui tid, ui number_of_threads) {
-  node::Node_SOA* current_node;
-  node::Node_SOA* parent_node;
-
-  for(ui range(node_offset, tid, number_of_node, number_of_threads)) {
-    current_node = node_soa_ptr+current_offset+node_offset;
-    parent_node = node_soa_ptr+parent_offset+(ul)(node_offset/GetNumberOfLeafNodeDegrees());
-
-    parent_node->SetChildOffset(node_offset%GetNumberOfLeafNodeDegrees(), 
-                                (ll)current_node-(ll)parent_node);
-
-    parent_node->SetIndex(node_offset%GetNumberOfLeafNodeDegrees(), current_node->GetLastIndex());
-
-    parent_node->SetLevel(current_node->GetLevel()-1);
-    parent_node->SetBranchCount(GetNumberOfLeafNodeDegrees());
-
-    // Set the node type
-    if(current_node->GetNodeType() == NODE_TYPE_LEAF) {
-      parent_node->SetNodeType(NODE_TYPE_EXTENDLEAF);
-    } else {
-      parent_node->SetNodeType(NODE_TYPE_INTERNAL); 
-    }
-
-    //Find out the min, max boundaries in this node and set up the parent rect.
-    for(ui range(dim, 0, GetNumberOfDims())) {
-      ui high_dim = dim+GetNumberOfDims();
-
-      float lower_boundary[GetNumberOfLeafNodeDegrees()];
-      float upper_boundary[GetNumberOfLeafNodeDegrees()];
-
-      for( ui range(thread_itr, 0, GetNumberOfLeafNodeDegrees())) {
-        if( thread_itr < current_node->GetBranchCount()){
-          lower_boundary[ thread_itr ] = current_node->GetBranchPoint(thread_itr, dim);
-          upper_boundary[ thread_itr ] = current_node->GetBranchPoint(thread_itr, high_dim);
-        } else {
-          lower_boundary[ thread_itr ] = 1.0f;
-          upper_boundary[ thread_itr ] = 0.0f;
-        }
-      }
-
-      FindMinOnCPU(lower_boundary, GetNumberOfLeafNodeDegrees());
-      FindMaxOnCPU(upper_boundary, GetNumberOfLeafNodeDegrees());
-
-      parent_node->SetBranchPoint( (node_offset % GetNumberOfLeafNodeDegrees()), lower_boundary[0], dim);
-      parent_node->SetBranchPoint( (node_offset % GetNumberOfLeafNodeDegrees()), upper_boundary[0], high_dim);
-    }
-  }
-
-  //last node in each level
-  if(  number_of_node % GetNumberOfLeafNodeDegrees() ){
-    parent_node = node_soa_ptr + current_offset - 1;
-    if( number_of_node < GetNumberOfLeafNodeDegrees() ) {
-      parent_node->SetBranchCount(number_of_node);
-    }else{
-      parent_node->SetBranchCount(number_of_node%GetNumberOfLeafNodeDegrees());
-    }
-  }
-}
-
-bool RTree_LS::BuildExtendLeafNodeOnCPU() {
-
-  const size_t number_of_threads = std::thread::hardware_concurrency();
-
-  // parallel for loop using c++ std 11 
-  {
-    std::vector<std::thread> threads;
-    ul current_offset = GetNumberOfExtendLeafNodeSOA();
-    ul parent_offset = 0;
-
-    for (ui range(thread_itr, 0, number_of_threads)) {
-      threads.push_back(std::thread(&RTree_LS::Thread_BuildExtendLeafNodeOnCPU, 
-                        this, current_offset, parent_offset, 
-                        GetNumberOfLeafNodeSOA(), thread_itr, number_of_threads));
-    }
-    //Join the threads with the main thread
-    for(auto &thread : threads){
-      thread.join();
-    }
-    threads.clear();
-  }
 
   return true;
 }
@@ -176,11 +80,6 @@ bool RTree_LS::DumpFromFile(std::string index_name) {
   auto pos = upper_tree_name.find("RTREE_LS");
 
   switch(UPPER_TREE_TYPE){
-// Disable BVH
-//    case TREE_TYPE_BVH:{
-//      upper_tree_name.replace(pos, 6, "BVH");
-//      flat_array_name.replace(pos, 6, "HYBRIDBVH");
-//      }break;
     case TREE_TYPE_RTREE:{
       upper_tree_name.replace(pos, 6, "RTREE_LS_INT"); 
       flat_array_name.replace(pos, 6, "RTREE_LS_LEAF");
@@ -211,19 +110,13 @@ bool RTree_LS::DumpFromFile(std::string index_name) {
   // read host node count
   if(upper_tree_exists){
     fread(&host_node_count, sizeof(ui), 1, upper_tree_index_file);
+
+    fread(&host_height, sizeof(ui), 1, upper_tree_index_file);
   }
 
   // read device count for GPU
   if(flat_array_exists){
     fread(&device_node_count, sizeof(ui), 1, flat_array_index_file);
-
-    ui height;
-    fread(&height, sizeof(ui), 1, flat_array_index_file);
-    level_node_count.resize(height);
-
-    for(ui range(i, 0, height)){
-      fread(&level_node_count[i], sizeof(ui), 1, flat_array_index_file);
-    }
   }
 
   //===--------------------------------------------------------------------===//
@@ -243,6 +136,8 @@ bool RTree_LS::DumpFromFile(std::string index_name) {
   }
 
   auto elapsed_time = recorder.TimeRecordEnd();
+
+  assert(host_height);
 
   if(upper_tree_index_file) {
     LOG_INFO("DumpFromFile %s", upper_tree_name.c_str());
@@ -274,16 +169,12 @@ bool RTree_LS::DumpToFile(std::string index_name) {
   auto pos = upper_tree_name.find("RTREE_LS");
 
   switch(UPPER_TREE_TYPE){
-//    case TREE_TYPE_BVH:{
-//      upper_tree_name.replace(pos, 6, "BVH");
-//      flat_array_name.replace(pos, 6, "HYBRIDBVH");
-//      } break;
     case TREE_TYPE_RTREE:{
       upper_tree_name.replace(pos, 6, "RTREE_LS_INT"); 
       flat_array_name.replace(pos, 6, "RTREE_LS_LEAF");
       } break;
     default:
-      LOG_INFO("Something's wrong!");
+      LOG_INFO("DOES NOT SUPPORT!");
       break;
   }
 
@@ -304,18 +195,12 @@ bool RTree_LS::DumpToFile(std::string index_name) {
   // write node count for CPU
   if(!upper_tree_exists){
     fwrite(&host_node_count, sizeof(ui), 1, upper_tree_index_file);
+    fwrite(&host_height, sizeof(ui), 1, upper_tree_index_file);
   }
 
   // write node count for GPU
   if(!flat_array_exists){
     fwrite(&device_node_count, sizeof(ui), 1, flat_array_index_file);
-
-    ui height = level_node_count.size();
-    fwrite(&height, sizeof(ui), 1, flat_array_index_file);
-
-    for(auto node_count : level_node_count){
-      fwrite(&node_count, sizeof(ui), 1, flat_array_index_file);
-    }
   }
 
   //===--------------------------------------------------------------------===//
@@ -343,15 +228,17 @@ bool RTree_LS::DumpToFile(std::string index_name) {
       // I don't use another fwrite for this job.
       if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
         for(ui range(child_itr, 0, node->GetBranchCount())) {
-          node::Node* child_node = node->GetBranchChildNode(child_itr);
-          bfs_queue.emplace(child_node);
+          if(node->GetLevel() < (host_height-2)){
+            node::Node* child_node = node->GetBranchChildNode(child_itr);
+            bfs_queue.emplace(child_node);
 
-          // backup current child offset
-          original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
+            // backup current child offset
+            original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
 
-          // reassign child offset
-          ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
-          node->SetBranchChildOffset(child_itr, child_offset);
+            // reassign child offset
+            ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+            node->SetBranchChildOffset(child_itr, child_offset);
+          }
         }
       }
 
@@ -360,9 +247,11 @@ bool RTree_LS::DumpToFile(std::string index_name) {
 
       // Recover child offset
       if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
-        for(ui range(child_itr, 0, node->GetBranchCount())) {
-          // reassign child offset
-          node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
+        if(node->GetLevel() < (host_height-2)){
+          for(ui range(child_itr, 0, node->GetBranchCount())) {
+            // reassign child offset
+            node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
+          }
         }
       }
       original_child_offset.clear();
@@ -396,17 +285,6 @@ ui RTree_LS::GetNumberOfNodeSOA() const{
   return device_node_count;
 }
 
-ui RTree_LS::GetNumberOfLeafNodeSOA() const {
-  assert(level_node_count.back());
-  return level_node_count.back();
-}
-
-ui RTree_LS::GetNumberOfExtendLeafNodeSOA() const {
-  auto height = level_node_count.size();
-  assert(height>1);
-  return level_node_count[level_node_count.size()-2];;
-}
-
 int RTree_LS::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search, ui number_of_repeat){
 
@@ -422,17 +300,6 @@ int RTree_LS::Search(std::shared_ptr<io::DataSet> query_data_set,
   // Set # of threads and Chunk Size
   //===--------------------------------------------------------------------===//
   ui number_of_blocks_per_cpu = GetNumberOfBlocks()/number_of_cpu_threads;
-  // chunk size should be equal or larger than number of blocks per cpu
-  // otherwise, just wasting GPU resources.
-  // NOTE :: If scan level is 2 and chunk size is 1, we actually scan 128 leaf nodes.
-  {
-    ui _chunk_size = chunk_size;
-    for(ui range(i, 1, scan_level)){
-      _chunk_size *= GetNumberOfLeafNodeDegrees();
-    }
-    assert(_chunk_size >= number_of_blocks_per_cpu);
-  }
-
 
   for(ui range(repeat_itr, 0, number_of_repeat)) {
     LOG_INFO("#%u) Evaluation", repeat_itr+1);
@@ -461,36 +328,6 @@ int RTree_LS::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     std::vector<std::thread> threads;
     ui thread_node_visit_count_cpu[number_of_cpu_threads];
-
-    //===--------------------------------------------------------------------===//
-    // Collect Start Node Index in Advance
-    //===--------------------------------------------------------------------===//
-    // NOTE : this code is for performance breakdown
-    /*
-#define USE_QUEUE
-    // NOTE : Collect start node index in advance to measure GPU kernel launching time
-    thread_start_node_index.resize(number_of_cpu_threads);
-    // parallel for loop using c++ std 11 
-    {
-      auto chunk_size = number_of_search/number_of_cpu_threads;
-      auto start_offset = 0 ;
-      auto end_offset = start_offset + chunk_size + number_of_search%number_of_cpu_threads;
-
-      for (ui range(thread_itr, 0, number_of_cpu_threads)) {
-        threads.push_back(std::thread(&RTree_LS::Thread_CollectStartNodeIndex, this, 
-              std::ref(query), std::ref(thread_start_node_index[thread_itr]),
-              start_offset, end_offset));
-        start_offset = end_offset;
-        end_offset += chunk_size;
-      }
-
-      //Join the threads with the main thread
-      for(auto &thread : threads){
-        thread.join();
-      }
-    }
-    threads.clear();
-    */
 
     //===--------------------------------------------------------------------===//
     // Execute Search Function
@@ -564,12 +401,6 @@ int RTree_LS::Search(std::shared_ptr<io::DataSet> query_data_set,
   return 1;
 }
 
-ll RTree_LS::GetNextStartNodeIndex(ui tid) {
-  auto start_node_index =  thread_start_node_index[tid].front();
-  thread_start_node_index[tid].pop();
-  return start_node_index;
-}
-
 void RTree_LS::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                            ui number_of_blocks_per_cpu, ui& node_visit_count, 
                            ui start_offset, ui end_offset) {
@@ -578,9 +409,9 @@ void RTree_LS::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   const ui bid_offset = tid*number_of_blocks_per_cpu;
 
   for(ui range(query_itr, start_offset, end_offset)) {
-      RTree_LS_Search(); //node_ptr, &query[query_offset], d_query); 
-//                      query_offset, bid_offset, number_of_blocks_per_cpu, 
-//                      &node_visit_count);
+      RTree_LS_Search(node_ptr, &query[query_offset], d_query, // FIXME do not pass the query offset...
+                      query_offset, bid_offset, number_of_blocks_per_cpu, 
+                      &node_visit_count);
       query_offset += GetNumberOfDims()*2;
   }
 }
@@ -607,12 +438,6 @@ void RTree_LS::SetChunkUpdated(bool updated){
   }
 }
 
-void RTree_LS::SetScanLevel(ui _scan_level){
-  ui* p_scan_level = (ui*)&scan_level;
-  *p_scan_level = _scan_level;
-  assert(scan_level);
-}
-
 void RTree_LS::SetNumberOfCPUThreads(ui _number_of_cpu_threads){
   ui* p_number_of_cpu_threads = (ui*)&number_of_cpu_threads;
   *p_number_of_cpu_threads = _number_of_cpu_threads;
@@ -624,32 +449,29 @@ void RTree_LS::SetNumberOfCUDABlocks(ui _number_of_cuda_blocks){
   assert(number_of_cuda_blocks);
 }
 
-void RTree_LS::RTree_LS_Search(){ //node::Node *node_ptr, Point* query, Point* d_query){
-/*
-                               ui query_offset, ui bid_offset, ui number_of_blocks_per_cpu, 
-                               ui *node_visit_count) {
+void RTree_LS::RTree_LS_Search(node::Node *node_ptr, Point* query, Point* d_query,
+    ui query_offset, ui bid_offset, ui number_of_blocks_per_cpu, 
+    ui *node_visit_count) {
   (*node_visit_count)++;
 
   // internal nodes
   if(node_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
-    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())){
       if( node_ptr->IsOverlap(query, branch_itr)) {
+        // if child node is leaf, scan on the GPU
+        if( node_ptr->GetLevel() == (host_height-2)){
+          auto start_node_offset = node_ptr->GetBranchChildOffset(branch_itr);
+          global_RTree_LeafNode_Scan<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>> 
+          (&d_query[query_offset], start_node_offset, chunk_size, 
+          bid_offset, number_of_blocks_per_cpu );
+        } // otherwise, keep traverse the tree
+        else {
           RTree_LS_Search(node_ptr->GetBranchChildNode(branch_itr), query, d_query,
-                          query_offset, bid_offset, number_of_blocks_per_cpu, node_visit_count);
+               query_offset, bid_offset, number_of_blocks_per_cpu, node_visit_count);
+        }
       }
     }
-  } // leaf nodes
-  else {
-      auto start_node_offset = node_ptr->GetBranchChildOffset(0);
-      global_RTree_LeafNode_Scan<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>>
-                                  (&d_query[query_offset], start_node_offset, 
-                                   chunk_size,//this should be leaf node size
-                                   bid_offset, number_of_blocks_per_cpu );
-
-      // wait until it's finished
-      cudaDeviceSynchronize();
   }
-  */
 }
 
 //===--------------------------------------------------------------------===//
@@ -705,21 +527,23 @@ void global_RTree_LeafNode_Scan(Point* _query, ll start_node_offset,
   t_hit[tid] = 0;
   g_monitor2[bid+bid_offset]=0;
 
-  node::Node_SOA* node_soa_ptr = manager::g_node_soa_ptr/*first leaf node*/ + start_node_offset + bid;
+  node::Node_SOA* node_soa_ptr = manager::g_node_soa_ptr/*first leaf node*/ + start_node_offset;
   __syncthreads();
 
   //===--------------------------------------------------------------------===//
   // Leaf Nodes
   //===--------------------------------------------------------------------===//
 
-  for(ui range(node_itr, bid, chunk_size, number_of_blocks_per_cpu)) {
+  ui branch_offset = GetNumberOfThreads()*bid*chunk_size+tid;
+
+  for(ui range(branch_itr, 0, chunk_size)) {
 
     MasterThreadOnly {
       g_node_visit_count2[bid+bid_offset]++;
     }
 
-    if(tid < node_soa_ptr->GetBranchCount()) {
-        if(node_soa_ptr->IsOverlap(query, tid)) {
+    if(branch_offset < node_soa_ptr->GetBranchCount()) {
+        if(node_soa_ptr->IsOverlap(query, branch_offset)) {
           t_hit[tid]++;
           MasterThreadOnly {
             g_monitor2[bid+bid_offset]=0;
@@ -732,7 +556,7 @@ void global_RTree_LeafNode_Scan(Point* _query, ll start_node_offset,
     }
     __syncthreads();
 
-    node_soa_ptr+=number_of_blocks_per_cpu;
+    branch_offset+=GetNumberOfThreads();
   }
   __syncthreads();
 

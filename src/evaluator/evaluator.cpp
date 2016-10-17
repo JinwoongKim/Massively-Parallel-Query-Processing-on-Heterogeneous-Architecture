@@ -135,13 +135,11 @@ bool Evaluator::Build(void) {
         // Casting type from base class to derived class using dynamic_pointer_cast since it's shared_ptr
         std::shared_ptr<tree::RTree_LS> rtree_ls = std::dynamic_pointer_cast<tree::RTree_LS>(tree);
         rtree_ls->SetUpperTreeType(UPPER_TREE_TYPE);
-        rtree_ls->SetScanLevel(scan_level);
-        rtree_ls->SetChunkSize(chunk_size);
+        rtree_ls->SetChunkSize(4);
         rtree_ls->SetNumberOfCUDABlocks(number_of_cuda_blocks);
         rtree_ls->SetNumberOfCPUThreads(number_of_cpu_threads);
         tree->Build(input_data_set);
         } break;
- 
       case  TREE_TYPE_MPHR: {
         std::shared_ptr<tree::MPHR> mphr = std::dynamic_pointer_cast<tree::MPHR>(tree);
         mphr->SetNumberOfCUDABlocks(number_of_cuda_blocks);

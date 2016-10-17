@@ -81,112 +81,6 @@ bool Tree::IsExist (const std::string& name) {
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
-bool Tree::DumpFromFile(std::string index_name) {
-
-  FILE* index_file;
-  index_file = fopen(index_name.c_str(),"rb");
-
-  if(!index_file) {
-    LOG_INFO("An index file(%s) doesn't exist", index_name.c_str());
-    return false;
-  }
-
-
-  LOG_INFO("Load an index file (%s)", index_name.c_str());
-  auto& recorder = evaluator::Recorder::GetInstance();
-  recorder.TimeRecordStart();
-
-  //===--------------------------------------------------------------------===//
-  // Node counts
-  //===--------------------------------------------------------------------===//
-  // read total node count
-  fread(&host_node_count, sizeof(ui), 1, index_file);
-
-  //===--------------------------------------------------------------------===//
-  // Internal nodes
-  //===--------------------------------------------------------------------===//
-  node_ptr = new node::Node[host_node_count];
-  fread(node_ptr, sizeof(node::Node), host_node_count, index_file);
-
-  fclose(index_file);
-
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
-
-  return true;
-}
-
-bool Tree::DumpToFile(std::string index_name) {
-  auto& recorder = evaluator::Recorder::GetInstance();
-
-  LOG_INFO("Dump an index into file (%s)...", index_name.c_str());
-
-  recorder.TimeRecordStart();
-  // NOTE :: Use fwrite since it is fast
-  FILE* index_file;
-  index_file = fopen(index_name.c_str(),"wb");
-
-  //===--------------------------------------------------------------------===//
-  // Node counts
-  //===--------------------------------------------------------------------===//
-  // write total node count
-  fwrite(&host_node_count, sizeof(ui), 1, index_file);
-
-  //===--------------------------------------------------------------------===//
-  // Internal nodes
-  //===--------------------------------------------------------------------===//
-
-  // Unlike dump function in MPHR class, we use the queue structure to dump the
-  // tree onto an index file since the nodes are allocated here and there in a
-  // Top-Down fashion
-  std::queue<node::Node*> bfs_queue;
-  std::vector<ll> original_child_offset; // for backup
-
-  // push the root node
-  bfs_queue.emplace(node_ptr);
-
-  // if the queue is not empty,
-  while(!bfs_queue.empty()) {
-    // pop the first element 
-    node::Node* node = bfs_queue.front();
-    bfs_queue.pop();
-
-    // NOTE : Backup the child offsets in order to recover node's child offset later
-    // I believe accessing memory is faster than accesing disk,
-    // I don't use another fwrite for this job.
-    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
-      for(ui range(child_itr, 0, node->GetBranchCount())) {
-        node::Node* child_node = node->GetBranchChildNode(child_itr);
-        bfs_queue.emplace(child_node);
-
-        // backup current child offset
-        original_child_offset.emplace_back(node->GetBranchChildOffset(child_itr));
-
-        // reassign child offset
-        ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
-        node->SetBranchChildOffset(child_itr, child_offset);
-      }
-    }
-
-    // write an internal node on disk
-    fwrite(node, sizeof(node::Node), 1, index_file);
-
-    // Recover child offset
-    if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
-      for(ui range(child_itr, 0, node->GetBranchCount())) {
-        // reassign child offset
-        node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
-      }
-    }
-    original_child_offset.clear();
-  }
-
-  fclose(index_file);
-
-  auto elapsed_time = recorder.TimeRecordEnd();
-  LOG_INFO("Done, time = %.6fs", elapsed_time/1000.0f);
-  return true;
-}
 
 //TODO add comment this function
 bool Tree::Top_Down(std::vector<node::Branch> &branches, 
@@ -222,6 +116,8 @@ bool Tree::BVH_Top_Down(std::vector<node::Branch> &branches) {
     LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
   }
 
+  host_height = level_node_count.size();
+
   auto elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Top-Down Construction Time on the CPU = %.6fs", elapsed_time/1000.0f);
 }
@@ -232,7 +128,7 @@ bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  typedef ursus::RTree<float, float, GetNumberOfDims(), float> RTrees;
+  typedef ursus::RTree<float, float, GetNumberOfDims(), float, GetNumberOfUpperTreeDegrees()> RTrees;
   RTrees tree;
 
   float min[GetNumberOfDims()];
@@ -280,6 +176,8 @@ bool Tree::RTree_Top_Down(std::vector<node::Branch> &branches) {
     }
   }
 
+  host_height = level_node_count.size();
+
   elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Transpose Time on the CPU = %.6fs", elapsed_time/1000.0f);
 
@@ -291,7 +189,9 @@ bool Tree::RTree_LS_Top_Down(std::vector<node::Branch> &branches) {
   auto& recorder = evaluator::Recorder::GetInstance();
   recorder.TimeRecordStart();
 
-  typedef ursus::RTree<float, float, GetNumberOfDims(), float> RTrees;
+#define RTree_LS
+  typedef ursus::RTree<float, float, GetNumberOfDims(), float, GetNumberOfLeafNodeDegrees(), 
+  GetNumberOfLeafNodeDegrees()/2, true/* enable large leaf node*/> RTrees; // TODO make it more readable...
   RTrees tree;
 
   float min[GetNumberOfDims()];
@@ -316,10 +216,10 @@ bool Tree::RTree_LS_Top_Down(std::vector<node::Branch> &branches) {
     LOG_INFO("Level[%u] %u", level_itr, level_node_count[level_itr]);
     host_node_count += level_node_count[level_itr];
   }
-  printf("host node count %d\n", host_node_count);
 
   auto leaf_node_count = level_node_count.back();
   auto internal_node_count = host_node_count - leaf_node_count;
+  host_node_count = internal_node_count;
 
   host_node_count = internal_node_count;
   device_node_count = leaf_node_count;
@@ -327,11 +227,9 @@ bool Tree::RTree_LS_Top_Down(std::vector<node::Branch> &branches) {
   node_ptr = new node::Node[internal_node_count];
   b_node_ptr = new node::LeafNode[leaf_node_count];
 
-  exit(1);
+  tree.Transpose2(node_ptr, b_node_ptr);
 
-  //tree.Transpose2(node_ptr, b_node_ptr);
-
-  long node_index = 1;
+  host_height = level_node_count.size();
 
   elapsed_time = recorder.TimeRecordEnd();
   LOG_INFO("Transpose Time on the CPU = %.6fs", elapsed_time/1000.0f);
@@ -1160,8 +1058,10 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     for( ui range(dim, 0, GetNumberOfDims())) {
       ui high_dim = dim+GetNumberOfDims();
 
-      __shared__ float lower_boundary[GetNumberOfLeafNodeDegrees()];
-      __shared__ float upper_boundary[GetNumberOfLeafNodeDegrees()];
+      //__shared__ float lower_boundary[GetNumberOfLeafNodeDegrees()];
+      //__shared__ float upper_boundary[GetNumberOfLeafNodeDegrees()];
+      float lower_boundary[GetNumberOfLeafNodeDegrees()];
+      float upper_boundary[GetNumberOfLeafNodeDegrees()];
 
       for( ui range(thread, tid, GetNumberOfLeafNodeDegrees(), GetNumberOfThreads())) {
         if( thread < current_node->GetBranchCount()){

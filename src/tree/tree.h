@@ -23,9 +23,9 @@ class Tree {
    */
   virtual bool Build(std::shared_ptr<io::DataSet> input_data_set) =0;
 
-  virtual bool DumpFromFile(std::string index_name);
+  virtual bool DumpFromFile(std::string index_name)=0;
 
-  virtual bool DumpToFile(std::string index_name);
+  virtual bool DumpToFile(std::string index_name)=0;
 
   /**
    * Tree Build 
@@ -148,6 +148,10 @@ class Tree {
 
   // For MPHR and Hybrid Trees
   ui device_node_count = 0;
+
+  ui host_height = 0;
+
+  ui device_height = 0;
 };
 
 //===--------------------------------------------------------------------===//
