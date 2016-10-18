@@ -308,7 +308,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
   int tid = threadIdx.x;
 
   __shared__ ui childOverlap[GetNumberOfLeafNodeDegrees()];
-  __shared__ ui t_hit[GetNumberOfThreads()]; 
+  __shared__ ui t_hit[GetNumberOfThreads2()]; 
   __shared__ bool isHit;
 
   ui query_offset=0;
@@ -325,6 +325,10 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
   node_visit_count[bid] = 0;
 
   t_hit[tid] = 0;
+  if(tid<GetNumberOfThreads2()-GetNumberOfThreads()){
+    t_hit[tid+GetNumberOfThreads2()-GetNumberOfThreads()] = 0;
+  }
+ 
 
   node::Node_SOA* root = manager::g_node_soa_ptr + g_root_offset[bid];
   node::Node_SOA* node_soa_ptr = root;
@@ -422,7 +426,7 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
 
   __syncthreads();
 
-  ParallelReduction(t_hit, GetNumberOfLeafNodeDegrees());
+  ParallelReduction(t_hit, GetNumberOfThreads2());
 
   MasterThreadOnly {
     if(N==1) {

@@ -172,10 +172,10 @@ bool Evaluator::Search(void) {
   if( number_of_search == 0 ) return false;
 
   std::vector<ui> cpu_thread_vec = {1,2,4,8,16,32};
-  std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256,
+  std::vector<ui> chunk_size_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256, 
                                     512, 768, 1024};
-  std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128};
-  //std::vector<ui> cuda_block_vec = {128}; LOG_INFO("Now, we only use 128 CUDA blocks");
+  //std::vector<ui> cuda_block_vec = {1, 2, 4, 8, 16, 32, 64, 128, 256};
+  std::vector<ui> cuda_block_vec = {128};
 
   for(auto& tree : trees) {
     switch(tree->GetTreeType()) {

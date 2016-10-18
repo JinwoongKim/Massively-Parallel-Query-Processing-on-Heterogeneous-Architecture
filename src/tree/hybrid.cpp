@@ -973,7 +973,7 @@ void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset,
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
-  __shared__ ui t_hit[GetNumberOfThreads()]; 
+  __shared__ ui t_hit[GetNumberOfThreads2()]; 
   __shared__ Point query[GetNumberOfDims()*2];
 
   if(tid < GetNumberOfDims()*2) {
@@ -981,6 +981,10 @@ void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset,
   }
 
   t_hit[tid] = 0;
+  if(tid<GetNumberOfThreads2()-GetNumberOfThreads()){
+    t_hit[tid+GetNumberOfThreads2()-GetNumberOfThreads()] = 0;
+  }
+  
   g_monitor[bid+bid_offset]=0;
 
   node::Node_SOA* node_soa_ptr = manager::g_node_soa_ptr/*first leaf node*/ + start_node_offset + bid;
@@ -1017,7 +1021,7 @@ void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset,
   //===--------------------------------------------------------------------===//
   // Parallel Reduction 
   //===--------------------------------------------------------------------===//
-  ParallelReduction(t_hit, GetNumberOfThreads());
+  ParallelReduction(t_hit, GetNumberOfThreads2());
 
   MasterThreadOnly {
     g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
@@ -1036,7 +1040,7 @@ void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset,
   int tid = threadIdx.x;
 
   __shared__ bool child_overlap[GetNumberOfThreads()]; 
-  __shared__ ui t_hit[GetNumberOfThreads()]; 
+  __shared__ ui t_hit[GetNumberOfThreads2()]; 
   __shared__ Point query[GetNumberOfDims()*2];
 
   if(tid < GetNumberOfDims()*2) {
@@ -1044,6 +1048,11 @@ void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset,
   }
 
   t_hit[tid] = 0;
+  if(tid<GetNumberOfThreads2()-GetNumberOfThreads()){
+    t_hit[tid+GetNumberOfThreads2()-GetNumberOfThreads()] = 0;
+  }
+ 
+
 
   // start from the first extend leaf node
   node::Node_SOA* node_soa_ptr = manager::g_node_soa_ptr + start_node_offset + bid;
@@ -1091,7 +1100,7 @@ void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset,
   //===--------------------------------------------------------------------===//
   // Parallel Reduction 
   //===--------------------------------------------------------------------===//
-  ParallelReduction(t_hit, GetNumberOfThreads());
+  ParallelReduction(t_hit, GetNumberOfThreads2());
 
   MasterThreadOnly {
       g_hit[bid+bid_offset] += t_hit[0] + t_hit[1];
