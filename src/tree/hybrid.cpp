@@ -29,6 +29,8 @@ Hybrid::Hybrid() {
 bool Hybrid::Build(std::shared_ptr<io::DataSet> input_data_set) {
 
   LOG_INFO("Build Hybrid Tree");
+  LOG_INFO("size %zd", sizeof(node::Node));
+  LOG_INFO("size %zd", sizeof(node::Node_SOA));
   bool ret = false;
 
   // Load an index from file it exists
@@ -760,7 +762,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   ll start_node_index;
   ll start_node_offset=0;
   ui chunk_size_bak = 0;
-  SetChunkSize(1);
   bool chunk_size_dirty = false;
 
   auto number_of_nodes = level_node_count[level_node_count.size()-scan_level];
@@ -996,16 +997,16 @@ void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset,
     }
 
     if(tid < node_soa_ptr->GetBranchCount()) {
-        if(node_soa_ptr->IsOverlap(query, tid)) {
-          t_hit[tid]++;
-          MasterThreadOnly {
-            g_monitor[bid+bid_offset]=0;
-          }
-        } else {
-          MasterThreadOnly {
-            g_monitor[bid+bid_offset]++;
-          }
+      if(node_soa_ptr->IsOverlap(query, tid)) {
+        t_hit[tid]++;
+        MasterThreadOnly {
+          g_monitor[bid+bid_offset]=0;
         }
+      } else {
+        MasterThreadOnly {
+          g_monitor[bid+bid_offset]++;
+        }
+      }
     }
     __syncthreads();
 

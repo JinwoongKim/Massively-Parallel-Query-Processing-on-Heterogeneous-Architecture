@@ -14,6 +14,7 @@ ChunkManager& ChunkManager::GetInstance(){
 }
 
 bool ChunkManager::Init(size_t size) {
+  printf("Try to allocate %zd (MB) in device memory\n", size/1000000);
   cudaErrCheck(cudaMalloc((void**) &d_node_soa_ptr, size));
   global_SetRootNode<<<1,1>>>(d_node_soa_ptr);
   cudaDeviceSynchronize();
