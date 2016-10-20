@@ -682,6 +682,13 @@ void Hybrid::Thread_Monitoring(ui update_interval){
     // Autu-Tuning Chunk Size
     //===--------------------------------------------------------------------===//
     std::vector<ll> monitor;
+    ui total_monitor;
+    ll total_dist;
+    ui zero_dist_cnt=0;
+    ui m_cnt=0;
+    ui total_m_cnt=0;
+    ui last_jump_count=0;
+    ui checked_itr=0;
 
     // terminate the monitoring when search is done
     while(!search_finish) {
@@ -690,12 +697,13 @@ void Hybrid::Thread_Monitoring(ui update_interval){
 
       // if threads still have not update their chunk size for the previous monitoring
       // skip monitoring
-      if(chunk_updated) continue;
+//      if(chunk_updated) continue;
 
       // get the monitoring hits
       global_GetMonitor<<<1,GetNumberOfBlocks()>>>(d_monitor);
       cudaMemcpy(h_monitor, d_monitor, sizeof(ui)*GetNumberOfBlocks(), cudaMemcpyDeviceToHost);
 
+/*
       ui monitor_sum=0;
       ui number_of_zero=0;
       for(ui range(i, 0, GetNumberOfBlocks())){
@@ -703,46 +711,42 @@ void Hybrid::Thread_Monitoring(ui update_interval){
       }
       monitor.emplace_back(monitor_sum);
 
+      for(auto m : monitor){
+        if( m == 0) {
+          m_cnt++;
+        }
+        total_monitor+=m;
+        total_m_cnt++;
+      }
+      */
+
+      for(ui range(commit_itr, checked_itr, commit)){
+        if( dist[commit_itr] == 0) {
+          zero_dist_cnt++;
+        }
+        total_dist+=dist[commit_itr];
+      }
+      checked_itr = commit;
+
+      LOG_INFO("avg monitor %.2f",total_dist/(float)checked_itr);
+/*
+      LOG_INFO("zero distance cnt %u", zero_dist_cnt);
+      LOG_INFO("total d cnt %u", total_d_cnt);
+
+      LOG_INFO("zero hit cnt %u", m_cnt);
+      LOG_INFO("total m cnt %u", total_m_cnt);
+
+      LOG_INFO("total monitor %u", total_monitor);
+
+      LOG_INFO("avg dist %.2f", total_dist/(float)monitor_cnt);
+      LOG_INFO("total dist %u", total_dist);
+      */
+
+
       //SetChunkSize(xx);
       // make a chunk_updates as a true
       //SetChunkUpdated(true);
     }
-
-   /*
-       ui total_monitor;
-       ll total_dist;
-       ui d_cnt=0;
-       ui total_d_cnt=0;
-       ui m_cnt=0;
-       ui total_m_cnt=0;
-       for(auto m : monitor){
-//LOG_INFO("monitor : %u", m);
-if( m == 0) {
-m_cnt++;
-}
-total_monitor+=m;
-total_m_cnt++;
-}
-for(auto d : dist){
-//LOG_INFO("dist : %u", d);
-if( d == 0) {
-d_cnt++;
-}
-total_dist+=d;
-total_d_cnt++;
-}
-LOG_INFO("d cnt %u", d_cnt);
-LOG_INFO("total d cnt %u", total_d_cnt);
-
-LOG_INFO("m cnt %u", m_cnt);
-LOG_INFO("total m cnt %u", total_m_cnt);
-
-LOG_INFO("avg monitor %.2f", total_monitor/(float)jump_count);
-LOG_INFO("total monitor %u", total_monitor);
-
-LOG_INFO("avg dist %.2f", total_dist/(float)jump_count);
-LOG_INFO("total dist %u", total_dist);
-     */
 }
 
 void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
@@ -766,8 +770,6 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
 
   auto number_of_nodes = level_node_count[level_node_count.size()-scan_level];
 
-  // Monitoring Variables
-  std::vector<ll> dist;
 
   for(ui range(query_itr, start_offset, end_offset)) {
     ll visited_leafIndex = 0;
@@ -791,14 +793,14 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       }
 
       start_node_offset = (start_node_index-1)/GetNumberOfLeafNodeDegrees(); 
-//      printf("start node offset %lu\n", start_node_offset);
       if(scan_level == 2)  {
         start_node_offset /= GetNumberOfLeafNodeDegrees(); 
       }
-      // Monitoring
       /*
+      // Monitoring
       if(prev_start_node_offset){
         dist.emplace_back(start_node_offset-prev_start_node_offset-chunk_size);
+        ++commit;
       }
       prev_start_node_offset=start_node_offset;
       */
@@ -852,6 +854,17 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
     //Thread_OracleS(unit_cnt, up, weight);
     //Thread_OracleV2(unit_cnt, weight);
   }
+  /*
+  ui total_dist=0;
+  ui zero_dist=0;
+  for(auto d : dist){
+   total_dist += d;
+   if( d == 0)
+   zero_dist ++;
+  }
+  LOG_INFO("avg monitor %.2f",total_dist/(float)jump_count);
+  LOG_INFO("zero dist %d",zero_dist);
+  */
 }
 
 ui Hybrid::GetChunkSize() const{

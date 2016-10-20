@@ -103,8 +103,7 @@ __global__
 void global_GetMonitor2(ui* monitor);
 
 __global__ 
-void global_RTree_LeafNode_Scan(Point* _query, ll start_node_offset, 
-                                ui chunk_size, ui bid_offset,
+void global_RTree_LeafNode_Scan(Point* _query, ll start_node_offset, ui bid_offset,
                                 ui number_of_blocks_per_cpu);
  
 } // End of tree namespace

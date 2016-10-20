@@ -60,7 +60,8 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 ///        array similar to MFC CArray or STL Vector for returning search query result.
 ///
 template<class DATATYPE, class ELEMTYPE, int NUMDIMS, 
-         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = GetNumberOfUpperTreeDegrees(), int TMINNODES = TMAXNODES / 8, bool LARGE_LEAF=false>
+         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = (GetNumberOfLeafNodeDegrees()/128), 
+         int TMINNODES = TMAXNODES / 8, bool LARGE_LEAF=false>
 class RTree
 {
 protected: 
@@ -236,52 +237,60 @@ public:
       bfs_queue.pop();
 
       if( node->IsInternalNode()){
-        // copy branch count
-        node_ptr[node_count].SetBranchCount(node->m_count);
-        // reserver level
-        node_ptr[node_count].SetLevel((m_root->m_level)-(node->m_level));
+        if(node->m_level == 1){
+          // reserver level
+          b_node_ptr[b_node_count].SetLevel((m_root->m_level)-(node->m_level));
 
+          // set node type
+          b_node_ptr[b_node_count].SetNodeType(NODE_TYPE_LEAF);
 
-        // set node type
-        node_ptr[node_count].SetNodeType(NODE_TYPE_INTERNAL);
+          int child_offset=0;
+          for(int child_itr=0; child_itr<node->m_count; child_itr++){
+            struct Node* child_node = node->m_branch[child_itr].m_child;
+            for(int inner_child_itr=0; inner_child_itr< child_node->m_count; inner_child_itr++){
+              b_node_ptr[b_node_count].SetBranchChildOffset(child_offset, 0);
+              b_node_ptr[b_node_count].SetBranchIndex(child_offset, 0);
 
-        for(int child_itr=0; child_itr<node->m_count; child_itr++){
-          struct Node* child_node = node->m_branch[child_itr].m_child;
-          bfs_queue.emplace(child_node);
-          ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
-          if(child_node->IsLeaf()){
-            child_offset = child_count;
-            ++child_count;
+              for(int d=0; d<GetNumberOfDims(); d++){
+                b_node_ptr[b_node_count].SetBranchPoint(child_offset,  child_node->m_branch[inner_child_itr].m_rect.m_min[d], d);
+                b_node_ptr[b_node_count].SetBranchPoint(child_offset,  child_node->m_branch[inner_child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+              }
+              child_offset++;
+            }
           }
-          node_ptr[node_count].SetBranchChildOffset(child_itr, child_offset);
-          node_ptr[node_count].SetBranchIndex(child_itr, 0);
-          
-          for(int d=0; d<GetNumberOfDims(); d++){
-            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
-            node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+          // copy branch count
+          b_node_ptr[b_node_count].SetBranchCount(child_offset);
+          ++b_node_count;
+
+        } else {
+          // copy branch count
+          node_ptr[node_count].SetBranchCount(node->m_count);
+          // reserver level
+          node_ptr[node_count].SetLevel((m_root->m_level)-(node->m_level));
+
+          // set node type
+          node_ptr[node_count].SetNodeType(NODE_TYPE_INTERNAL);
+
+          for(int child_itr=0; child_itr<node->m_count; child_itr++){
+            struct Node* child_node = node->m_branch[child_itr].m_child;
+            bfs_queue.emplace(child_node);
+            ll child_offset = (ll)bfs_queue.size()*(ll)sizeof(node::Node);
+
+            if(child_node->m_level == 1){
+              child_offset = child_count;
+              ++child_count;
+            }
+            node_ptr[node_count].SetBranchChildOffset(child_itr, child_offset);
+            node_ptr[node_count].SetBranchIndex(child_itr, 0);
+
+            for(int d=0; d<GetNumberOfDims(); d++){
+              node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
+              node_ptr[node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
+            }
           }
+          ++node_count;
         }
-        ++node_count;
-      } else {
-        // copy branch count
-        b_node_ptr[b_node_count].SetBranchCount(node->m_count);
-        // reserver level
-        b_node_ptr[b_node_count].SetLevel((m_root->m_level)-(node->m_level));
-
-        // set node type
-        b_node_ptr[b_node_count].SetNodeType(NODE_TYPE_LEAF);
-
-        for(int child_itr=0; child_itr<node->m_count; child_itr++){
-          b_node_ptr[b_node_count].SetBranchChildOffset(child_itr, 0);
-          b_node_ptr[b_node_count].SetBranchIndex(child_itr, 0);
-
-          for(int d=0; d<GetNumberOfDims(); d++){
-            b_node_ptr[b_node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_min[d], d);
-            b_node_ptr[b_node_count].SetBranchPoint(child_itr,  node->m_branch[child_itr].m_rect.m_max[d], d+GetNumberOfDims());
-          }
-        }
-        ++b_node_count;
-      }
+      } 
     }
   }
 
@@ -1189,7 +1198,7 @@ bool RTREE_QUAL::AddBranch(const Branch* a_branch, Node* a_node, Node** a_newNod
         split = false;
       }
     }else{
-      if(a_node->m_count < GetNumberOfLeafNodeDegrees()){
+      if(a_node->m_count < (GetNumberOfLeafNodeDegrees()/128)){
         split = false;
       }
     }
@@ -1313,7 +1322,7 @@ void RTREE_QUAL::SplitNode(Node* a_node, const Branch* a_branch, Node** a_newNod
   int min_nodes = GetNumberOfUpperTreeDegrees()/2;
   if(LARGE_LEAF){
     if(a_node->IsLeaf()){
-      min_nodes = GetNumberOfLeafNodeDegrees()/2;
+      min_nodes = (GetNumberOfLeafNodeDegrees()/(2*128));
     }
   }
   ChoosePartition(parVars, min_nodes);
@@ -1406,7 +1415,7 @@ void RTREE_QUAL::GetBranches(Node* a_node, const Branch* a_branch, PartitionVars
     if(a_node->IsInternalNode()){
       ASSERT(a_node->m_count == GetNumberOfUpperTreeDegrees());
     }else{
-      ASSERT(a_node->m_count == GetNumberOfLeafNodeDegrees());
+      ASSERT(a_node->m_count == (GetNumberOfLeafNodeDegrees()/128));
     }
   }else{
     ASSERT(a_node->m_count == MAXNODES);

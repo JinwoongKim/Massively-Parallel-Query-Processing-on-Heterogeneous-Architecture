@@ -227,7 +227,7 @@ bool RTree_LS::DumpToFile(std::string index_name) {
       // I don't use another fwrite for this job.
       if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
         for(ui range(child_itr, 0, node->GetBranchCount())) {
-          if(node->GetLevel() < (host_height-2)){
+          if(node->GetLevel() < (host_height-1)){ // lowest internal node
             node::Node* child_node = node->GetBranchChildNode(child_itr);
             bfs_queue.emplace(child_node);
 
@@ -246,7 +246,7 @@ bool RTree_LS::DumpToFile(std::string index_name) {
 
       // Recover child offset
       if( node->GetNodeType() == NODE_TYPE_INTERNAL) {
-        if(node->GetLevel() < (host_height-2)){
+        if(node->GetLevel() < (host_height-1)){
           for(ui range(child_itr, 0, node->GetBranchCount())) {
             // reassign child offset
             node->SetBranchChildOffset(child_itr, original_child_offset[child_itr]);
@@ -453,20 +453,17 @@ void RTree_LS::RTree_LS_Search(node::Node *node_ptr, Point* query, Point* d_quer
     ui *node_visit_count) {
   (*node_visit_count)++;
 
-  // internal nodes
-  if(node_ptr->GetNodeType() == NODE_TYPE_INTERNAL ) {
-    if( node_ptr->GetLevel() == (host_height-2)){
-      auto start_node_offset = node_ptr->GetBranchChildOffset(0);
-      global_RTree_LeafNode_Scan<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>> 
-        (&d_query[query_offset], start_node_offset, node_ptr->GetBranchCount(), 
-         bid_offset, number_of_blocks_per_cpu );
-    }else{ // otherwise, keep traverse the tree
-      for(ui range(branch_itr, 0, node_ptr->GetBranchCount())){
-        if( node_ptr->IsOverlap(query, branch_itr)) {
-          // if child node is leaf, scan on the GPU
-          RTree_LS_Search(node_ptr->GetBranchChildNode(branch_itr), query, d_query,
-              query_offset, bid_offset, number_of_blocks_per_cpu, node_visit_count);
-        }
+  for(ui range(branch_itr, 0, node_ptr->GetBranchCount())){
+    if( node_ptr->IsOverlap(query, branch_itr)) {
+      // if child node is leaf, scan on the GPU
+      if(node_ptr->GetLevel() == (host_height-1)){
+        auto start_node_offset = node_ptr->GetBranchChildOffset(branch_itr);
+        global_RTree_LeafNode_Scan<<<number_of_blocks_per_cpu,GetNumberOfThreads()>>> 
+               (&d_query[query_offset], start_node_offset,
+                bid_offset, number_of_blocks_per_cpu );
+      } else {
+        RTree_LS_Search(node_ptr->GetBranchChildNode(branch_itr), query, d_query,
+            query_offset, bid_offset, number_of_blocks_per_cpu, node_visit_count);
       }
     }
   }
@@ -510,12 +507,11 @@ void global_GetMonitor2(ui* monitor) {
 //===--------------------------------------------------------------------===//
 __global__ 
 void global_RTree_LeafNode_Scan(Point* _query, ll start_node_offset, 
-                               ui chunk_size, ui bid_offset, 
-                               ui number_of_blocks_per_cpu) {
+                               ui bid_offset, ui number_of_blocks_per_cpu) {
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
-  __shared__ ui t_hit[GetNumberOfThreads()]; 
+  __shared__ ui t_hit[GetNumberOfThreads2()]; 
   __shared__ Point query[GetNumberOfDims()*2];
 
   if(tid < GetNumberOfDims()*2) {
@@ -523,38 +519,38 @@ void global_RTree_LeafNode_Scan(Point* _query, ll start_node_offset,
   }
 
   t_hit[tid] = 0;
+  if(tid<GetNumberOfThreads2()-GetNumberOfThreads()){
+    t_hit[tid+GetNumberOfThreads2()-GetNumberOfThreads()] = 0;
+  }
+ 
   g_monitor2[bid+bid_offset]=0;
 
-  node::Node_SOA* node_soa_ptr = manager::g_node_soa_ptr/*first leaf node*/ + start_node_offset+bid;
+  node::Node_SOA* node_soa_ptr = manager::g_node_soa_ptr/*first leaf node*/ + start_node_offset;
   __syncthreads();
 
   //===--------------------------------------------------------------------===//
   // Leaf Nodes
   //===--------------------------------------------------------------------===//
 
-  for(ui range(node_itr, bid, chunk_size, number_of_blocks_per_cpu)) {
 
-    MasterThreadOnly {
-      g_node_visit_count2[bid+bid_offset]++;
+  MasterThreadOnly {
+    g_node_visit_count2[bid+bid_offset]++;
+  }
+
+  for (ui range(thread_itr, bid*GetNumberOfThreads()+tid, 
+       node_soa_ptr->GetBranchCount(), number_of_blocks_per_cpu*GetNumberOfThreads())){
+    if(node_soa_ptr->IsOverlap(query, thread_itr)){
+      t_hit[tid]++;
     }
-
-    for (ui range(thread_itr, tid, GetNumberOfLeafNodeDegrees(), GetNumberOfThreads())){
-      if(thread_itr < node_soa_ptr->GetBranchCount()) {
-        if(node_soa_ptr->IsOverlap(query, thread_itr)){
-          t_hit[tid]++;
-        }
-      }
-    }
-    __syncthreads();
-
-    node_itr+=number_of_blocks_per_cpu;
   }
   __syncthreads();
 
   //===--------------------------------------------------------------------===//
   // Parallel Reduction 
   //===--------------------------------------------------------------------===//
-  ParallelReduction(t_hit, GetNumberOfThreads());
+  ParallelReduction(t_hit, GetNumberOfThreads2());
+
+
 
   MasterThreadOnly {
     g_hit2[bid+bid_offset] += t_hit[0] + t_hit[1];

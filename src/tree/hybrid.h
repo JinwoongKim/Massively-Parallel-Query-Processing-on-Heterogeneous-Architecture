@@ -111,6 +111,11 @@ class Hybrid : public Tree {
   std::mutex chunk_updated_mutex;
 
   TreeType UPPER_TREE_TYPE;
+
+  // FIXME should be isolated by thread
+  // Monitoring Variables
+  std::vector<ll> dist;
+  ui commit=0;
 };
 
 //===--------------------------------------------------------------------===//

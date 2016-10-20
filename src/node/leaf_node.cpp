@@ -186,7 +186,7 @@ bool LeafNode::IsOverlap(ui branch_offset, ui branch_offset2) {
 std::ostream &operator<<(std::ostream &os, const LeafNode &node) {
   os << " LeafNode : " << std::endl;
   os << " NodeType = " << NodeTypeToString(node.GetNodeType()) << std::endl;
-  os << " LeafNodeLevel = " << node.GetLevel() << std::endl;
+  os << " NodeLevel = " << node.GetLevel() << std::endl;
   os << " Branch Count = " << node.GetBranchCount() << std::endl;
   for( ui range(i, 0, node.GetBranchCount())) {
     os << " Branch["<< i << "] : " << node.GetBranch(i) << std::endl;

@@ -307,7 +307,8 @@ void global_RestartScanning_and_ParentCheck(Point* _query, ui number_of_partitio
   int bid = blockIdx.x;
   int tid = threadIdx.x;
 
-  __shared__ ui childOverlap[GetNumberOfLeafNodeDegrees()];
+  //__shared__ ui childOverlap[GetNumberOfLeafNodeDegrees()];
+  ui childOverlap[GetNumberOfLeafNodeDegrees()];
   __shared__ ui t_hit[GetNumberOfThreads2()]; 
   __shared__ bool isHit;
 
