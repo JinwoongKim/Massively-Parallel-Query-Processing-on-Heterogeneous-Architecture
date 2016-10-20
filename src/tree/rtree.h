@@ -60,8 +60,8 @@ class RTFileStream;  // File I/O helper class, look below for implementation and
 ///        array similar to MFC CArray or STL Vector for returning search query result.
 ///
 template<class DATATYPE, class ELEMTYPE, int NUMDIMS, 
-         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = (GetNumberOfLeafNodeDegrees()/128), 
-         int TMINNODES = TMAXNODES / 8, bool LARGE_LEAF=false>
+         class ELEMTYPEREAL = ELEMTYPE, int TMAXNODES = GetNumberOfUpperTreeDegrees(), 
+         int TMINNODES = TMAXNODES / 2, bool LARGE_LEAF=false>
 class RTree
 {
 protected: 
@@ -216,9 +216,7 @@ public:
     }
   }
 
-  // Transpose separately function for Rtree LS
-  // TODO Rename later
-  void Transpose2(node::Node* node_ptr, node::LeafNode* b_node_ptr){
+  void Transpose_RTree_LS(node::Node* node_ptr, node::LeafNode* b_node_ptr){
 
     //===--------------------------------------------------------------------===//
     // Now, transpose the tree
@@ -1198,7 +1196,7 @@ bool RTREE_QUAL::AddBranch(const Branch* a_branch, Node* a_node, Node** a_newNod
         split = false;
       }
     }else{
-      if(a_node->m_count < (GetNumberOfLeafNodeDegrees()/128)){
+      if(a_node->m_count < (GetNumberOfLeafNodeDegrees()/GetNumberOfUpperTreeDegrees())){
         split = false;
       }
     }
@@ -1322,7 +1320,7 @@ void RTREE_QUAL::SplitNode(Node* a_node, const Branch* a_branch, Node** a_newNod
   int min_nodes = GetNumberOfUpperTreeDegrees()/2;
   if(LARGE_LEAF){
     if(a_node->IsLeaf()){
-      min_nodes = (GetNumberOfLeafNodeDegrees()/(2*128));
+      min_nodes = (GetNumberOfLeafNodeDegrees()/(2*GetNumberOfUpperTreeDegrees()));
     }
   }
   ChoosePartition(parVars, min_nodes);
@@ -1415,7 +1413,7 @@ void RTREE_QUAL::GetBranches(Node* a_node, const Branch* a_branch, PartitionVars
     if(a_node->IsInternalNode()){
       ASSERT(a_node->m_count == GetNumberOfUpperTreeDegrees());
     }else{
-      ASSERT(a_node->m_count == (GetNumberOfLeafNodeDegrees()/128));
+      ASSERT(a_node->m_count == (GetNumberOfLeafNodeDegrees()/GetNumberOfUpperTreeDegrees()));
     }
   }else{
     ASSERT(a_node->m_count == MAXNODES);

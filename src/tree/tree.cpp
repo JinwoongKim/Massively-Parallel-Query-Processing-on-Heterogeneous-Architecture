@@ -190,8 +190,10 @@ bool Tree::RTree_LS_Top_Down(std::vector<node::Branch> &branches) {
   recorder.TimeRecordStart();
 
 #define RTree_LS
-  typedef ursus::RTree<float, float, GetNumberOfDims(), float, (GetNumberOfLeafNodeDegrees()/128), 
-  (GetNumberOfLeafNodeDegrees()/256), true/* enable large leaf node*/> RTrees; // TODO make it more readable...
+  typedef ursus::RTree<float, float, GetNumberOfDims(), float, 
+  (GetNumberOfLeafNodeDegrees()/GetNumberOfUpperTreeDegrees()), 
+  (GetNumberOfLeafNodeDegrees()/(2*GetNumberOfUpperTreeDegrees())),
+  true/* enable large leaf node*/> RTrees; // TODO make it more readable...
   RTrees tree;
 
   float min[GetNumberOfDims()];
@@ -228,7 +230,7 @@ bool Tree::RTree_LS_Top_Down(std::vector<node::Branch> &branches) {
   b_node_ptr = new node::LeafNode[leaf_node_count];
 
   // shift points to left shide
-  tree.Transpose2(node_ptr, b_node_ptr);
+  tree.Transpose_RTree_LS(node_ptr, b_node_ptr);
 
   host_height-=2;
   assert(host_height);
