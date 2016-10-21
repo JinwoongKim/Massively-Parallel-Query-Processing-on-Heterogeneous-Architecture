@@ -5,7 +5,7 @@ namespace ursus {
 
   __host__ __device__ constexpr unsigned int GetNumberOfUpperTreeDegrees() { return 128; }
 
-  __host__ __device__ constexpr unsigned int GetNumberOfLeafNodeDegrees() { return 98304; }
+  __host__ __device__ constexpr unsigned int GetNumberOfLeafNodeDegrees() { return 192; }
   
   __host__ __device__ constexpr unsigned int GetNumberOfThreads() { return 192; }
 
@@ -13,5 +13,7 @@ namespace ursus {
   // TODO Rename it 
   __host__ __device__ constexpr unsigned int GetNumberOfThreads2() { return 256; }
 
-  __host__ __device__ constexpr unsigned int GetNumberOfMAXBlocks() { return 256; }
+  __host__ __device__ constexpr unsigned int GetNumberOfMAXCPUThreads() { return 32; }
+
+  __host__ __device__ constexpr unsigned int GetNumberOfMAXBlocks() { return 128; }
 } // End of ursus namespace

@@ -1062,10 +1062,8 @@ void global_BottomUpBuild_ILP(ul current_offset, ul parent_offset,
     for( ui range(dim, 0, GetNumberOfDims())) {
       ui high_dim = dim+GetNumberOfDims();
 
-      //__shared__ float lower_boundary[GetNumberOfLeafNodeDegrees()];
-      //__shared__ float upper_boundary[GetNumberOfLeafNodeDegrees()];
-      float lower_boundary[GetNumberOfLeafNodeDegrees()];
-      float upper_boundary[GetNumberOfLeafNodeDegrees()];
+      __shared__ float lower_boundary[GetNumberOfLeafNodeDegrees()];
+      __shared__ float upper_boundary[GetNumberOfLeafNodeDegrees()];
 
       for( ui range(thread, tid, GetNumberOfLeafNodeDegrees(), GetNumberOfThreads())) {
         if( thread < current_node->GetBranchCount()){

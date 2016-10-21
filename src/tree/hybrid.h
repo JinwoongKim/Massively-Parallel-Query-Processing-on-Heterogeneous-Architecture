@@ -67,7 +67,8 @@ class Hybrid : public Tree {
   void SetNumberOfCUDABlocks(ui number_of_cuda_blocks);
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
-                           ll passed_hIndex, ui *node_visit_count);
+                           ll passed_hIndex, ui *node_visit_count,
+                           ui& diff_size);
 
   // Collect start node index in advance
   // to measure CPU/GPU execution time
@@ -112,18 +113,17 @@ class Hybrid : public Tree {
 
   TreeType UPPER_TREE_TYPE;
 
-  // FIXME should be isolated by thread
-  // Monitoring Variables
-  std::vector<ll> dist;
-  ui commit=0;
+  ll total_index_diff=0;
+  int index_diff_cnt=0;
+  ui total_launched_block=0;
 };
 
 //===--------------------------------------------------------------------===//
 // Cuda Variable & Function 
 //===--------------------------------------------------------------------===//
 
-extern __device__ ui g_hit[GetNumberOfMAXBlocks()]; 
-extern __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()]; 
+extern __device__ ui g_hit[GetNumberOfMAXBlocks()*GetNumberOfMAXCPUThreads()];  // FIXME
+extern __device__ ui g_node_visit_count[GetNumberOfMAXBlocks()*GetNumberOfMAXCPUThreads()];  // FIXME
 extern __device__ ui g_monitor[GetNumberOfMAXBlocks()]; 
 
 __global__
@@ -139,10 +139,6 @@ __global__
 void global_ParallelScan_Leafnodes(Point* _query, ll start_node_offset, 
                                    ui chunk_size, ui bid_offset,
                                    ui number_of_blocks_per_cpu);
-__global__ 
-void global_ParallelScan_ExtendLeafnodes(Point* _query, ll start_node_offset, 
-                                             ui chunk_size, ui bid_offset,
-                                             ui number_of_blocks_per_cpu);
  
 } // End of tree namespace
 } // End of ursus namespace
