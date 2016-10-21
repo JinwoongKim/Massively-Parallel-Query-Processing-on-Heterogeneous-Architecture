@@ -48,8 +48,8 @@ class Hybrid : public Tree {
              ui number_of_search, ui number_of_repeat);
 
   void Thread_Search(std::vector<Point>&query, Point* d_query, 
-                     ui tid, ui number_of_blocks_per_cpu, 
-                     ui& jump_count, ui& node_visit_count, 
+                     ui tid, ui& jump_count, ui& launched_block,
+                     ui& node_visit_count, 
                      ui start_offset, ui end_offset) ;
 
   void SetChunkSize(ui chunk_size);
@@ -68,7 +68,7 @@ class Hybrid : public Tree {
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count,
-                           ui& diff_size);
+                           ui& t_nBlocks);
 
   // Collect start node index in advance
   // to measure CPU/GPU execution time
