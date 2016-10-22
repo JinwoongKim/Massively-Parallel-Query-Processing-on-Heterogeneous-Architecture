@@ -512,6 +512,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
               thread_itr, std::ref(thread_jump_count[thread_itr]), 
               std::ref(thread_launched_block[thread_itr]), 
               std::ref(thread_node_visit_count_cpu[thread_itr]),
+              number_of_cpu_threads,
               start_offset, end_offset));
 
         start_offset = end_offset;
@@ -537,7 +538,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     cudaDeviceSynchronize();
     auto elapsed_time = recorder.TimeRecordEnd();
 
-    global_GetHitCount<<<GetNumberOfMAXCPUThreads(),GetNumberOfMAXBlocks()/*FIXME*/>>>(d_hit, d_node_visit_count);
+    global_GetHitCount<<<GetNumberOfMAXCPUThreads(),GetNumberOfMAXBlocks()>>>(d_hit, d_node_visit_count);
     cudaMemcpy(h_hit, d_hit, sizeof(ui), cudaMemcpyDeviceToHost);
     cudaMemcpy(h_node_visit_count, d_node_visit_count, sizeof(ui), cudaMemcpyDeviceToHost);
     total_hit = h_hit[0];
@@ -563,21 +564,14 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     LOG_INFO("Avg. Node visit count on GPU : \n%f", total_node_visit_count_gpu/(float)number_of_search);
     LOG_INFO("Total Node visit count on GPU : %d\n", total_node_visit_count_gpu);
 
-    LOG_INFO("Total Index Diff : %lu\n", total_index_diff);
-    LOG_INFO("Index Diff Cnt : %d\n", index_diff_cnt);
-    LOG_INFO("Avg. Index Diff.  : %f\n", total_index_diff/(float)index_diff_cnt);
-    LOG_INFO("Total Launched Block : %f\n", total_launched_block);
-    LOG_INFO("Avg. Launched Block : %f\n", total_launched_block/(float)number_of_search);
+//    LOG_INFO("Total Index Diff : %lu\n", total_index_diff);
+//    LOG_INFO("Index Diff Cnt : %d\n", index_diff_cnt);
+//    LOG_INFO("Avg. Index Diff.  : %f\n", total_index_diff/(float)index_diff_cnt);
+    LOG_INFO("Total Launched Block : %d\n", total_launched_block);
+    LOG_INFO("Avg. Launched Block : %f\n", total_launched_block/(float)total_jump_count);
   }
   return 1;
 }
-
-ll Hybrid::GetNextStartNodeIndex(ui tid) {
-  auto start_node_index =  thread_start_node_index[tid].front();
-  thread_start_node_index[tid].pop();
-  return start_node_index;
-}
-
 
 void Hybrid::Thread_Monitoring(ui update_interval){
 
@@ -660,7 +654,7 @@ void Hybrid::Thread_Monitoring(ui update_interval){
 
 void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                            ui& jump_count, ui& launched_block, 
-                           ui& node_visit_count, 
+                           ui& node_visit_count, ui number_of_cpu_threads,
                            ui start_offset, ui end_offset) {
   jump_count = 0;
   launched_block = 0;
@@ -673,26 +667,24 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
   ll start_node_offset=0;
   ui t_chunk_size=0;
 
-  auto number_of_nodes = level_node_count[level_node_count.size()-scan_level];
+  auto number_of_nodes = device_node_count;
 
   for(ui range(query_itr, start_offset, end_offset)) {
     ll visited_leafIndex = 0;
-    ll prev_start_node_offset=0;
-    ui t_nBlocks=1;
-
+    //ll prev_start_node_offset=0;
+    ui t_nBlocks=0;
 
     while(1) {
+      t_nBlocks=1;
       //===--------------------------------------------------------------------===//
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
-#ifndef USE_QUEUE
       start_node_index = TraverseInternalNodes(node_ptr, &query[query_offset], 
                                                visited_leafIndex, &node_visit_count,
+                                               number_of_cpu_threads,
                                                t_nBlocks);
-#else
-      start_node_index = GetNextStartNodeIndex(tid);
-#endif
       t_chunk_size=t_nBlocks*4;
+
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
         break;
@@ -704,6 +696,9 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       // larger than number of leaf nodes
       if(start_node_offset+t_chunk_size > number_of_nodes) {
         t_chunk_size = (number_of_nodes - start_node_offset);
+        if(t_nBlocks>t_chunk_size){
+          t_nBlocks = t_chunk_size;
+        }
       }
 
       //===--------------------------------------------------------------------===//
@@ -761,7 +756,7 @@ void Hybrid::SetNumberOfCUDABlocks(ui _number_of_cuda_blocks){
 
 ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                                  ll visited_leafIndex, ui *node_visit_count,
-                                 ui& t_nBlocks) {
+                                 const ui number_of_cpu_threads, ui& t_nBlocks) {
 
   ll start_node_index=0;
   ll end_node_index=0;
@@ -774,7 +769,7 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
           node_ptr->IsOverlap(query, branch_itr)) {
         start_node_index=TraverseInternalNodes(node_ptr->GetBranchChildNode(branch_itr), 
                                             query, visited_leafIndex, node_visit_count,
-                                            t_nBlocks);
+                                            number_of_cpu_threads, t_nBlocks);
 
         if(start_node_index > 0) break;
       }
@@ -811,15 +806,19 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
             index_diff_cnt++;
        */
       if(t_nBlocks>64){
-        t_nBlocks = 16;
+        t_nBlocks = 64;
       } else if(t_nBlocks > 32){
-        t_nBlocks = 16;
+        t_nBlocks = 32;
       } else if(t_nBlocks > 16){
         t_nBlocks = 16;
       } else if(t_nBlocks > 8){
         t_nBlocks = 8;
       } else {
         t_nBlocks = 4;
+      }
+
+      if( t_nBlocks < (128/number_of_cpu_threads)){
+        t_nBlocks = (128/number_of_cpu_threads);
       }
     }
   }
@@ -862,6 +861,7 @@ void global_GetHitCount(ui* hit, ui* node_visit_count) {
       }
     }
   }
+  __syncthreads();
 
   {
     ParallelReduction(g_node_visit_count,GetNumberOfMAXBlocks()*GetNumberOfMAXCPUThreads());

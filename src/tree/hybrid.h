@@ -49,7 +49,7 @@ class Hybrid : public Tree {
 
   void Thread_Search(std::vector<Point>&query, Point* d_query, 
                      ui tid, ui& jump_count, ui& launched_block,
-                     ui& node_visit_count, 
+                     ui& node_visit_count, ui number_of_cpu_threads,
                      ui start_offset, ui end_offset) ;
 
   void SetChunkSize(ui chunk_size);
@@ -68,24 +68,9 @@ class Hybrid : public Tree {
 
   ll TraverseInternalNodes(node::Node *node_ptr, Point* query, 
                            ll passed_hIndex, ui *node_visit_count,
-                           ui& t_nBlocks);
-
-  // Collect start node index in advance
-  // to measure CPU/GPU execution time
-  void Thread_CollectStartNodeIndex(std::vector<Point>& query,
-                                    std::queue<ll> &start_node_indice,
-                                    ui start_offset, ui end_offset);
-
-  void Thread_OracleV(ui* unit_cnt, int weight);
-  void Thread_OracleV2(ui* unit_cnt, int weight);
-
-  void Thread_OracleS(ui* unit_cnt, bool& up, int weight);
-  void Thread_OracleS2(ui* unit_cnt, bool& up, int weight);
+                           const ui number_of_cpu_threads, ui& t_nBlocks);
 
   void Thread_Monitoring(ui update_interval);
-
-  ll GetNextStartNodeIndex(ui tid);
-
 
   //===--------------------------------------------------------------------===//
   // Members
