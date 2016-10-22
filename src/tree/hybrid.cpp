@@ -445,6 +445,9 @@ ui Hybrid::GetNumberOfExtendLeafNodeSOA() const {
   return level_node_count[level_node_count.size()-2];;
 }
 
+//#define STATIC
+
+
 int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set, 
                    ui number_of_search, ui number_of_repeat){
 
@@ -459,6 +462,12 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
   //===--------------------------------------------------------------------===//
   // Set # of threads and Chunk Size
   //===--------------------------------------------------------------------===//
+#ifdef STATIC
+  LOG_INFO("Static Scheduling");
+#else
+  LOG_INFO("Dynamic Scheduling");
+#endif
+
   for(ui range(repeat_itr, 0, number_of_repeat)) {
     LOG_INFO("#%u) Evaluation", repeat_itr+1);
     //===--------------------------------------------------------------------===//
@@ -469,7 +478,8 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
     ui total_hit = 0;
     ui total_jump_count = 0;
-    ui total_launched_block = 0;
+    std::vector<ui> total_launched_block;
+    total_launched_block.resize(GetNumberOfMAXBlocks()+1);
     ui total_node_visit_count_cpu = 0;
     ui total_node_visit_count_gpu = 0;
 
@@ -487,7 +497,7 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
     //===--------------------------------------------------------------------===//
     std::vector<std::thread> threads;
     ui thread_jump_count[number_of_cpu_threads];
-    ui thread_launched_block[number_of_cpu_threads];
+    std::vector<ui> thread_launched_block[number_of_cpu_threads];
     ui thread_node_visit_count_cpu[number_of_cpu_threads];
 
     //===--------------------------------------------------------------------===//
@@ -526,11 +536,13 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 
       for(ui range(thread_itr, 0, number_of_cpu_threads)) {
         total_jump_count += thread_jump_count[thread_itr];
-        total_launched_block += thread_launched_block[thread_itr];
         total_node_visit_count_cpu += thread_node_visit_count_cpu[thread_itr];
+        for(ui range(i,0, thread_launched_block[thread_itr].size())){
+          total_launched_block[i] += thread_launched_block[thread_itr][i];
+        }
       }
     }
-    LOG_INFO("Avg. Jump Count %f", total_jump_count/(float)number_of_search);
+    LOG_INFO("Avg. Jump Count \n%f", total_jump_count/(float)number_of_search);
     LOG_INFO("Total Jump Count %u", total_jump_count);
 
     // A problem with using host-device synchronization points, such as
@@ -567,8 +579,12 @@ int Hybrid::Search(std::shared_ptr<io::DataSet> query_data_set,
 //    LOG_INFO("Total Index Diff : %lu\n", total_index_diff);
 //    LOG_INFO("Index Diff Cnt : %d\n", index_diff_cnt);
 //    LOG_INFO("Avg. Index Diff.  : %f\n", total_index_diff/(float)index_diff_cnt);
-    LOG_INFO("Total Launched Block : %d\n", total_launched_block);
-    LOG_INFO("Avg. Launched Block : %f\n", total_launched_block/(float)total_jump_count);
+    //LOG_INFO("Avg. Launched Block : \n%f\n", total_launched_block/(float)total_jump_count);
+    for(ui range(i, 0, total_launched_block.size())){
+      if(total_launched_block[i] > 0){
+      LOG_INFO("Launched Block[%d] : %d\n", i, total_launched_block[i]);
+      }
+    }
   }
   return 1;
 }
@@ -653,11 +669,11 @@ void Hybrid::Thread_Monitoring(ui update_interval){
 }
 
 void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
-                           ui& jump_count, ui& launched_block, 
+                           ui& jump_count, std::vector<ui>& launched_block, 
                            ui& node_visit_count, ui number_of_cpu_threads,
                            ui start_offset, ui end_offset) {
   jump_count = 0;
-  launched_block = 0;
+  launched_block.resize(GetNumberOfMAXBlocks()+1);
   node_visit_count = 0;
 
   const ui bid_offset = tid*GetNumberOfMAXBlocks();
@@ -665,17 +681,28 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
 
   ll start_node_index;
   ll start_node_offset=0;
-  ui t_chunk_size=0;
+  ui t_nBlocks;
+  ui t_chunk_size;
 
-  auto number_of_nodes = device_node_count;
+#ifdef STATIC
+  ui chunk_size_bak = 0;
+  bool chunk_size_dirty = false;
+  t_chunk_size=GetChunkSize();
+#endif
+
+  auto number_of_nodes = GetNumberOfLeafNodeSOA();
 
   for(ui range(query_itr, start_offset, end_offset)) {
     ll visited_leafIndex = 0;
-    //ll prev_start_node_offset=0;
-    ui t_nBlocks=0;
+
+#ifdef STATIC
+    t_nBlocks= (128/number_of_cpu_threads);
+#endif
 
     while(1) {
-      t_nBlocks=1;
+#ifndef STATIC
+      t_nBlocks= 1;
+#endif
       //===--------------------------------------------------------------------===//
       // Traversal Internal Nodes on CPU
       //===--------------------------------------------------------------------===//
@@ -683,7 +710,9 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                                                visited_leafIndex, &node_visit_count,
                                                number_of_cpu_threads,
                                                t_nBlocks);
-      t_chunk_size=t_nBlocks*4;
+#ifndef STATIC
+t_chunk_size=t_nBlocks*4;
+#endif
 
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
@@ -695,10 +724,17 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
       // resize chunk_size if the sum of start node offset and chunk size is
       // larger than number of leaf nodes
       if(start_node_offset+t_chunk_size > number_of_nodes) {
+#ifdef STATIC
+        chunk_size_bak = t_chunk_size;
         t_chunk_size = (number_of_nodes - start_node_offset);
-        if(t_nBlocks>t_chunk_size){
+        chunk_size_dirty = true;
+#else
+        t_chunk_size = (number_of_nodes - start_node_offset);
+        if(t_nBlocks > t_chunk_size){
           t_nBlocks = t_chunk_size;
+          LOG_INFO("Updated t_nBlocks %u", t_nBlocks);
         }
+#endif
       }
 
       //===--------------------------------------------------------------------===//
@@ -708,8 +744,17 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                                      (&d_query[query_offset], start_node_offset,
                                      t_chunk_size, bid_offset, t_nBlocks);
       visited_leafIndex = (start_node_offset+t_chunk_size)*GetNumberOfLeafNodeDegrees();
-      launched_block += t_nBlocks;
       jump_count++;
+
+      launched_block[t_nBlocks]++;
+
+#ifdef STATIC
+      if(chunk_size_dirty){
+        SetChunkSize(chunk_size_bak);
+        chunk_size_dirty = false;
+      }
+#endif
+
     }
     query_offset += GetNumberOfDims()*2;
   }
@@ -775,7 +820,16 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
       }
     }
   } // leaf nodes
+
   else {
+#ifdef STATIC
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex ) {
+        start_node_index = node_ptr->GetBranchIndex(branch_itr);
+        break;
+      }
+    }
+#else
     start_node_index=node_ptr->GetLastBranchIndex();
     ll start_node_branch=0;
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
@@ -788,7 +842,7 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
         }
       }
     }
-    for(ui branch_itr=node_ptr->GetBranchCount()-1; branch_itr>start_node_branch; branch_itr--){
+    for(ui branch_itr=node_ptr->GetBranchCount()-1; branch_itr>(start_node_branch+4); branch_itr--){
       if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex  &&
           node_ptr->IsOverlap(query, branch_itr)) {
         if( end_node_index < node_ptr->GetBranchIndex(branch_itr)){
@@ -799,12 +853,6 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
     }
     if( end_node_index > start_node_index) {
       t_nBlocks = end_node_index - start_node_index;
-      /*    printf("start node index %lu\n", start_node_index);
-            printf("end node index %lu\n", end_node_index);
-            printf("index diff %lu\n", index_diff);
-            total_index_diff += index_diff;
-            index_diff_cnt++;
-       */
       if(t_nBlocks>64){
         t_nBlocks = 64;
       } else if(t_nBlocks > 32){
@@ -820,9 +868,10 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
       if( t_nBlocks < (128/number_of_cpu_threads)){
         t_nBlocks = (128/number_of_cpu_threads);
       }
-    }
-  }
 
+    }
+#endif
+  }
   return start_node_index;
 }
 

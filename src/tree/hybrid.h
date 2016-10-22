@@ -48,7 +48,7 @@ class Hybrid : public Tree {
              ui number_of_search, ui number_of_repeat);
 
   void Thread_Search(std::vector<Point>&query, Point* d_query, 
-                     ui tid, ui& jump_count, ui& launched_block,
+                     ui tid, ui& jump_count, std::vector<ui> &launched_block,
                      ui& node_visit_count, ui number_of_cpu_threads,
                      ui start_offset, ui end_offset) ;
 
