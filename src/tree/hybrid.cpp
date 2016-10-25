@@ -696,7 +696,7 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
     ll visited_leafIndex = 0;
 
 #ifdef STATIC
-    t_nBlocks= (128/number_of_cpu_threads);
+    t_nBlocks= (208/number_of_cpu_threads);
 #endif
 
     while(1) {
@@ -710,9 +710,8 @@ void Hybrid::Thread_Search(std::vector<Point>& query, Point* d_query, ui tid,
                                                visited_leafIndex, &node_visit_count,
                                                number_of_cpu_threads,
                                                t_nBlocks);
-#ifndef STATIC
+
 t_chunk_size=t_nBlocks*4;
-#endif
 
       // no more overlapping internal nodes, terminate current query
       if( start_node_index == 0) {
@@ -830,6 +829,10 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
       }
     }
 #else
+
+#define LINEAR
+
+#ifdef LINEAR
     start_node_index=node_ptr->GetLastBranchIndex();
     ll start_node_branch=0;
     for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
@@ -851,6 +854,63 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
         }
       }
     }
+
+    if( end_node_index > start_node_index) {
+      t_nBlocks = end_node_index - start_node_index;
+      if(t_nBlocks>104){
+        t_nBlocks = 104;
+      } else if(t_nBlocks > 52){
+        t_nBlocks = 52;
+      } else if(t_nBlocks > 26){
+        t_nBlocks = 26;
+      } else if(t_nBlocks > 13){
+        t_nBlocks = 13;
+      } else{ 
+        t_nBlocks = 6;
+      }
+
+      if( t_nBlocks < (208/number_of_cpu_threads)){
+        t_nBlocks = (208/number_of_cpu_threads);
+      }
+    }
+#endif
+
+#ifdef BINARY
+    start_node_index=node_ptr->GetLastBranchIndex();
+    ll start_node_branch=0;
+    ll end_node_branch=0;
+    for(ui range(branch_itr, 0, node_ptr->GetBranchCount())) {
+      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex  &&
+          node_ptr->IsOverlap(query, branch_itr)) {
+        if( start_node_index > node_ptr->GetBranchIndex(branch_itr)){
+          start_node_index = node_ptr->GetBranchIndex(branch_itr);
+          start_node_branch = branch_itr;
+          break;
+        }
+      }
+    }
+    end_node_branch=(node_ptr->GetBranchCount()-1);
+    end_node_index = node_ptr->GetBranchIndex(end_node_branch);
+
+    while((start_node_branch)<end_node_branch){
+      start_node_index = node_ptr->GetBranchIndex(start_node_branch);
+      end_node_index = node_ptr->GetBranchIndex(end_node_branch);
+
+      long node_branch = (end_node_branch+start_node_branch)/2;
+      node_branch += (end_node_branch+start_node_branch)%2;
+      bool hit = false;
+      if( node_ptr->GetBranchIndex(node_branch) > visited_leafIndex  &&
+          node_ptr->IsOverlap(query, node_branch)) {
+        hit = true;
+      }
+      if(hit){
+        start_node_branch=node_branch;
+      }else{
+        end_node_branch=node_branch;
+      }
+      if((start_node_branch+1)==end_node_branch) break;
+    }
+
     if( end_node_index > start_node_index) {
       t_nBlocks = end_node_index - start_node_index;
       if(t_nBlocks>64){
@@ -868,8 +928,41 @@ ll Hybrid::TraverseInternalNodes(node::Node *node_ptr, Point* query,
       if( t_nBlocks < (128/number_of_cpu_threads)){
         t_nBlocks = (128/number_of_cpu_threads);
       }
-
     }
+#endif
+
+#ifdef RANDOm 
+    start_node_index=node_ptr->GetBranchIndex(0);
+    ui hit=0;
+    ui weight = 4; // pick 16
+    //ui weight = 2; // pick 32
+    for(ui range( branch_itr, 0, node_ptr->GetBranchCount(), branch_itr+=(2*weight))){
+      if( node_ptr->GetBranchIndex(branch_itr) > visited_leafIndex  &&
+          node_ptr->IsOverlap(query, branch_itr)) {
+        if(hit==0){
+          start_node_index=node_ptr->GetBranchIndex(branch_itr);
+        }
+        hit++;
+      }
+    }
+
+    if( hit >=(32/weight)){
+      t_nBlocks = 64;
+    } else if( hit >= (16/weight)){
+      t_nBlocks = 32;
+    } else if( hit >= (8/weight)){
+      t_nBlocks = 16;
+    } else if( hit >= (4/weight)){
+      t_nBlocks = 8;
+    } else{
+      t_nBlocks = 4;
+    }
+
+    if( t_nBlocks < (128/number_of_cpu_threads)){
+      t_nBlocks = (128/number_of_cpu_threads);
+    }
+#endif
+
 #endif
   }
   return start_node_index;
