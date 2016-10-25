@@ -187,17 +187,17 @@ bool Evaluator::Search(void) {
           if( EvaluationMode == 2 ||
               EvaluationMode == 3) {
             for(auto cpu_thread_itr : cpu_thread_vec) {
-              for(auto chunk_size_itr : chunk_size_vec) {
+//              for(auto chunk_size_itr : chunk_size_vec) {
                 auto cuda_block_per_cpu = 128/cpu_thread_itr;
-                if( chunk_size_itr >= cuda_block_per_cpu) {
-                  hybrid->SetChunkSize(chunk_size_itr);
+//                if( chunk_size_itr >= cuda_block_per_cpu) {
+                  hybrid->SetChunkSize(cuda_block_per_cpu*4);
                   hybrid->SetNumberOfCPUThreads(cpu_thread_itr);
                   hybrid->SetNumberOfCUDABlocks(128);
                   LOG_INFO("Evaluation Mode On CPU Thread %u CUDA Block %u Chunk Size %u", 
-                  cpu_thread_itr, cuda_block_per_cpu, chunk_size_itr);
+                  cpu_thread_itr, cuda_block_per_cpu,  cuda_block_per_cpu*4/*chunk_size_itr*/);
                   tree->Search(query_data_set, number_of_search, number_of_repeat);
-                }
-              }
+                //}
+              //}
             }
           }
 

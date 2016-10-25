@@ -15,5 +15,5 @@ namespace ursus {
 
   __host__ __device__ constexpr unsigned int GetNumberOfMAXCPUThreads() { return 32; }
 
-  __host__ __device__ constexpr unsigned int GetNumberOfMAXBlocks() { return 128; }
+  __host__ __device__ constexpr unsigned int GetNumberOfMAXBlocks() { return 208; }
 } // End of ursus namespace
