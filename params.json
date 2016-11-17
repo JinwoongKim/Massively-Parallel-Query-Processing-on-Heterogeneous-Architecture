@@ -1,5 +1,5 @@
 {
-  "name": "Massively Parallel Query Processingn on Heterogeneous Architecture",
+  "name": "Massively Parallel Query Processing on Heterogeneous Architecture",
   "tagline": "This is the project for massively parallel query processing on heterogeneous architecture",
   "body": "### About this project\r\nSensor and simulator generate a truly large amount of data everyday. Such scientific datasets are commonly made up of multi-dimensional arrays. Hierarchical indexing structure such as R-trees and external indexing libraries have been proposed, however, do not fully support indexing a large amount of multi-dimensional data.\r\n\r\nIn this project, we design and implement novel data structures and tree traversal algorithm to support\r\nsuch large scale scientific data sets. Our evaluation shows that our proposed trees and search algorithms outperform existing data structures and search algorithms.\r\n\r\n\r\n### Authors and Contributors\r\nJinwoong Kim(@JinwoongKim) is working on this project.\r\n\r\nProfessor. Beomseok Nam(@bsnam) is the provider of much wisdom and motivator.\r\n\r\n### Contact\r\nHaving trouble with this project? [Contact me](https://dicl.dicl.ac.kr/~jwkim) and I’ll help you sort it out.",
   "google": "",
